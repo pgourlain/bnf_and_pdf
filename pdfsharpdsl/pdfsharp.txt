@@ -1,0 +1,116 @@
+# sample
+SET PEN black 1
+SET BRUSH black
+SET FONT "Arial" 20 bold 
+
+# draw text on top of the page
+TITLE hcenter top "TITLE TEST"
+TITLE 50 hcenter top "My title with margin 50"
+TITLE 100 left top "My title with margin 100"
+TITLE 100 right vcenter "My title with margin 100"
+TITLE -0.1 bottom "My title with margin -0.1"
+
+NEWPAGE
+TITLE hcenter top "ELLIPSE and RECT"
+ELLIPSE 5, 5, -5, -5
+RECT 5, 5, -5, -5
+
+RECT 100, 100, 50,50
+ELLIPSE 100, 100, 50,50
+
+SET BRUSH orange
+FILLRECT 250, 100, 50,50
+SET BRUSH green
+FILLELLIPSE 250, 200, 50,50
+
+NEWPAGE
+SET BRUSH black
+
+TITLE hcenter "Text TEST"
+SET FONT "Consolas" 8 bold 
+
+LINETEXT 42,100 left vcenter vertical "Vertical text to 90°"
+SET FONT "Consolas" 12 bold 
+SET BRUSH g1.4
+LINETEXT 100,100 left vcenter "color grayscale 1.4"
+SET BRUSH g1.5
+LINETEXT 100,110 left vcenter "color grayscale 1.5"
+SET BRUSH g1.6
+LINETEXT 100,120 left vcenter "color grayscale 1.6"
+SET BRUSH g1.7
+LINETEXT 100,130 left vcenter "color grayscale 1.7"
+SET BRUSH g1.8
+LINETEXT 100,140 left vcenter "color grayscale 1.8"
+LINETEXT 60,100 left vcenter vertical "Vertical text to 90°"
+
+NEWPAGE
+SET FONT "Arial" 20 bold 
+TITLE hcenter "Line TEST"
+
+SET FONT "Consolas" 12 bold 
+LINETEXT 100,100 left bottom "LINE"
+LINE 100,100, 200, 100
+LINE 100,120, 200, 120
+LINE 200,100, 200, 90
+LINE 200,90, 220, 110
+LINE 220,110, 200, 130
+LINE 200,130, 200, 120
+
+# hexagone
+# moveTo(-T/2, -T*Math.sqrt(3)/2);
+# lineTo(T/2, -T*Math.sqrt(3)/2);
+# lineTo(T, 0);
+# lineTo(T/2, T*Math.sqrt(3)/2);
+# lineTo(-T/2, T*Math.sqrt(3)/2);
+# lineTo(-T, 0);
+# lineTo(-T/2, -T*Math.sqrt(3)/2);
+# 100 * 1.7320 / 2 => 86.6025
+
+LINETEXT 150*(2),200*2 left bottom "formula"
+
+LINETEXT 300,200 left bottom "MOVETO/LINETO"
+MOVETO 300, 200
+LINETEXT 400,200 left bottom 60 "LINETO"
+LINETO 400, 200
+LINETEXT 450,286.6025 left bottom 120 "LINETO"
+LINETO 450, 286.6025
+LINETEXT 400,373.205 left bottom 180 "LINETO"
+LINETO 400, 373.205
+LINETEXT 300, 373.205 left bottom 240 "LINETO"
+LINETO 300, 373.205
+LINETEXT 250, 286.6025 left bottom 300 "LINETO"
+LINETO 250, 286.6025
+LINETO 300, 200
+
+
+
+NEWPAGE
+
+SET FONT "Arial" 20 bold 
+TITLE hcenter "Table TEST"
+
+
+TABLE 20, 15, auto, auto
+HEAD
+COL 40 "FirstName"
+COL 50 "LastName"
+ENDHEAD
+ROW
+COL "Pierrick"
+COL "Gourlain"
+ENDROW
+ROW
+COL "X"
+COL "Y"
+ENDROW
+ENDTABLE
+
+NEWPAGE
+
+SET FONT "Arial" 20 bold 
+TITLE hcenter "Template TEST"
+
+# DEFINE TEMPLATE toto 
+# 
+# ENDDEFINE
+
