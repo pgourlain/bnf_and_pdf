@@ -439,7 +439,7 @@ namespace Pdf
                     offsetX += column.DesiredWidth ?? 0;
                     //todo: alignment
                     var fmt = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center };
-                    Gfx.DrawString(column.ColumnHeaderName, xFonts[i], column.Brush ?? defaultBrush, r, fmt);
+                    DrawStringMultiline(column.ColumnHeaderName, xFonts[i], column.Brush ?? defaultBrush, r, fmt);
                     i++;
                 }
                 offsetY = tblDef.HeaderHeight ?? 0;
@@ -469,7 +469,7 @@ namespace Pdf
                         //to debug
                         //Gfx.DrawRectangle(XPens.Violet, rText);
                         //TODO: split to draw one string per line
-                        Gfx.DrawString(row.Data[i], xFonts[i], tblDef.Columns[i].Brush ?? defaultBrush, rText, fmt);
+                        DrawStringMultiline(row.Data[i], xFonts[i], tblDef.Columns[i].Brush ?? defaultBrush, rText, fmt);
                         offsetX += w;
                     }
                     offsetY += row.DesiredHeight ?? 0;
@@ -480,6 +480,20 @@ namespace Pdf
                 Gfx.Restore();
             }
             
+        }
+
+        private void DrawStringMultiline(string text, XFont xFont, XBrush xBrush, XRect r, XStringFormat fmt)
+        {
+            var splitted = text.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+            splitted = splitted.SelectMany(x => x.Split('\r', '\n')).ToArray();
+            var h = r.Height / splitted.Length;
+            var offsetY = 0.0;
+            foreach (var s in splitted)
+            {
+                Gfx.DrawString(s, xFont, xBrush, new XRect(r.Left, r.Top+offsetY, r.Width, h), fmt);
+                offsetY += h;
+            }
+
         }
 
         public void SetViewSize(double w, double h)

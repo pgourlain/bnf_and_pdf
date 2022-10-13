@@ -93,10 +93,13 @@ TITLE hcenter "Table TEST"
 SET FONT "Arial" 8 regular
 SET PEN black 0.5
 
+# TABLE X, Y
+# HEAD [BackColor]
+# COL desiredwidth maxwidth [Font=name,size,style] [FontColor BackColor] headerName
 TABLE 20, 700
 HEAD g1.9
 COL auto auto FONT="Consolas", 8, bold green g1.9 "FirstName"
-COL auto 40 "LastName"
+COL auto 40 FONT="Consolas", 8, regular red lightblue "LastName" 
 COL auto 40 "Age"
 COL auto 40 "Title"
 COL auto 40 "Project"
@@ -108,9 +111,10 @@ ENDROW
 ROW
 COL "X"
 COL "Y"
+COL "test long string that to see if column if resize or not"
 ENDROW
 ROW
-COL "XX"
+COL "Multiline text to see \r\nanother line\r\n third line"
 COL "YY"
 ENDROW
 ROW
