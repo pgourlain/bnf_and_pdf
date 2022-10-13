@@ -29,5 +29,10 @@ namespace pdfsharpdsl.Extensions
             }
             return result.AsReadOnly();
         }
+
+        public static ParseTreeNode? ChildNode(this ParseTreeNode node, string termName)
+        {
+            return node.ChildNodes.Where(n => n.Term != null && n.Term.Name == termName).FirstOrDefault();
+        }
     }
 }

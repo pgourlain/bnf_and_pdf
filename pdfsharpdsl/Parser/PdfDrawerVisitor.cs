@@ -170,13 +170,23 @@ namespace pdfsharpdsl.Parser
 
                 }
                 //font
-                var colFontNode = col.ChildNodes[2];
-                if (colFontNode.ChildNodes.Count > 0)
+                var colFontNode = col.ChildNode("TableColFont");
+                if (colFontNode?.ChildNodes.Count > 0)
                 {
                     colDef.Font = ExtractFont(colFontNode);
                 }
+                var fontColor = col.ChildNode("TableColFontColor");
+                var backColor = col.ChildNode("TableColBackColor");
+                if (fontColor?.ChildNodes.Count > 0)
+                {
+                    colDef.Brush = new XSolidBrush(ParseColor(fontColor.ChildNodes[0]));
+                }
+                if (backColor?.ChildNodes.Count > 0)
+                {
+                    colDef.BackColor = new XSolidBrush(ParseColor(backColor.ChildNodes[0]));
+                }
                 //name
-                colDef.ColumnHeaderName = col.ChildNodes[3].Token.ValueString;
+                colDef.ColumnHeaderName = col.ChildNodes.Last().Token.ValueString;
 
                 tbl.Columns.Add(colDef);
             }

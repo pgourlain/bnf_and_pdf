@@ -38,6 +38,7 @@ namespace Pdf
         public XStringAlignment Alignment { get; set; } = XStringAlignment.Near;
         public XFont? Font { get; set; }
         public XBrush? Brush { get; set; }
+        public XBrush? BackColor { get; set; }
 
     }
 

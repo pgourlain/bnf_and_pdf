@@ -95,7 +95,7 @@ SET PEN black 0.5
 
 TABLE 20, 700
 HEAD g1.9
-COL auto auto FONT="Consolas", 8, bold "FirstName"
+COL auto auto FONT="Consolas", 8, bold green g1.9 "FirstName"
 COL auto 40 "LastName"
 COL auto 40 "Age"
 COL auto 40 "Title"

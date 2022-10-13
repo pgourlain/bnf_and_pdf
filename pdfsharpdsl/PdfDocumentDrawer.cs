@@ -439,7 +439,7 @@ namespace Pdf
                     offsetX += column.DesiredWidth ?? 0;
                     //todo: alignment
                     var fmt = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center };
-                    Gfx.DrawString(column.ColumnHeaderName, xFonts[i], defaultBrush, r, fmt);
+                    Gfx.DrawString(column.ColumnHeaderName, xFonts[i], column.Brush ?? defaultBrush, r, fmt);
                     i++;
                 }
                 offsetY = tblDef.HeaderHeight ?? 0;
@@ -461,7 +461,7 @@ namespace Pdf
                         var w = tblDef.Columns[i].DesiredWidth ?? 0;
                         var h = row.DesiredHeight ?? 0;
                         var r = new XRect(offsetX + x, offsetY + y, w, h);
-                        Gfx.DrawRectangle(this.CurrentPen, r);
+                        Gfx.DrawRectangle(this.CurrentPen, tblDef.Columns[i].BackColor, r);
                         var hMargin = margins.Left + margins.Right;
                         var vMargin = margins.Top + margins.Bottom;
                         var rText = new XRect(offsetX + x + margins.Left, offsetY + y + margins.Top, w-hMargin , h-vMargin);
@@ -469,7 +469,7 @@ namespace Pdf
                         //to debug
                         //Gfx.DrawRectangle(XPens.Violet, rText);
                         //TODO: split to draw one string per line
-                        Gfx.DrawString(row.Data[i], xFonts[i], defaultBrush, rText, fmt);
+                        Gfx.DrawString(row.Data[i], xFonts[i], tblDef.Columns[i].Brush ?? defaultBrush, rText, fmt);
                         offsetX += w;
                     }
                     offsetY += row.DesiredHeight ?? 0;

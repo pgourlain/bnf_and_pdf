@@ -68,6 +68,8 @@ namespace Pdf.Parser
             var TableHeadCol = new NonTerminal("TableHeadCol");
             var TableColWidth = new NonTerminal("TableColWidth");
             var TableColFont = new NonTerminal("TableColFont");
+            var TableColFontColor = new NonTerminal("TableColFontColor");
+            var TableColBackColor = new NonTerminal("TableColBackColor");
             var PointAutoLocation = new NonTerminal("PointAutoLocation");
             var NumberOrAuto = new NonTerminal("NumberOrAuto");
             var ViewSizeSmt = new NonTerminal("ViewSizeSmt");
@@ -174,7 +176,7 @@ namespace Pdf.Parser
             TableHead.Rule = ToTerm("HEAD") + TableHeadStyle + NewLine + TableColHeadList + ToTerm("ENDHEAD");
             TableRowList.Rule = MakeStarRule(TableRowList, TableRow);
             TableColHeadList.Rule = MakePlusRule(TableColHeadList, TableHeadCol);
-            TableHeadCol.Rule = ToTerm("COL") + TableColWidth + TableColFont + sstring + NewLine;
+            TableHeadCol.Rule = ToTerm("COL") + TableColWidth + TableColFont + TableColFontColor + TableColBackColor + sstring + NewLine;
             //desiredWidth and maxWidth
             TableColWidth.Rule = NumberOrAuto + NumberOrAuto;
             TableColList.Rule = MakeStarRule(TableColList, TableCol);
@@ -187,7 +189,8 @@ namespace Pdf.Parser
             TableSmt.SetFlag(TermFlags.IsMultiline, true);
             TableHeadStyle.Rule = Empty | ColorExp;
             TableColFont.Rule = Empty | ToTerm("FONT=") + sstring + "," + number_literal + "," + styleExpr;
-
+            TableColFontColor.Rule = Empty | ColorExp;
+            TableColBackColor.Rule = Empty | ColorExp;
 
             ViewSizeSmt.Rule = ToTerm("VIEWSIZE") + PointLocation;
 
