@@ -90,18 +90,76 @@ SET FONT "Arial" 20 bold
 TITLE hcenter "Table TEST"
 
 
-TABLE 20, 15
-HEAD
-COL 40 40 FONT="Consolas", 8, bold "FirstName"
-COL 50 40 "LastName"
+SET FONT "Arial" 8 regular
+SET PEN black 0.5
+
+TABLE 20, 700
+HEAD g1.9
+COL auto auto FONT="Consolas", 8, bold "FirstName"
+COL auto 40 "LastName"
+COL auto 40 "Age"
+COL auto 40 "Title"
+COL auto 40 "Project"
 ENDHEAD
 ROW
 COL "Pierrick"
-COL "Gourlain"
+COL "Gourlain tagada"
 ENDROW
 ROW
 COL "X"
 COL "Y"
+ENDROW
+ROW
+COL "XX"
+COL "YY"
+ENDROW
+ROW
+COL "XX"
+COL "YY"
+ENDROW
+ROW
+COL "XX"
+COL "YY"
+ENDROW
+ROW
+COL "XX"
+COL "YY"
+ENDROW
+ROW
+COL "XX"
+COL "YY"
+ENDROW
+ROW
+COL "XX"
+COL "YY"
+ENDROW
+ROW
+COL "XX"
+COL "YY"
+ENDROW
+ROW
+COL "XX"
+COL "YY"
+ENDROW
+ROW
+COL "XX"
+COL "YY"
+ENDROW
+ROW
+COL "XX"
+COL "YY"
+ENDROW
+ROW
+COL "XX"
+COL "YY"
+ENDROW
+ROW
+COL "XX"
+COL "YY"
+ENDROW
+ROW
+COL "XX"
+COL "YY"
 ENDROW
 ENDTABLE
 

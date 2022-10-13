@@ -28,9 +28,6 @@ namespace Pdf
         void DrawEllipse(double x, double y, double w, double h, bool isFilled);
         void MoveTo(double x, double y);
         void LineTo(double x, double y);
-
-        void BeginDrawTable();
-        void EndDrawTable();
         void DrawTable(double x, double y, TableDefinition tblDef);
     }
 }

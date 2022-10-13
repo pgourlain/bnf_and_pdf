@@ -16,9 +16,11 @@ namespace pdfsharpdsl.Evaluation
             _rootNode = rootNode;
         }
 
-        public double Execute(/*variables*/)
+        public double? Execute(/*variables*/)
         {
-            return Convert.ToDouble(PerformEvaluate(_rootNode).Value);
+            var result = PerformEvaluate(_rootNode).Value;
+            if (result is null) return null;
+            return Convert.ToDouble(result);
         }
 
         private Evaluation PerformEvaluate(ParseTreeNode node)
@@ -56,7 +58,9 @@ namespace pdfsharpdsl.Evaluation
                     else
                     {
                         throw new NotImplementedException();
-                    }                    
+                    }
+                case "auto":
+                    return new ConstantEvaluation(null);
             }
 
             throw new InvalidOperationException($"Unrecognizable term {node.Term.Name}.");

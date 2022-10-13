@@ -185,7 +185,7 @@ namespace Pdf.Parser
             NumberOrAuto.Rule = NumberExpression | "auto";
             TableSmt.Rule = ToTerm("TABLE") + TableLocation + TableContent + ToTerm("ENDTABLE");
             TableSmt.SetFlag(TermFlags.IsMultiline, true);
-            TableHeadStyle.Rule = Empty;
+            TableHeadStyle.Rule = Empty | ColorExp;
             TableColFont.Rule = Empty | ToTerm("FONT=") + sstring + "," + number_literal + "," + styleExpr;
 
 

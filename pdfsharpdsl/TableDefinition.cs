@@ -1,4 +1,5 @@
 using PdfSharpCore.Drawing;
+using PdfSharpCore.Pdf;
 
 namespace Pdf
 {
@@ -7,6 +8,11 @@ namespace Pdf
         public List<ColumnDefinition> Columns { get; init; } = new ();
         public bool ShowHeader { get; set; } = true;
         public double TopMarginOnPageBreak { get; set; }
+        //header height, should be measure if not specified
+        public double? HeaderHeight { get; set; }
+        public TrimMargins CellMargin { get; set; } = new TrimMargins() { All = 1};
+        public XBrush? HeaderBackColor { get; set; }
+
 
         public List<RowDefinition> Rows { get; init; } = new();
 
@@ -25,6 +31,7 @@ namespace Pdf
     public class ColumnDefinition
     {
         public string ColumnHeaderName { get; set; }
+        
         public double? DesiredWidth { get; set; } = null;
         public double? MaxWidth { get; set; } = null;
 

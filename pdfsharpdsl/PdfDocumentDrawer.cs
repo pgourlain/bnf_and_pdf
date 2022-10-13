@@ -4,6 +4,8 @@ using PdfSharpCore.Drawing;
 using PdfSharpCore.Drawing.BarCodes;
 using PdfSharpCore.Drawing.Layout;
 using PdfSharpCore.Pdf;
+using System.Data.Common;
+using System.Runtime.Intrinsics.X86;
 
 namespace Pdf
 {
@@ -284,35 +286,41 @@ namespace Pdf
             var cnt = Gfx.BeginContainer();
             try
             {
-                double angle = 0;
-
-                if (textOrientation.Angle is not null)
-                {
-                    angle = textOrientation.Angle.Value;
-                }
-                else if (textOrientation.Orientation == TextOrientationEnum.Vertical)
-                {
-                    angle = 90;
-                }
-
-                if (angle != 0)
-                {
-                    Gfx.RotateAtTransform(angle, new XPoint(x, y));
-                }
-                if (w == null || h == null)
-                {
-                    Gfx.DrawString(text, CurrentFont, CurrentBrush, x, y, fmt);
-                }
-                else
-                {
-                    //fmt is not used, because DrawSTring support only TopLeft
-                    var r = new XRect(x, y, w.Value, h.Value);
-                    Gfx.DrawString(text, CurrentFont, CurrentBrush, r, fmt);
-                }
+                InternalDrawString(text, x, y, w, h, fmt, textOrientation, this.CurrentFont, this.CurrentBrush);
             }
             finally
             {
                 Gfx.EndContainer(cnt);
+            }
+        }
+
+        private void InternalDrawString(string text, double x, double y, double? w, double? h,
+            XStringFormat fmt, TextOrientation textOrientation, XFont font, XBrush brush)
+        {
+            double angle = 0;
+
+            if (textOrientation.Angle is not null)
+            {
+                angle = textOrientation.Angle.Value;
+            }
+            else if (textOrientation.Orientation == TextOrientationEnum.Vertical)
+            {
+                angle = 90;
+            }
+
+            if (angle != 0)
+            {
+                Gfx.RotateAtTransform(angle, new XPoint(x, y));
+            }
+            if (w == null || h == null)
+            {
+                Gfx.DrawString(text, CurrentFont, CurrentBrush, x, y, fmt);
+            }
+            else
+            {
+                //fmt is not used, because DrawSTring support only TopLeft
+                var r = new XRect(x, y, w.Value, h.Value);
+                Gfx.DrawString(text, CurrentFont, CurrentBrush, r, fmt);
             }
         }
 
@@ -359,63 +367,119 @@ namespace Pdf
         //    // Gfx.DrawRectangle(XPens.Red, rightAnchor - measure.Width, centerY - measure.Height / 2, measure.Width, measure.Height);
         //}
 
-        public void BeginDrawTable()
-        {
-            //save
-            Gfx.Save();
-        }
-
-        public void EndDrawTable()
-        {
-            Gfx.Restore();
-        }
-
         public void DrawTable(double x, double y, TableDefinition tblDef)
         {
             Gfx.Save();
             try
             {
+                var maxHeightForTable = this.CurrentPage.Height - y;
+                //todo check if the current page can receive 
+                //calculate table dimension
+                var defaultFont = this.CurrentFont;
+                var defaultBrush = this.CurrentBrush;
 
+                XFont[] xFonts = new XFont[tblDef.Columns.Count];
+                bool[] colMeasure = new bool[tblDef.Columns.Count];
+                bool calcHeaderHeight = tblDef.HeaderHeight is null;
+                var margins = tblDef.CellMargin;
+                int i = 0;
+                foreach (var column in tblDef.Columns)
+                {
+                    xFonts[i] = column.Font ?? defaultFont;
+                    colMeasure[i] = column.DesiredWidth is null;
+                    if (colMeasure[i] || calcHeaderHeight)
+                    {
+                        var measure = Gfx.MeasureString(column.ColumnHeaderName, xFonts[i]);
+                        if (colMeasure[i])
+                        {
+                            column.DesiredWidth = measure.Width + margins.Left + margins.Right;
+                        }
+                        if (calcHeaderHeight)
+                        {
+                            tblDef.HeaderHeight = Math.Max(tblDef.HeaderHeight ?? 0, measure.Height + margins.Top + margins.Bottom);
+                        }
+                    }
+                    i++;
+                }
+                //measure all rows
+                foreach (var row in tblDef.Rows)
+                {
+                    if (row.DesiredHeight is null)
+                    {
+                        for (i = 0; i < row.Data.Length; i++)
+                        {
+                            var measure = Gfx.MeasureString(row.Data[i], xFonts[i]);
+                            row.DesiredHeight = Math.Max(row.DesiredHeight ?? 0, measure.Height + margins.Top + margins.Bottom);
+                            if (colMeasure[i])
+                            {
+                                var column = tblDef.Columns[i];
+                                column.DesiredWidth = Math.Max(column.DesiredWidth ?? 0, measure.Width + margins.Left + margins.Right);
+                            }
+                        }
+                    }
+                }
+
+                //draw header
+                double offsetX = 0;
+                double offsetY = 0;
+                i = 0;
+                if (y + tblDef.HeaderHeight > CurrentPage.Height)
+                {
+                    Gfx.Restore();
+                    NewPage();
+                    Gfx.Save();
+                    //TODO: set top margin
+                    y = 1;
+                }
+                foreach (var column in tblDef.Columns)
+                {
+                    var r = new XRect(offsetX + x, y, column.DesiredWidth ?? 0, tblDef.HeaderHeight ?? 0);
+
+                    Gfx.DrawRectangle(this.CurrentPen, tblDef.HeaderBackColor, r);
+                    offsetX += column.DesiredWidth ?? 0;
+                    //todo: alignment
+                    var fmt = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center };
+                    Gfx.DrawString(column.ColumnHeaderName, xFonts[i], defaultBrush, r, fmt);
+                    i++;
+                }
+                offsetY = tblDef.HeaderHeight ?? 0;
+                //draw body
+                foreach (var row in tblDef.Rows)
+                {
+                    if (y + offsetY + row.DesiredHeight > CurrentPage.Height)
+                    {
+                        Gfx.Restore();
+                        NewPage();
+                        Gfx.Save();
+                        //TODO: set top margin
+                        y = 1;
+                        offsetY = 0;
+                    }
+                    offsetX = 0;
+                    for (i = 0; i < row.Data.Length; i++)
+                    {
+                        var w = tblDef.Columns[i].DesiredWidth ?? 0;
+                        var h = row.DesiredHeight ?? 0;
+                        var r = new XRect(offsetX + x, offsetY + y, w, h);
+                        Gfx.DrawRectangle(this.CurrentPen, r);
+                        var hMargin = margins.Left + margins.Right;
+                        var vMargin = margins.Top + margins.Bottom;
+                        var rText = new XRect(offsetX + x + margins.Left, offsetY + y + margins.Top, w-hMargin , h-vMargin);
+                        var fmt = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center };
+                        //to debug
+                        //Gfx.DrawRectangle(XPens.Violet, rText);
+                        //TODO: split to draw one string per line
+                        Gfx.DrawString(row.Data[i], xFonts[i], defaultBrush, rText, fmt);
+                        offsetX += w;
+                    }
+                    offsetY += row.DesiredHeight ?? 0;
+                }
             }
             finally
             {
                 Gfx.Restore();
             }
-            //measure all data
-        }
-        public void DrawTable(IEnumerable<object[]> rows, double x, double y, TableDefinition tblDef)
-        {
             
-            //columns widths ?
-            //row height
-            var gfx = Gfx;
-            //gfx.DrawMatrixCode()
-            foreach (var row in rows)
-            {
-                var startX = x;
-                double maxHeight = 0;
-                for (int i = 0; i < row.Length; i++)
-                {
-
-                    var cell = row[i];
-                    if (cell is not null)
-                    {
-                        var text = cell.ToString();
-                        var measure = gfx.MeasureString(text, CurrentFont);
-                        maxHeight = Math.Max(maxHeight, measure.Height);
-                        XRect rect = new XRect(startX, y, tblDef.ColWidth(i), maxHeight);
-                        gfx.DrawString(text, CurrentFont, CurrentBrush, rect, new XStringFormat()
-                        {
-                            Alignment = tblDef.Alignment(i),
-                            LineAlignment = XLineAlignment.Near
-                        });
-                    }
-                    gfx.DrawLine(CurrentPen, startX, y, startX, y + maxHeight);
-                    startX += tblDef.ColWidth(i);
-                }
-                gfx.DrawRectangle(CurrentPen, x, y, startX, maxHeight);
-                y += maxHeight;
-            }
         }
 
         public void SetViewSize(double w, double h)
@@ -427,7 +491,7 @@ namespace Pdf
         }
 
         public void NewPage()
-        {
+        {            
             this.CurrentPage = _document.AddPage();
         }
 

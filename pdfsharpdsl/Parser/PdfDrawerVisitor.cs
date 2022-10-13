@@ -5,6 +5,7 @@ using PdfSharpCore.Pdf;
 using pdfsharpdsl.Evaluation;
 using SixLabors.ImageSharp.ColorSpaces;
 using System.Data;
+using pdfsharpdsl.Extensions;
 
 namespace pdfsharpdsl.Parser
 {
@@ -101,7 +102,7 @@ namespace pdfsharpdsl.Parser
             drawer.DrawTitle(text, margin ?? 0, hAlign, vAlign);
         }
 
-        private double? ParseNumber(ParseTreeNode node)
+        private static double? ParseNumber(ParseTreeNode node)
         {
             if (node.ChildNodes.Count > 0)
             {
@@ -115,15 +116,70 @@ namespace pdfsharpdsl.Parser
             //throw new NotImplementedException();
             //rows that contains data, desired height and width
             //
-            var position = ParsePointLocation(node.ChildNodes[1].ChildNodes[0]);
+            var (x, y) = ParsePointLocation(node.ChildNodes[1].ChildNodes[0]);
             var tblDef = GenerateTableDefinition(node.ChildNodes[2]);
-            drawer.DrawTable(position.x, position.y, tblDef);
+            drawer.DrawTable(x, y, tblDef);
         }
 
         private TableDefinition GenerateTableDefinition(ParseTreeNode node)
         {
             var result = new TableDefinition();
+            var headStyle = node.ChildNodes("TableHeadStyle").FirstOrDefault();
+            if (headStyle != null && headStyle.ChildNodes.Count > 0)
+            {
+                var color = ParseColor(headStyle.ChildNodes[0]);
+                result.HeaderBackColor = new XSolidBrush(color);
+            }
+            GenerateTableHead(node.ChildNodes("TableHeadCol"), result);
+            GenerateTableRows(node.ChildNodes("TableRow"), result);
             return result;
+        }
+
+        private void GenerateTableRows(IEnumerable<ParseTreeNode> nodes, TableDefinition tbl)
+        {
+            foreach (var row in nodes)
+            {
+                var rowDef = new RowDefinition();
+
+                var cols = row.ChildNodes("TableCol").SelectMany(x => x.ChildNodes).Where(x => x.Term?.Name != "COL" ).ToArray();
+
+
+                var rowData = cols.Select(x => x.Token.ValueString).ToList();
+                while (rowData.Count < tbl.Columns.Count)
+                {
+                    rowData.Add(string.Empty);
+                }
+                rowDef.Data = rowData.ToArray();
+                tbl.Rows.Add(rowDef);
+            }
+        }
+
+        private void GenerateTableHead(IEnumerable<ParseTreeNode> nodes, TableDefinition tbl)
+        {
+            foreach (var col in nodes)
+            {
+                var colDef = new ColumnDefinition();
+                //width
+                var colWidthNode = col.ChildNodes[1];
+                if (colWidthNode.ChildNodes.Count == 2)
+                {
+                    var desiredWidth = Evaluate(colWidthNode.ChildNodes[0]);
+                    var maxWidth = Evaluate(colWidthNode.ChildNodes[1]);
+                    colDef.MaxWidth = maxWidth;
+                    colDef.DesiredWidth = desiredWidth;
+
+                }
+                //font
+                var colFontNode = col.ChildNodes[2];
+                if (colFontNode.ChildNodes.Count > 0)
+                {
+                    colDef.Font = ExtractFont(colFontNode);
+                }
+                //name
+                colDef.ColumnHeaderName = col.ChildNodes[3].Token.ValueString;
+
+                tbl.Columns.Add(colDef);
+            }
         }
 
         private void ExecuteLine(IPdfDocumentDrawer drawer, ParseTreeNode node)
@@ -133,13 +189,12 @@ namespace pdfsharpdsl.Parser
         }
 
 
-        private void ExecuteNewPage(IPdfDocumentDrawer drawer)
+        private static void ExecuteNewPage(IPdfDocumentDrawer drawer)
         {
-            //throw new NotImplementedException();
             drawer.NewPage();
         }
 
-        private void ExecuteViewSize(IPdfDocumentDrawer drawer, ParseTreeNode node)
+        private static void ExecuteViewSize(IPdfDocumentDrawer drawer, ParseTreeNode node)
         {
             (double w, double h) = ParsePointLocation(node);
             drawer.SetViewSize(w, h);
@@ -152,7 +207,7 @@ namespace pdfsharpdsl.Parser
             var nodeOrientation = node.ChildNodes[3];
             var contentNode = node.ChildNodes[4];
             var text = (string?)contentNode.Token?.Value;
-            TextOrientation textOrientation = new TextOrientation(TextOrientationEnum.Horizontal, null);
+            TextOrientation textOrientation = new(TextOrientationEnum.Horizontal, null);
 
             if (nodeOrientation.ChildNodes.Count > 0)
             {
@@ -187,7 +242,7 @@ namespace pdfsharpdsl.Parser
             }
         }
 
-        private (XStringAlignment, XLineAlignment) ParseTextAlignment(ParseTreeNode alignNode)
+        private static (XStringAlignment, XLineAlignment) ParseTextAlignment(ParseTreeNode alignNode)
         {
             ParseTreeNode? hNode = null;
             ParseTreeNode? vNode = null;
@@ -201,7 +256,7 @@ namespace pdfsharpdsl.Parser
             }
             return ParseTextAlignment(hNode, vNode);
         }
-        private (XStringAlignment, XLineAlignment) ParseTextAlignment(ParseTreeNode? hNode, ParseTreeNode? vNode)
+        private static (XStringAlignment, XLineAlignment) ParseTextAlignment(ParseTreeNode? hNode, ParseTreeNode? vNode)
         {
             var hAlign = XStringAlignment.Near;
             var vAlign = XLineAlignment.Near;
@@ -242,7 +297,7 @@ namespace pdfsharpdsl.Parser
             drawer.DrawRect(x, y, w ?? 0, h ?? 0, isFilled);
         }
 
-        (double, double, double?, double?) ParseTextLocation(ParseTreeNode node)
+        static (double, double, double?, double?) ParseTextLocation(ParseTreeNode node)
         {
             if (node.Term.Name == "PointLocation")
             {
@@ -254,7 +309,7 @@ namespace pdfsharpdsl.Parser
                 return ParseRectLocation(node);
             }
         }
-        private (double, double, double?, double?) ParseRectLocation(ParseTreeNode node)
+        private static (double, double, double?, double?) ParseRectLocation(ParseTreeNode node)
         {
             (double? w, double? h) = (null, null);
             (double x, double y) = ParsePointLocation(node.ChildNodes[0]);
@@ -265,15 +320,15 @@ namespace pdfsharpdsl.Parser
             return (x, y, w, h);
         }
 
-        private (double x, double y) ParsePointLocation(ParseTreeNode node)
+        private static (double x, double y) ParsePointLocation(ParseTreeNode node)
         {
-            var x = Evaluate(node.ChildNodes[0]);
-            var y = Evaluate(node.ChildNodes[1]);
+            var x = Evaluate(node.ChildNodes[0]) ?? 0;
+            var y = Evaluate(node.ChildNodes[1]) ?? 0;
 
             return (x, y);
         }
 
-        private double Evaluate(ParseTreeNode node)
+        private static double? Evaluate(ParseTreeNode node)
         {
             return new Evaluator(node).Execute();
         }
@@ -345,13 +400,18 @@ namespace pdfsharpdsl.Parser
 
         private void ExecuteFont(IPdfDocumentDrawer drawer, ParseTreeNode node)
         {
+            drawer.CurrentFont = ExtractFont(node);
+        }
+
+        private static XFont ExtractFont(ParseTreeNode node)
+        {
             var fontName = (string)node.ChildNodes[1].Token.Value;
             var fontSize = Convert.ToDouble(node.ChildNodes[2].Token.Value);
             var style = ParseStyle(node.ChildNodes.Count > 3 ? node.ChildNodes[3] : null);
-            drawer.CurrentFont = new XFont(fontName, fontSize, style, XPdfFontOptions.UnicodeDefault);
+            return new XFont(fontName, fontSize, style, XPdfFontOptions.UnicodeDefault);
         }
 
-        private XFontStyle ParseStyle(ParseTreeNode? node)
+        private static XFontStyle ParseStyle(ParseTreeNode? node)
         {
             if (node != null && node.Token != null)
             {
