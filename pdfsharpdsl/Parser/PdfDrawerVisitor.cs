@@ -3,6 +3,7 @@ using Pdf;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
 using pdfsharpdsl.Evaluation;
+using SixLabors.ImageSharp.ColorSpaces;
 using System.Data;
 
 namespace pdfsharpdsl.Parser
@@ -112,6 +113,17 @@ namespace pdfsharpdsl.Parser
         private void ExecuteTable(IPdfDocumentDrawer drawer, ParseTreeNode node)
         {
             //throw new NotImplementedException();
+            //rows that contains data, desired height and width
+            //
+            var position = ParsePointLocation(node.ChildNodes[1].ChildNodes[0]);
+            var tblDef = GenerateTableDefinition(node.ChildNodes[2]);
+            drawer.DrawTable(position.x, position.y, tblDef);
+        }
+
+        private TableDefinition GenerateTableDefinition(ParseTreeNode node)
+        {
+            var result = new TableDefinition();
+            return result;
         }
 
         private void ExecuteLine(IPdfDocumentDrawer drawer, ParseTreeNode node)
@@ -335,16 +347,15 @@ namespace pdfsharpdsl.Parser
         {
             var fontName = (string)node.ChildNodes[1].Token.Value;
             var fontSize = Convert.ToDouble(node.ChildNodes[2].Token.Value);
-            var style = ParseStyle(node.ChildNodes[3]);
-            //XPdfFontOptions options = new XPdfFontOptions(PdfFontEncoding.Unicode);
+            var style = ParseStyle(node.ChildNodes.Count > 3 ? node.ChildNodes[3] : null);
             drawer.CurrentFont = new XFont(fontName, fontSize, style, XPdfFontOptions.UnicodeDefault);
         }
 
-        private XFontStyle ParseStyle(ParseTreeNode node)
+        private XFontStyle ParseStyle(ParseTreeNode? node)
         {
-            if (node.ChildNodes.Count > 0)
+            if (node != null && node.Token != null)
             {
-                var styleName = (string?)node.ChildNodes[0].Token.Value;
+                var styleName = (string?)node.Token.Value;
                 if (Enum.TryParse<XFontStyle>(styleName, true, out var fontStyle))
                 {
                     return fontStyle;

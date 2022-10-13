@@ -67,6 +67,7 @@ namespace Pdf.Parser
             var TableColHeadList = new NonTerminal("TableColHeadList");
             var TableHeadCol = new NonTerminal("TableHeadCol");
             var TableColWidth = new NonTerminal("TableColWidth");
+            var TableColFont = new NonTerminal("TableColFont");
             var PointAutoLocation = new NonTerminal("PointAutoLocation");
             var NumberOrAuto = new NonTerminal("NumberOrAuto");
             var ViewSizeSmt = new NonTerminal("ViewSizeSmt");
@@ -88,7 +89,6 @@ namespace Pdf.Parser
             var opMultiply = ToTerm("*");
 
             Operator.Rule = opPlus | opMinus | opDivide | opMultiply;
-
             #endregion
 
             // set the PROGRAM to be the root node of PDF lines.
@@ -174,17 +174,19 @@ namespace Pdf.Parser
             TableHead.Rule = ToTerm("HEAD") + TableHeadStyle + NewLine + TableColHeadList + ToTerm("ENDHEAD");
             TableRowList.Rule = MakeStarRule(TableRowList, TableRow);
             TableColHeadList.Rule = MakePlusRule(TableColHeadList, TableHeadCol);
-            TableHeadCol.Rule = ToTerm("COL") + TableColWidth + sstring + NewLine;
-            TableColWidth.Rule = number_literal;
+            TableHeadCol.Rule = ToTerm("COL") + TableColWidth + TableColFont + sstring + NewLine;
+            //desiredWidth and maxWidth
+            TableColWidth.Rule = NumberOrAuto + NumberOrAuto;
             TableColList.Rule = MakeStarRule(TableColList, TableCol);
             TableRow.Rule = ToTerm("ROW") + NewLine + TableColList + ToTerm("ENDROW") + NewLine;
             TableCol.Rule = ToTerm("COL") + sstring + NewLine;
-            TableLocation.Rule = PointLocation + "," + PointAutoLocation;
+            TableLocation.Rule = PointLocation /*+ "," + PointAutoLocation*/;
             PointAutoLocation.Rule = NumberOrAuto + "," + NumberOrAuto;
-            NumberOrAuto.Rule = number_literal | "auto";
+            NumberOrAuto.Rule = NumberExpression | "auto";
             TableSmt.Rule = ToTerm("TABLE") + TableLocation + TableContent + ToTerm("ENDTABLE");
             TableSmt.SetFlag(TermFlags.IsMultiline, true);
             TableHeadStyle.Rule = Empty;
+            TableColFont.Rule = Empty | ToTerm("FONT=") + sstring + "," + number_literal + "," + styleExpr;
 
 
             ViewSizeSmt.Rule = ToTerm("VIEWSIZE") + PointLocation;
@@ -193,9 +195,10 @@ namespace Pdf.Parser
             RegisterOperators(10, opDivide, opMultiply);
             RegisterOperators(9, opPlus, opMinus);
 
-            MarkPunctuation(",", "(",")");
+            MarkPunctuation(",", "(", ")");
             RegisterBracePair("(", ")");
-            MarkTransient(PdfLine, PdfLineContent, SetContent, NumberOrAuto, Parenthesized_NumberExpression, Operator, MultipleNumberExpression);
+            MarkTransient(PdfLine, PdfLineContent, SetContent, NumberOrAuto, Parenthesized_NumberExpression,
+                Operator, MultipleNumberExpression, styleExpr);
         }
     }
 }

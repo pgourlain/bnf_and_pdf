@@ -27,7 +27,7 @@ NEWPAGE
 SET BRUSH black
 
 TITLE hcenter "Text TEST"
-SET FONT "Consolas" 8 bold 
+SET FONT "Consolas" 8 
 
 LINETEXT 42,100 left vcenter vertical "Vertical text to 90°"
 SET FONT "Consolas" 12 bold 
@@ -66,7 +66,7 @@ LINE 200,130, 200, 120
 # lineTo(-T/2, -T*Math.sqrt(3)/2);
 # 100 * 1.7320 / 2 => 86.6025
 
-LINETEXT 150*(2),200*2 left bottom "formula"
+LINETEXT 150*(2),200*2 left bottom "formula at 150*(2),200*2"
 
 LINETEXT 300,200 left bottom "MOVETO/LINETO"
 MOVETO 300, 200
@@ -90,10 +90,10 @@ SET FONT "Arial" 20 bold
 TITLE hcenter "Table TEST"
 
 
-TABLE 20, 15, auto, auto
+TABLE 20, 15
 HEAD
-COL 40 "FirstName"
-COL 50 "LastName"
+COL 40 40 FONT="Consolas", 8, bold "FirstName"
+COL 50 40 "LastName"
 ENDHEAD
 ROW
 COL "Pierrick"

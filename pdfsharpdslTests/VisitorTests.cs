@@ -25,13 +25,10 @@ namespace pdfsharpdslTests
         }
 
 
-        [Theory()]
-        [InlineData("SET BRUSH black")]
-        public void TestValidFiles(string line)
+        [Fact]
+        public void TestValidFiles()
         {
-            var res = ParseText(line);
-            
-
+            var res = ParseText("SET BRUSH black");            
             var mock = new Mock<IPdfDocumentDrawer>();
             mock.SetupProperty(x => x.CurrentBrush);
             new PdfDrawerVisitor().Draw(mock.Object, res);

@@ -359,10 +359,33 @@ namespace Pdf
         //    // Gfx.DrawRectangle(XPens.Red, rightAnchor - measure.Width, centerY - measure.Height / 2, measure.Width, measure.Height);
         //}
 
+        public void BeginDrawTable()
+        {
+            //save
+            Gfx.Save();
+        }
 
+        public void EndDrawTable()
+        {
+            Gfx.Restore();
+        }
+
+        public void DrawTable(double x, double y, TableDefinition tblDef)
+        {
+            Gfx.Save();
+            try
+            {
+
+            }
+            finally
+            {
+                Gfx.Restore();
+            }
+            //measure all data
+        }
         public void DrawTable(IEnumerable<object[]> rows, double x, double y, TableDefinition tblDef)
         {
-
+            
             //columns widths ?
             //row height
             var gfx = Gfx;

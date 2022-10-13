@@ -4,12 +4,16 @@ namespace Pdf
 {
     public class TableDefinition
     {
-        public List<ColumnDefinition> Columns { get; init; } = new List<ColumnDefinition>();
+        public List<ColumnDefinition> Columns { get; init; } = new ();
         public bool ShowHeader { get; set; } = true;
+        public double TopMarginOnPageBreak { get; set; }
+
+        public List<RowDefinition> Rows { get; init; } = new();
+
 
         public double ColWidth(int i)
         {
-            return Columns[i].Width;
+            return 0;
         }
 
         public XStringAlignment Alignment(int i)
@@ -21,9 +25,23 @@ namespace Pdf
     public class ColumnDefinition
     {
         public string ColumnHeaderName { get; set; }
-        public double Width { get; set; }
+        public double? DesiredWidth { get; set; } = null;
+        public double? MaxWidth { get; set; } = null;
 
         public XStringAlignment Alignment { get; set; } = XStringAlignment.Near;
+        public XFont? Font { get; set; }
+        public XBrush? Brush { get; set; }
 
+    }
+
+    public class RowDefinition
+    {
+        public double? DesiredHeight { get; set; }
+        public double? MaxHeight { get; set; }
+
+        /// <summary>
+        /// string because there is only draw text
+        /// </summary>
+        public string[] Data { get; set; }
     }
 }
