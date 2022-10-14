@@ -70,6 +70,9 @@ namespace pdfsharpdsl.Parser
                 case "LineToSmt":
                     ExecuteLineTo(drawer, node);
                     break;
+                case "PdfLine":
+                    Visit(drawer, node.ChildNodes[0]);
+                    break;
                 default:
                     throw new NotImplementedException($"{node.Term.Name} is not yet implemented");
             }
@@ -116,8 +119,8 @@ namespace pdfsharpdsl.Parser
             //throw new NotImplementedException();
             //rows that contains data, desired height and width
             //
-            var (x, y) = ParsePointLocation(node.ChildNodes[1].ChildNodes[0]);
-            var tblDef = GenerateTableDefinition(node.ChildNodes[2]);
+            var (x, y) = ParsePointLocation(node.ChildNodes[0].ChildNodes[0]);
+            var tblDef = GenerateTableDefinition(node.ChildNodes[1]);
             drawer.DrawTable(x, y, tblDef);
         }
 
@@ -141,6 +144,12 @@ namespace pdfsharpdsl.Parser
             {
                 var rowDef = new RowDefinition();
 
+                var styleNode = row.ChildNode("TableRowStyle");
+                if (styleNode?.ChildNodes.Count > 0)
+                {
+                    var rowHeight =  Evaluate(styleNode.ChildNodes[0]);
+                    rowDef.DesiredHeight = rowHeight;
+                }
                 var cols = row.ChildNodes("TableCol").SelectMany(x => x.ChildNodes).Where(x => x.Term?.Name != "COL" ).ToArray();
 
 
@@ -175,15 +184,11 @@ namespace pdfsharpdsl.Parser
                 {
                     colDef.Font = ExtractFont(colFontNode);
                 }
-                var fontColor = col.ChildNode("TableColFontColor");
-                var backColor = col.ChildNode("TableColBackColor");
-                if (fontColor?.ChildNodes.Count > 0)
+                var colors = col.ChildNode("TableColColors");
+                if (colors?.ChildNodes.Count > 0)
                 {
-                    colDef.Brush = new XSolidBrush(ParseColor(fontColor.ChildNodes[0]));
-                }
-                if (backColor?.ChildNodes.Count > 0)
-                {
-                    colDef.BackColor = new XSolidBrush(ParseColor(backColor.ChildNodes[0]));
+                    colDef.Brush = new XSolidBrush(ParseColor(colors.ChildNodes[0]));
+                    colDef.BackColor = new XSolidBrush(ParseColor(colors.ChildNodes[1]));
                 }
                 //name
                 colDef.ColumnHeaderName = col.ChildNodes.Last().Token.ValueString;

@@ -19,7 +19,7 @@ namespace Pdf.Parser
             colorNumber.AddPrefix("g", NumberOptions.Default | NumberOptions.AllowStartEndDot);
             colorNumber.AddPrefix("0x", NumberOptions.Hex);
 
-            var comment = new CommentTerminal("comment", "#", "\n", "\r");
+            var comment = new CommentTerminal("comment", "#", "\r", "\n", "\u2085", "\u2028", "\u2029");
             //comment must to be added to NonGrammarTerminals list; it is not used directly in grammar rules,
             // so we add it to this list to let Scanner know that it is also a valid terminal. 
             NonGrammarTerminals.Add(comment);
@@ -68,8 +68,8 @@ namespace Pdf.Parser
             var TableHeadCol = new NonTerminal("TableHeadCol");
             var TableColWidth = new NonTerminal("TableColWidth");
             var TableColFont = new NonTerminal("TableColFont");
-            var TableColFontColor = new NonTerminal("TableColFontColor");
-            var TableColBackColor = new NonTerminal("TableColBackColor");
+            var TableColColors = new NonTerminal("TableColColors");
+            var TableRowStyle = new NonTerminal("TableRowStyle");
             var PointAutoLocation = new NonTerminal("PointAutoLocation");
             var NumberOrAuto = new NonTerminal("NumberOrAuto");
             var ViewSizeSmt = new NonTerminal("ViewSizeSmt");
@@ -80,6 +80,7 @@ namespace Pdf.Parser
             var Parenthesized_NumberExpression = new NonTerminal("Parenthesized_NumberExpression");
             var BinaryExpression = new NonTerminal("BinaryExpression");
             var Operator = new NonTerminal("Operator");
+            var semiOpt = new NonTerminal("semiOpt");
 
             NumberExpression.Rule = number_literal | MultipleNumberExpression;
             MultipleNumberExpression.Rule = BinaryExpression | Parenthesized_NumberExpression;
@@ -97,20 +98,35 @@ namespace Pdf.Parser
             Root = PDF;
 
             // BNF Rules
-            PDF.Rule = MakePlusRule(PDF, PdfLine);
+            PDF.Rule = MakeStarRule(PDF, PdfLine);
 
             // A line can be an empty line, or it's a number followed by a statement list ended by a new-line.
-            PdfLine.Rule = PdfLineContent + NewLine;
+            KeyTerm semi = ToTerm(";", "semi");
+            KeyTerm comma = ToTerm(",", "comma");
+            semiOpt.Rule = Empty | semi;
 
-            PdfLineContent.Rule = SetSmt | RectSmt | TextSmt | LineTextSmt | NewPageSmt
-            | FillRectSmt | TableSmt | ViewSizeSmt | LineSmt | LineToSmt | MoveToSmt
-            | Title | EllipseSmt | FillEllipseSmt
-            | Empty;
+            PdfLine.Rule = PdfLineContent + semiOpt;
+
+            PdfLineContent.Rule = SetSmt
+                | RectSmt
+                | FillRectSmt
+                | EllipseSmt
+                | FillEllipseSmt
+                | Title
+                | NewPageSmt
+                | ViewSizeSmt
+                | LineSmt
+                | LineToSmt
+                | MoveToSmt
+                | LineTextSmt 
+                | TextSmt 
+                | TableSmt 
+            ;
 
             #region basics rules
-            RectLocation.Rule = PointLocation + "," + PointLocation;
+            RectLocation.Rule = PointLocation + comma + PointLocation;
 
-            PointLocation.Rule = NumberExpression + "," + NumberExpression;
+            PointLocation.Rule = NumberExpression + comma + NumberExpression;
             TextLocation.Rule = RectLocation | PointLocation;
 
             #endregion
@@ -122,11 +138,11 @@ namespace Pdf.Parser
             EllipseSmt.Rule = ToTerm("ELLIPSE") + RectLocation;
             FillEllipseSmt.Rule = ToTerm("FILLELLIPSE") + RectLocation;
 
-            LineSmt.Rule = ToTerm("LINE") + RectLocation;
-            MoveToSmt.Rule = ToTerm("MOVETO") + PointLocation;
-            LineToSmt.Rule = ToTerm("LINETO") + PointLocation;
-            PenSmt.Rule = ToTerm("PEN") + ColorExp + number_literal;
-            BrushSmt.Rule = ToTerm("BRUSH") + ColorExp + BrushType;
+            LineSmt.Rule = ToTerm("LINE") + RectLocation ;
+            MoveToSmt.Rule = ToTerm("MOVETO") + PointLocation ;
+            LineToSmt.Rule = ToTerm("LINETO") + PointLocation ;
+            PenSmt.Rule = ToTerm("PEN") + ColorExp + number_literal ;
+            BrushSmt.Rule = ToTerm("BRUSH") + ColorExp + BrushType ;
             FontSmt.Rule = ToTerm("FONT") + sstring + number_literal + styleExpr;
 
             ColorExp.Rule = NamedColor | HexColor;
@@ -172,25 +188,26 @@ namespace Pdf.Parser
             Margin.Rule = Empty | number_literal;
 
 
-            TableContent.Rule = NewLinePlus + TableHead + NewLinePlus + TableRowList;
-            TableHead.Rule = ToTerm("HEAD") + TableHeadStyle + NewLine + TableColHeadList + ToTerm("ENDHEAD");
+            TableSmt.Rule = ToTerm("TABLE") + TableLocation + TableContent + ToTerm("ENDTABLE");
+
+            TableContent.Rule = TableHead + TableRowList;
+
+            TableHead.Rule = ToTerm("HEAD") + TableHeadStyle + TableColHeadList + ToTerm("ENDHEAD");
             TableRowList.Rule = MakeStarRule(TableRowList, TableRow);
-            TableColHeadList.Rule = MakePlusRule(TableColHeadList, TableHeadCol);
-            TableHeadCol.Rule = ToTerm("COL") + TableColWidth + TableColFont + TableColFontColor + TableColBackColor + sstring + NewLine;
+            TableColHeadList.Rule = MakeStarRule(TableColHeadList, TableHeadCol);
+            TableHeadCol.Rule = ToTerm("COL") + TableColWidth + TableColFont + TableColColors + sstring +semi;
             //desiredWidth and maxWidth
             TableColWidth.Rule = NumberOrAuto + NumberOrAuto;
             TableColList.Rule = MakeStarRule(TableColList, TableCol);
-            TableRow.Rule = ToTerm("ROW") + NewLine + TableColList + ToTerm("ENDROW") + NewLine;
-            TableCol.Rule = ToTerm("COL") + sstring + NewLine;
+            TableRow.Rule = ToTerm("ROW") + TableRowStyle + TableColList + ToTerm("ENDROW");
+            TableCol.Rule = ToTerm("COL") + sstring + semi;
             TableLocation.Rule = PointLocation /*+ "," + PointAutoLocation*/;
             PointAutoLocation.Rule = NumberOrAuto + "," + NumberOrAuto;
             NumberOrAuto.Rule = NumberExpression | "auto";
-            TableSmt.Rule = ToTerm("TABLE") + TableLocation + TableContent + ToTerm("ENDTABLE");
-            TableSmt.SetFlag(TermFlags.IsMultiline, true);
             TableHeadStyle.Rule = Empty | ColorExp;
             TableColFont.Rule = Empty | ToTerm("FONT=") + sstring + "," + number_literal + "," + styleExpr;
-            TableColFontColor.Rule = Empty | ColorExp;
-            TableColBackColor.Rule = Empty | ColorExp;
+            TableColColors.Rule = Empty | ColorExp + ColorExp;
+            TableRowStyle.Rule = Empty | NumberExpression;
 
             ViewSizeSmt.Rule = ToTerm("VIEWSIZE") + PointLocation;
 
@@ -198,10 +215,11 @@ namespace Pdf.Parser
             RegisterOperators(10, opDivide, opMultiply);
             RegisterOperators(9, opPlus, opMinus);
 
-            MarkPunctuation(",", "(", ")");
+            MarkPunctuation(";", ",", "(", ")", "TABLE", "ENDTABLE", "HEAD", "ENDHEAD", "ROW", "ENDROW");
             RegisterBracePair("(", ")");
-            MarkTransient(PdfLine, PdfLineContent, SetContent, NumberOrAuto, Parenthesized_NumberExpression,
-                Operator, MultipleNumberExpression, styleExpr);
+            MarkTransient(PdfLineContent, SetContent, NumberOrAuto, Parenthesized_NumberExpression,
+                Operator, MultipleNumberExpression, styleExpr, semiOpt);
+            this.AddToNoReportGroup(comma, semi);
         }
     }
 }
