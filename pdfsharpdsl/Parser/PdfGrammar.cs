@@ -1,4 +1,5 @@
 
+using Irony;
 using Irony.Parsing;
 using PdfSharpCore.Drawing;
 using SixLabors.Fonts;
@@ -102,7 +103,9 @@ namespace Pdf.Parser
 
             // A line can be an empty line, or it's a number followed by a statement list ended by a new-line.
             KeyTerm semi = ToTerm(";", "semi");
+            semi.ErrorAlias = "';' expected";
             KeyTerm comma = ToTerm(",", "comma");
+            comma.ErrorAlias = "',' expected";
             semiOpt.Rule = Empty | semi;
 
             PdfLine.Rule = PdfLineContent + semiOpt;
@@ -118,9 +121,9 @@ namespace Pdf.Parser
                 | LineSmt
                 | LineToSmt
                 | MoveToSmt
-                | LineTextSmt 
-                | TextSmt 
-                | TableSmt 
+                | LineTextSmt
+                | TextSmt
+                | TableSmt
             ;
 
             #region basics rules
@@ -138,11 +141,11 @@ namespace Pdf.Parser
             EllipseSmt.Rule = ToTerm("ELLIPSE") + RectLocation;
             FillEllipseSmt.Rule = ToTerm("FILLELLIPSE") + RectLocation;
 
-            LineSmt.Rule = ToTerm("LINE") + RectLocation ;
-            MoveToSmt.Rule = ToTerm("MOVETO") + PointLocation ;
-            LineToSmt.Rule = ToTerm("LINETO") + PointLocation ;
-            PenSmt.Rule = ToTerm("PEN") + ColorExp + number_literal ;
-            BrushSmt.Rule = ToTerm("BRUSH") + ColorExp + BrushType ;
+            LineSmt.Rule = ToTerm("LINE") + RectLocation;
+            MoveToSmt.Rule = ToTerm("MOVETO") + PointLocation;
+            LineToSmt.Rule = ToTerm("LINETO") + PointLocation;
+            PenSmt.Rule = ToTerm("PEN") + ColorExp + number_literal;
+            BrushSmt.Rule = ToTerm("BRUSH") + ColorExp + BrushType;
             FontSmt.Rule = ToTerm("FONT") + sstring + number_literal + styleExpr;
 
             ColorExp.Rule = NamedColor | HexColor;
@@ -195,7 +198,7 @@ namespace Pdf.Parser
             TableHead.Rule = ToTerm("HEAD") + TableHeadStyle + TableColHeadList + ToTerm("ENDHEAD");
             TableRowList.Rule = MakeStarRule(TableRowList, TableRow);
             TableColHeadList.Rule = MakeStarRule(TableColHeadList, TableHeadCol);
-            TableHeadCol.Rule = ToTerm("COL") + TableColWidth + TableColFont + TableColColors + sstring +semi;
+            TableHeadCol.Rule = ToTerm("COL") + TableColWidth + TableColFont + TableColColors + sstring + semi;
             //desiredWidth and maxWidth
             TableColWidth.Rule = NumberOrAuto + NumberOrAuto;
             TableColList.Rule = MakeStarRule(TableColList, TableCol);
@@ -214,12 +217,47 @@ namespace Pdf.Parser
 
             RegisterOperators(10, opDivide, opMultiply);
             RegisterOperators(9, opPlus, opMinus);
+            RegisterBracePair("(", ")");
 
             MarkPunctuation(";", ",", "(", ")", "TABLE", "ENDTABLE", "HEAD", "ENDHEAD", "ROW", "ENDROW");
             RegisterBracePair("(", ")");
             MarkTransient(PdfLineContent, SetContent, NumberOrAuto, Parenthesized_NumberExpression,
                 Operator, MultipleNumberExpression, styleExpr, semiOpt);
-            this.AddToNoReportGroup(comma, semi);
+
+            this.AddTermsReportGroup("punctuation", comma);
+            this.AddTermsReportGroup("operator", "+", "-", "/", "*");
+            this.AddTermsReportGroup("constant", number_literal, sstring);
+            this.AddTermsReportGroup("constant", "auto");
+            this.AddToNoReportGroup(semi);
+        }
+
+        public override string ConstructParserErrorMessage(ParsingContext context, StringSet expectedTerms)
+        {
+            if (context.CurrentParserState.ExpectedTerminals.Count > 0 && expectedTerms.Count == 0)
+            {
+                expectedTerms.AddRange(TerminalToString(context.CurrentParserState.ExpectedTerminals));
+                return base.ConstructParserErrorMessage(context, expectedTerms);
+            }
+            return base.ConstructParserErrorMessage(context, expectedTerms);
+        }
+
+        private string[] TerminalToString(TerminalSet expectedTerminals)
+        {
+            var l = new List<string>();
+            foreach (var item in expectedTerminals)
+            {
+                l.Add(item switch
+                {
+                    KeyTerm k => k.Text,
+                    _ => item.ToString(),
+                });
+            }
+            return l.ToArray();
+        }
+
+        public override void ReportParseError(ParsingContext context)
+        {
+            base.ReportParseError(context);
         }
     }
 }
