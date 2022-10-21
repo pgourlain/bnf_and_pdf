@@ -1,9 +1,8 @@
 ﻿using Irony.Parsing;
 using Moq;
-using Pdf;
-using Pdf.Parser;
 using PdfSharpCore.Drawing;
-using pdfsharpdsl.Parser;
+using PdfSharpDslCore;
+using PdfSharpDslCore.Parser;
 using System;
 using System.Collections.Generic;
 using System.Linq;

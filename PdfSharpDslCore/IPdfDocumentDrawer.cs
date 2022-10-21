@@ -2,14 +2,18 @@
 
 using PdfSharpCore.Drawing;
 
-namespace Pdf
+namespace PdfSharpDslCore
 {
     public enum TextOrientationEnum
     {
         Horizontal, Vertical, HorizontalInvert, VerticalInvert,
     }
 
-    public record TextOrientation(TextOrientationEnum Orientation, double? Angle);
+    public record TextOrientation
+    {
+        public TextOrientationEnum Orientation { get; set; }
+        public double? Angle { get; set; }
+    }
 
     public interface IPdfDocumentDrawer
     {

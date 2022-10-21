@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>netstandard2.0</TargetFramework>
+		<PackageReadmeFile>Readme.md</PackageReadmeFile>
+		<LangVersion>9.0</LangVersion>
+		<Nullable>enable</Nullable>
+		<Title>Generate PDF using DSL</Title>
+		<PackageId>PdfSharpDslCore</PackageId>
+		<Version>0.1.0</Version>
+		<Authors>Pierrick Gourlain</Authors>
+		<Company></Company>
+		<Description>A DSL using PdfSharpCore to generate PDF</Description>
+		<RepositoryUrl>https://github.com/pgourlain/bnf_and_pdf</RepositoryUrl>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Irony" Version="1.1.0" />
+		<PackageReference Include="PdfSharpCore" Version="1.3.40" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Update="Readme.md">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
+	</ItemGroup>
+
+</Project>

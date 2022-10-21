@@ -1,10 +1,9 @@
-﻿using Pdf;
-using PdfSharpCore.Drawing;
+﻿using PdfSharpCore.Drawing;
 using PdfSharpCore.Fonts;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Utils;
-using Pdf.Parser;
-using pdfsharpdsl.Parser;
+using PdfSharpDslCore;
+using PdfSharpDslCore.Parser;
 using SixLabors.Fonts;
 
 //GlobalFontSettings.FontResolver = new FontResolver();

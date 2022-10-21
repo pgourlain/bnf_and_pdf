@@ -4,9 +4,11 @@ using Irony.Parsing;
 using PdfSharpCore.Drawing;
 using SixLabors.Fonts;
 using SixLabors.ImageSharp;
+using System;
+using System.Collections.Generic;
 using System.Linq.Expressions;
 
-namespace Pdf.Parser
+namespace PdfSharpDslCore.Parser
 {
     [Language("PdfGrammar", "1.0", "Grammar to write PDF with PdfSharp")]
     public class PdfGrammar : Grammar

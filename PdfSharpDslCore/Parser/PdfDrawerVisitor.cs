@@ -1,14 +1,16 @@
 ﻿using Irony.Parsing;
-using Pdf;
 using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using pdfsharpdsl.Evaluation;
-using SixLabors.ImageSharp.ColorSpaces;
-using System.Data;
-using pdfsharpdsl.Extensions;
+using PdfSharpDslCore.Evaluation;
+using PdfSharpDslCore.Extensions;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
-namespace pdfsharpdsl.Parser
+namespace PdfSharpDslCore.Parser
 {
+    /// <summary>
+    /// Visitor of parsed tree to generate PDF
+    /// </summary>
     public class PdfDrawerVisitor
     {
         public PdfDrawerVisitor() { }
@@ -222,7 +224,7 @@ namespace pdfsharpdsl.Parser
             var nodeOrientation = node.ChildNodes[3];
             var contentNode = node.ChildNodes[4];
             var text = (string?)contentNode.Token?.Value;
-            TextOrientation textOrientation = new(TextOrientationEnum.Horizontal, null);
+            TextOrientation textOrientation = new TextOrientation { Orientation = TextOrientationEnum.Horizontal, Angle = null };
 
             if (nodeOrientation.ChildNodes.Count > 0)
             {

@@ -1,11 +1,13 @@
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
+using System;
+using System.Collections.Generic;
 
-namespace Pdf
+namespace PdfSharpDslCore
 {
     public class TableDefinition
     {
-        public List<ColumnDefinition> Columns { get; init; } = new ();
+        public List<ColumnDefinition> Columns { get; private set; } = new ();
         public bool ShowHeader { get; set; } = true;
         public double TopMarginOnPageBreak { get; set; }
         //header height, should be measure if not specified
@@ -14,7 +16,7 @@ namespace Pdf
         public XBrush? HeaderBackColor { get; set; }
 
 
-        public List<RowDefinition> Rows { get; init; } = new();
+        public List<RowDefinition> Rows { get; private set; } = new();
 
 
         public double ColWidth(int i)
@@ -30,7 +32,7 @@ namespace Pdf
 
     public class ColumnDefinition
     {
-        public string ColumnHeaderName { get; set; }
+        public string ColumnHeaderName { get; set; } = string.Empty;
         
         public double? DesiredWidth { get; set; } = null;
         public double? MaxWidth { get; set; } = null;
@@ -50,6 +52,6 @@ namespace Pdf
         /// <summary>
         /// string because there is only draw text
         /// </summary>
-        public string[] Data { get; set; }
+        public string[] Data { get; set; } = Array.Empty<string>();
     }
 }

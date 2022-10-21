@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace pdfsharpdsl.Evaluation
+namespace PdfSharpDslCore.Evaluation
 {
     internal class BinaryEvaluation : Evaluation
     {

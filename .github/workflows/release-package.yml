@@ -32,4 +32,4 @@ jobs:
       # - name: publish to nuget.org
       #   run: nuget push "pdfsharpdsl/bin/Release/*.nupkg" -Source 'https://api.nuget.org/v3/index.json' -ApiKey ${{secrets.NUGET_API_KEY}}
       - name: Publish to NuGet
-        run: dotnet nuget push "pdfsharpdsl/bin/Release/*.nupkg" -s https://api.nuget.org/v3/index.json -k ${{ secrets.NUGET_KEY }} --skip-duplicate
+        run: dotnet nuget push "PdfSharpDslCore/bin/Release/*.nupkg" -s https://api.nuget.org/v3/index.json -k ${{ secrets.NUGET_KEY }} --skip-duplicate

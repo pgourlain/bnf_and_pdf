@@ -4,10 +4,11 @@ using PdfSharpCore.Drawing;
 using PdfSharpCore.Drawing.BarCodes;
 using PdfSharpCore.Drawing.Layout;
 using PdfSharpCore.Pdf;
+using System;
 using System.Data.Common;
-using System.Runtime.Intrinsics.X86;
+using System.Linq;
 
-namespace Pdf
+namespace PdfSharpDslCore
 {
     public class PdfDocumentDrawer : IDisposable, IPdfDocumentDrawer
     {
@@ -122,7 +123,7 @@ namespace Pdf
                 if (disposing)
                 {
                     // TODO: dispose managed state (managed objects)
-                    if (_gfx is not null)
+                    if (!(_gfx is null))
                         _gfx.Dispose();
                 }
                 _gfx = null;
@@ -172,14 +173,14 @@ namespace Pdf
             {
                 y = page.Height + y;
             }
-            if (w is not null)
+            if (!(w is null))
             {
                 if (w < 0)
                 {
                     w = page.Width + w - x;
                 }
             }
-            if (h is not null)
+            if (!(h is null))
             {
                 if (h < 0)
                 {
@@ -299,7 +300,7 @@ namespace Pdf
         {
             double angle = 0;
 
-            if (textOrientation.Angle is not null)
+            if (!(textOrientation.Angle is null))
             {
                 angle = textOrientation.Angle.Value;
             }
@@ -484,7 +485,7 @@ namespace Pdf
 
         private void DrawStringMultiline(string text, XFont xFont, XBrush xBrush, XRect r, XStringFormat fmt)
         {
-            var splitted = text.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+            var splitted = text.Split(new string[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
             splitted = splitted.SelectMany(x => x.Split('\r', '\n')).ToArray();
             var h = r.Height / splitted.Length;
             var offsetY = 0.0;

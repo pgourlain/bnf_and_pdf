@@ -5,19 +5,20 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace pdfsharpdsl.Extensions
+namespace PdfSharpDslCore.Extensions
 {
     internal static class ParseTreeNodeExtensions
     {
         public static IEnumerable<ParseTreeNode> ChildNodes(this ParseTreeNode node, string termName)
         {
-            List<ParseTreeNode> result = new();
-            Queue<ParseTreeNode> queue = new();
+            List<ParseTreeNode> result = new List<ParseTreeNode>();
+            Queue<ParseTreeNode> queue = new Queue<ParseTreeNode>();
 
             queue.Enqueue(node);
 
-            while (queue.TryDequeue(out var n))
+            while (queue.Count > 0)
             {
+                var n = queue.Dequeue();
                 if (n.Term != null && n.Term.Name == termName)
                 {
                     result.Add(n);
@@ -30,7 +31,7 @@ namespace pdfsharpdsl.Extensions
             return result.AsReadOnly();
         }
 
-        public static ParseTreeNode? ChildNode(this ParseTreeNode node, string termName)
+        public static ParseTreeNode ChildNode(this ParseTreeNode node, string termName)
         {
             return node.ChildNodes.Where(n => n.Term != null && n.Term.Name == termName).FirstOrDefault();
         }

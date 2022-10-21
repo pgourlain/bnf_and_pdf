@@ -23,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\pdfsharpdsl\pdfsharpdsl.csproj" />
+    <ProjectReference Include="..\PdfSharpDslCore\PdfSharpDslCore.csproj" />
   </ItemGroup>
 
   <ItemGroup>
