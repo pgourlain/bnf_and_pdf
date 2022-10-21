@@ -26,8 +26,8 @@ jobs:
     permissions:
       packages: write
       contents: read
-    steps:
-      # - name: package publish
-      #   run: dotnet nuget add source --username pgourlain --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/pgourlain/index.json"
+    steps:       
+      - name: add publish
+        run: dotnet nuget add source --username pgourlain --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/pgourlain/index.json"
       - name: publish package
-        run: dotnet nuget push "bin/Release/*.nupkg" --username pgourlain --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --source "github"
+        run: dotnet nuget push "bin/Release/*.nupkg" --source "github"
