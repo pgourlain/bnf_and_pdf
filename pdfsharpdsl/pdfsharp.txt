@@ -99,7 +99,7 @@ TABLE 20, 700
 # HEAD [BackColor]
 HEAD g1.9
 # COL desiredwidth maxwidth [Font=name,size,style] [FontColor BackColor] headerName
-COL auto auto FONT="Consolas", 8, bold green g1.9 "FirstName"
+COL auto auto FONT="Consolas", 8, bold green g1.9 "FirstName";
 COL auto 40 FONT="Consolas", 8, regular red lightblue "LastName"; 
 COL auto 40 "Age";
 COL auto 40 "Title";

@@ -1,0 +1,20 @@
+name: sharppdfdsl Package
+
+on:
+  release:
+    types: [created]
+
+jobs:
+
+  build:
+    uses: ./.github/workflows/build.yml@main    
+
+  publish-gpr:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - name: package publish
+        run: dotnet nuget add source --username pgourlain --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/pgourlain/index.json"
