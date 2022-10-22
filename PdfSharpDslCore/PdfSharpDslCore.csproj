@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFramework>netstandard2.0</TargetFramework>
@@ -7,11 +7,12 @@
 		<Nullable>enable</Nullable>
 		<Title>Generate PDF using DSL</Title>
 		<PackageId>PdfSharpDslCore</PackageId>
-		<Version>0.9.0</Version>
+		<Version>0.9.1</Version>
 		<Authors>Pierrick Gourlain</Authors>
 		<Company></Company>
 		<Description>A DSL using PdfSharpCore to generate PDF</Description>
 		<RepositoryUrl>https://github.com/pgourlain/bnf_and_pdf</RepositoryUrl>
+		<PackageIcon>Icon.jpg</PackageIcon>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -20,6 +21,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <None Update="Icon.jpg">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
 	  <None Update="Readme.md">
 	    <Pack>True</Pack>
 	    <PackagePath>\</PackagePath>
