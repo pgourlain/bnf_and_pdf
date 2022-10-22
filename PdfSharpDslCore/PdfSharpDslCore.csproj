@@ -13,7 +13,15 @@
 		<Description>A DSL using PdfSharpCore to generate PDF</Description>
 		<RepositoryUrl>https://github.com/pgourlain/bnf_and_pdf</RepositoryUrl>
 		<PackageIcon>Icon.jpg</PackageIcon>
+		<PackageLicenseFile>LICENSE.md</PackageLicenseFile>
 	</PropertyGroup>
+
+	<ItemGroup>
+	  <None Include="..\LICENSE.md">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
+	</ItemGroup>
 
 	<ItemGroup>
 		<PackageReference Include="Irony" Version="1.1.0" />
