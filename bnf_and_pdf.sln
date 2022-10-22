@@ -3,11 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.4.32916.344
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "pdfsharpdsl", "pdfsharpdsl\pdfsharpdsl.csproj", "{8C2CECAA-B4F7-4E80-97C9-EFFEAB04A04E}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "pdfsharpdslTests", "pdfsharpdslTests\pdfsharpdslTests.csproj", "{599099A9-C23A-4EE3-A3BA-D65E95E52014}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfSharpDslCore", "PdfSharpDslCore\PdfSharpDslCore.csproj", "{31F6FA1A-55D5-45C1-8AB8-8ED23984BA3A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PdfSharpDslCore", "PdfSharpDslCore\PdfSharpDslCore.csproj", "{31F6FA1A-55D5-45C1-8AB8-8ED23984BA3A}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PdfSharpDslConsole", "PdfSharpDslConsole\PdfSharpDslConsole.csproj", "{D737D13F-8593-4AB1-961B-7D5F736ACF2E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,10 +15,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{8C2CECAA-B4F7-4E80-97C9-EFFEAB04A04E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{8C2CECAA-B4F7-4E80-97C9-EFFEAB04A04E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{8C2CECAA-B4F7-4E80-97C9-EFFEAB04A04E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{8C2CECAA-B4F7-4E80-97C9-EFFEAB04A04E}.Release|Any CPU.Build.0 = Release|Any CPU
 		{599099A9-C23A-4EE3-A3BA-D65E95E52014}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{599099A9-C23A-4EE3-A3BA-D65E95E52014}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{599099A9-C23A-4EE3-A3BA-D65E95E52014}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -27,6 +23,10 @@ Global
 		{31F6FA1A-55D5-45C1-8AB8-8ED23984BA3A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{31F6FA1A-55D5-45C1-8AB8-8ED23984BA3A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{31F6FA1A-55D5-45C1-8AB8-8ED23984BA3A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D737D13F-8593-4AB1-961B-7D5F736ACF2E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D737D13F-8593-4AB1-961B-7D5F736ACF2E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D737D13F-8593-4AB1-961B-7D5F736ACF2E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D737D13F-8593-4AB1-961B-7D5F736ACF2E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

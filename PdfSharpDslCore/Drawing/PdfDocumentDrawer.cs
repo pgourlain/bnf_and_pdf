@@ -7,8 +7,9 @@ using PdfSharpCore.Pdf;
 using System;
 using System.Data.Common;
 using System.Linq;
+using System.Xml.Linq;
 
-namespace PdfSharpDslCore
+namespace PdfSharpDslCore.Drawing
 {
     public class PdfDocumentDrawer : IDisposable, IPdfDocumentDrawer
     {
@@ -209,7 +210,7 @@ namespace PdfSharpDslCore
             {
                 y1 = page.Height + y1;
             }
-            Gfx.DrawLine(this.CurrentPen, x, y, x1, y1);
+            Gfx.DrawLine(CurrentPen, x, y, x1, y1);
         }
 
         public void DrawRect(double x, double y, double w, double h, bool isFilled)
@@ -287,7 +288,7 @@ namespace PdfSharpDslCore
             var cnt = Gfx.BeginContainer();
             try
             {
-                InternalDrawString(text, x, y, w, h, fmt, textOrientation, this.CurrentFont, this.CurrentBrush);
+                InternalDrawString(text, x, y, w, h, fmt, textOrientation, CurrentFont, CurrentBrush);
             }
             finally
             {
@@ -335,10 +336,10 @@ namespace PdfSharpDslCore
                 LineAlignment = vAlign,
             };
 
-            var textSize = Gfx.MeasureString(text, this.CurrentFont, XStringFormats.TopLeft);
+            var textSize = Gfx.MeasureString(text, CurrentFont, XStringFormats.TopLeft);
             if (margin < 0)
             {
-                margin = (page.Height - textSize.Height) + margin;
+                margin = page.Height - textSize.Height + margin;
             }
             var r = new XRect(0, margin, page.Width, textSize.Height);
             Gfx.DrawString(text, CurrentFont, CurrentBrush, r, fmt);
@@ -373,11 +374,11 @@ namespace PdfSharpDslCore
             Gfx.Save();
             try
             {
-                var maxHeightForTable = this.CurrentPage.Height - y;
+                var maxHeightForTable = CurrentPage.Height - y;
                 //todo check if the current page can receive 
                 //calculate table dimension
-                var defaultFont = this.CurrentFont;
-                var defaultBrush = this.CurrentBrush;
+                var defaultFont = CurrentFont;
+                var defaultBrush = CurrentBrush;
 
                 XFont[] xFonts = new XFont[tblDef.Columns.Count];
                 bool[] colMeasure = new bool[tblDef.Columns.Count];
@@ -436,7 +437,7 @@ namespace PdfSharpDslCore
                 {
                     var r = new XRect(offsetX + x, y, column.DesiredWidth ?? 0, tblDef.HeaderHeight ?? 0);
 
-                    Gfx.DrawRectangle(this.CurrentPen, tblDef.HeaderBackColor, r);
+                    Gfx.DrawRectangle(CurrentPen, tblDef.HeaderBackColor, r);
                     offsetX += column.DesiredWidth ?? 0;
                     //todo: alignment
                     var fmt = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center };
@@ -462,10 +463,10 @@ namespace PdfSharpDslCore
                         var w = tblDef.Columns[i].DesiredWidth ?? 0;
                         var h = row.DesiredHeight ?? 0;
                         var r = new XRect(offsetX + x, offsetY + y, w, h);
-                        Gfx.DrawRectangle(this.CurrentPen, tblDef.Columns[i].BackColor, r);
+                        Gfx.DrawRectangle(CurrentPen, tblDef.Columns[i].BackColor, r);
                         var hMargin = margins.Left + margins.Right;
                         var vMargin = margins.Top + margins.Bottom;
-                        var rText = new XRect(offsetX + x + margins.Left, offsetY + y + margins.Top, w-hMargin , h-vMargin);
+                        var rText = new XRect(offsetX + x + margins.Left, offsetY + y + margins.Top, w - hMargin, h - vMargin);
                         var fmt = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center };
                         //to debug
                         //Gfx.DrawRectangle(XPens.Violet, rText);
@@ -480,7 +481,7 @@ namespace PdfSharpDslCore
             {
                 Gfx.Restore();
             }
-            
+
         }
 
         private void DrawStringMultiline(string text, XFont xFont, XBrush xBrush, XRect r, XStringFormat fmt)
@@ -491,7 +492,7 @@ namespace PdfSharpDslCore
             var offsetY = 0.0;
             foreach (var s in splitted)
             {
-                Gfx.DrawString(s, xFont, xBrush, new XRect(r.Left, r.Top+offsetY, r.Width, h), fmt);
+                Gfx.DrawString(s, xFont, xBrush, new XRect(r.Left, r.Top + offsetY, r.Width, h), fmt);
                 offsetY += h;
             }
 
@@ -506,13 +507,13 @@ namespace PdfSharpDslCore
         }
 
         public void NewPage()
-        {            
-            this.CurrentPage = _document.AddPage();
+        {
+            CurrentPage = _document.AddPage();
         }
 
         public void MoveTo(double x, double y)
         {
-            this._currentPoint = new XPoint(x, y);
+            _currentPoint = new XPoint(x, y);
             //var sqrt3 = Math.Sqrt(3);
             //var T = 100;
             //_MoveTo(x - T / 2, y - T * sqrt3 / 2);
@@ -526,13 +527,63 @@ namespace PdfSharpDslCore
 
         private void _MoveTo(double x, double y)
         {
-            this._currentPoint = new XPoint(x, y);
+            _currentPoint = new XPoint(x, y);
         }
         public void LineTo(double x, double y)
         {
             var endPoint = new XPoint(x, y);
-            Gfx.DrawLine(this.CurrentPen, this._currentPoint, endPoint);
+            Gfx.DrawLine(CurrentPen, _currentPoint, endPoint);
             _currentPoint = endPoint;
+        }
+
+        public void DrawImage(XImage image, double x, double y, double? w, double? h)
+        {
+            DrawImage(image, x, y, w, h, false, false);
+        }
+
+        public void DrawImage(XImage image, double x, double y, double? w, double? h, bool sizeInPixel, bool cropImage)
+        {
+            if (sizeInPixel)
+            {
+                //convert Pixel to Point
+                if (w is not null)
+                {
+                    w = (double)(w * 72) / 96.0;
+                }
+                if (h is not null)
+                {
+                    h = (double)(h * 72) / 96.0;
+                }
+            }
+            //fix coord if < 0 
+            (x, y, w, h) = CoordRectToPage(x, y, w, h);
+            if (w is null && h is null)
+            {
+                Gfx.DrawImage(image, x, y);
+            }
+            else
+            {
+                if (w is null)
+                {
+                    w = image.PointWidth;
+                }
+                if (h is null)
+                {
+                    h = image.PointHeight;
+                }
+                if (cropImage)
+                {
+                    //draw in form, then draw form in page
+                    using XForm form = new XForm(this._document, XUnit.FromPoint(w.Value), XUnit.FromPoint(h.Value));
+                    using var gr = XGraphics.FromForm(form);
+                    gr.DrawImage(image, 0, 0);
+                    Gfx.DrawImage(form, x, y);
+                }
+                else
+                {
+                    Gfx.DrawImage(image, x, y, w.Value, h.Value);
+                }
+            }
         }
     }
 }

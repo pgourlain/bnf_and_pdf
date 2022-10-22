@@ -3,6 +3,7 @@ using PdfSharpCore.Fonts;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Utils;
 using PdfSharpDslCore;
+using PdfSharpDslCore.Drawing;
 using PdfSharpDslCore.Parser;
 using SixLabors.Fonts;
 
@@ -30,9 +31,9 @@ GlobalFontSettings.DefaultFontEncoding = PdfFontEncoding.Unicode;
 //}
 
 
-var p = new Irony.Parsing.Parser(new PdfGrammar());
+var parser = new Irony.Parsing.Parser(new PdfGrammar());
 
-var parsingResult = p.Parse(File.ReadAllText("pdfsharp.txt"));
+var parsingResult = parser.Parse(File.ReadAllText("pdfsharp.txt"));
 
 if (parsingResult.HasErrors())
 {
@@ -46,8 +47,9 @@ if (parsingResult.HasErrors())
 }
 else
 {
-    //PdfSharpCore
+    //PdfSharpCore cclasses
     var document = new PdfDocument();
+    //draw parsing result
     using var drawer = new PdfDocumentDrawer(document);
     new PdfDrawerVisitor().Draw(drawer, parsingResult);
     document.Save("helloworld.pdf");

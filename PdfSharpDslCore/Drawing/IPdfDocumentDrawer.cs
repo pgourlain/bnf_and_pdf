@@ -2,7 +2,7 @@
 
 using PdfSharpCore.Drawing;
 
-namespace PdfSharpDslCore
+namespace PdfSharpDslCore.Drawing
 {
     public enum TextOrientationEnum
     {
@@ -33,5 +33,7 @@ namespace PdfSharpDslCore
         void MoveTo(double x, double y);
         void LineTo(double x, double y);
         void DrawTable(double x, double y, TableDefinition tblDef);
+        void DrawImage(XImage image, double x, double y, double? w, double? h);
+        void DrawImage(XImage image, double x, double y, double? w, double? h, bool sizeInPixel, bool cropImage);
     }
 }

@@ -2,10 +2,13 @@
 using Irony;
 using Irony.Parsing;
 using PdfSharpCore.Drawing;
+using PdfSharpCore.Drawing.BarCodes;
 using SixLabors.Fonts;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq.Expressions;
 
 namespace PdfSharpDslCore.Parser
@@ -16,8 +19,18 @@ namespace PdfSharpDslCore.Parser
         public PdfGrammar()
         {
             var sstring = new StringLiteral("string", "\"", StringOptions.AllowsDoubledQuote);
-            var textString = new StringLiteral("string", "\"", StringOptions.AllowsDoubledQuote | StringOptions.AllowsAllEscapes | StringOptions.AllowsLineBreak);
+            sstring.Priority = TerminalPriority.High;
+            var textString = new StringLiteral("textstring", "\"", StringOptions.AllowsDoubledQuote | StringOptions.AllowsAllEscapes | StringOptions.AllowsLineBreak);
             var number_literal = new NumberLiteral("number", NumberOptions.AllowSign);
+            var pixel_literal = new NumberLiteral("pixel", NumberOptions.IntOnly);
+            pixel_literal.DefaultFloatType = TypeCode.Double;
+            pixel_literal.AddSuffix("px", TypeCode.Int64);
+            pixel_literal.DefaultIntTypes = new TypeCode[3]
+            {
+                TypeCode.Int32,
+                TypeCode.Int64,
+                (TypeCode)30
+            };
             var colorNumber = new NumberLiteral("ColorValue");
             colorNumber.AddPrefix("g", NumberOptions.Default | NumberOptions.AllowStartEndDot);
             colorNumber.AddPrefix("0x", NumberOptions.Hex);
@@ -43,6 +56,8 @@ namespace PdfSharpDslCore.Parser
             var BrushSmt = new NonTerminal("BrushSmt");
             var BrushType = new NonTerminal("BrushType");
             var FontSmt = new NonTerminal("FontSmt");
+            var ImageSmt = new NonTerminal("ImageSmt");
+
             var ColorExp = new NonTerminal("ColorExp");
             var NamedColor = new NonTerminal("NamedColor");
             var HexColor = new NonTerminal("HexColor");
@@ -51,7 +66,7 @@ namespace PdfSharpDslCore.Parser
             var PointLocation = new NonTerminal("PointLocation");
             var SetContent = new NonTerminal("SetContent");
             var TextSmt = new NonTerminal("TextSmt");
-            var TextLocation = new NonTerminal("TextLocation");
+            var RectOrPointLocation = new NonTerminal("RectOrPointLocation");
             var TextAlignment = new NonTerminal("TextAlignment");
             var TextOrientation = new NonTerminal("TextOrientation");
             var HAlign = new NonTerminal("HAlign");
@@ -84,6 +99,9 @@ namespace PdfSharpDslCore.Parser
             var BinaryExpression = new NonTerminal("BinaryExpression");
             var Operator = new NonTerminal("Operator");
             var semiOpt = new NonTerminal("semiOpt");
+            var PixelOrPoint = new NonTerminal("PixelOrPoint");
+            var CropExp = new NonTerminal("CropExp");
+            var ImageLocation = new NonTerminal("ImageLocation");
 
             NumberExpression.Rule = number_literal | MultipleNumberExpression;
             MultipleNumberExpression.Rule = BinaryExpression | Parenthesized_NumberExpression;
@@ -126,13 +144,14 @@ namespace PdfSharpDslCore.Parser
                 | LineTextSmt
                 | TextSmt
                 | TableSmt
+                | ImageSmt
             ;
 
             #region basics rules
             RectLocation.Rule = PointLocation + comma + PointLocation;
 
             PointLocation.Rule = NumberExpression + comma + NumberExpression;
-            TextLocation.Rule = RectLocation | PointLocation;
+            RectOrPointLocation.Rule = RectLocation | PointLocation;
 
             #endregion
 
@@ -176,7 +195,7 @@ namespace PdfSharpDslCore.Parser
 
             //TextAlignment is not yet supported on multiline text (only top left is provided by pdfsharpcore)
             //multiline
-            TextSmt.Rule = ToTerm("TEXT") + TextLocation /*+ TextAlignment */+ textString;
+            TextSmt.Rule = ToTerm("TEXT") + RectOrPointLocation /*+ TextAlignment */+ textString;
 
             TextAlignment.Rule = HAlign + VAlign;
             HAlign.Rule = Empty | "left" | "right" | "hcenter";
@@ -184,12 +203,12 @@ namespace PdfSharpDslCore.Parser
             TextOrientation.Rule = Empty | "vertical" | "horizontal" | number_literal; //number for angle in degree
 
             //simple line
-            LineTextSmt.Rule = ToTerm("LINETEXT") + TextLocation + TextAlignment + TextOrientation + sstring;
+            LineTextSmt.Rule = ToTerm("LINETEXT") + RectOrPointLocation + TextAlignment + TextOrientation + sstring;
             BrushType.Rule = Empty /* | GradientBrush*/;
 
             NewPageSmt.Rule = ToTerm("NEWPAGE");
 
-            Title.Rule = ToTerm("TITLE") + Margin + TextAlignment + sstring;
+            Title.Rule = ToTerm("TITLE") + Margin + HAlign + sstring;
             Margin.Rule = Empty | number_literal;
 
 
@@ -216,6 +235,12 @@ namespace PdfSharpDslCore.Parser
 
             ViewSizeSmt.Rule = ToTerm("VIEWSIZE") + PointLocation;
 
+            PixelOrPoint.Rule = ToTerm("pixel") | "point";
+            CropExp.Rule = Empty | "crop" | "fit";
+            ImageLocation.Rule = PointLocation | RectLocation + PixelOrPoint + CropExp;
+            //PreferShift because
+            ImageSmt.Rule = ToTerm("IMAGE") + ImageLocation + ImplyPrecedenceHere(11) + sstring;
+
 
             RegisterOperators(10, opDivide, opMultiply);
             RegisterOperators(9, opPlus, opMinus);
@@ -224,7 +249,7 @@ namespace PdfSharpDslCore.Parser
             MarkPunctuation(";", ",", "(", ")", "TABLE", "ENDTABLE", "HEAD", "ENDHEAD", "ROW", "ENDROW");
             RegisterBracePair("(", ")");
             MarkTransient(PdfLineContent, SetContent, NumberOrAuto, Parenthesized_NumberExpression,
-                Operator, MultipleNumberExpression, styleExpr, semiOpt);
+                Operator, MultipleNumberExpression, styleExpr, semiOpt, PixelOrPoint);
 
             this.AddTermsReportGroup("punctuation", comma);
             this.AddTermsReportGroup("operator", "+", "-", "/", "*");

@@ -5,12 +5,8 @@
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <PackageId>PdfSharpDsl</PackageId>
     <Version>0.1.0</Version>
-    <Authors>Pierrick Gourlain</Authors>
     <Company></Company>
-    <PackageDescription>A DSL using PdfSharpCore</PackageDescription>
-    <RepositoryUrl>https://github.com/pgourlain/bnf_and_pdf</RepositoryUrl>    
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,6 +19,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="imageTest.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="sample1.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

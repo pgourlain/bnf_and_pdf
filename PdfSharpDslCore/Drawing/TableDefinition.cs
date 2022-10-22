@@ -3,16 +3,17 @@ using PdfSharpCore.Pdf;
 using System;
 using System.Collections.Generic;
 
-namespace PdfSharpDslCore
+namespace PdfSharpDslCore.Drawing
 {
+    
     public class TableDefinition
     {
-        public List<ColumnDefinition> Columns { get; private set; } = new ();
+        public List<ColumnDefinition> Columns { get; private set; } = new();
         public bool ShowHeader { get; set; } = true;
         public double TopMarginOnPageBreak { get; set; }
         //header height, should be measure if not specified
         public double? HeaderHeight { get; set; }
-        public TrimMargins CellMargin { get; set; } = new TrimMargins() { All = 1};
+        public TrimMargins CellMargin { get; set; } = new TrimMargins() { All = 1 };
         public XBrush? HeaderBackColor { get; set; }
 
 
@@ -33,7 +34,7 @@ namespace PdfSharpDslCore
     public class ColumnDefinition
     {
         public string ColumnHeaderName { get; set; } = string.Empty;
-        
+
         public double? DesiredWidth { get; set; } = null;
         public double? MaxWidth { get; set; } = null;
 

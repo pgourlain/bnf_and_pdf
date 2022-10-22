@@ -4,14 +4,18 @@ SET BRUSH black
 SET FONT "Arial" 20 bold
 
 # draw text on top of the page
-TITLE hcenter top "TITLE TEST";
-TITLE 50 hcenter top "My title with margin 50";
-TITLE 100 left top "My title with margin 100";
-TITLE 100 right vcenter "My title with margin 100";
-TITLE -0.1 bottom "My title with margin -0.1";
+TITLE hcenter "TITLE TEST";
+TITLE 50 hcenter "My title with margin 50";
+TITLE 100 left "My title with margin 100";
+TITLE 100 right "My title with margin 100";
+TITLE 100 right "My title with margin 100";
+TITLE -0.1 left "My title with margin -0.1";
+SET PEN red 1
+RECT 0,100,-0.1,25
+SET PEN black 1
 
 NEWPAGE;
-TITLE hcenter top "ELLIPSE and RECT";
+TITLE hcenter "ELLIPSE and RECT";
 ELLIPSE 5, 5, -5, -5;
 RECT 5, 5, -5, -5;
 
@@ -179,7 +183,29 @@ ENDTABLE
 NEWPAGE;
 
 SET FONT "Arial" 20 bold ;
-TITLE hcenter "Template TEST";
+TITLE hcenter "Image TEST";
+
+
+IMAGE 100,100 "./imageTest.jpg";
+
+IMAGE 320,100,34,34 point "./imageTest.jpg";
+
+IMAGE 100,320,50,50 pixel crop "K:\\projets\\github\\bnf_and_pdf\\PdfSharpDslConsole\\imageTest.jpg";
+IMAGE 320,320,200,100 pixel crop "K:/projets/github/bnf_and_pdf/PdfSharpDslConsole/imageTest.jpg";
+
+SET FONT "Consolas" 8;
+SET BRUSH black;
+LINETEXT 100,100 left bottom "IMAGE 100,100 \"./imageTest.jpg\"";
+
+LINETEXT 320,100 left bottom "IMAGE 320,100,34,34 point \"./imageTest.jpg\"";
+LINETEXT 320,135 left top "scale to 34x34";
+
+LINETEXT 100,320 left bottom "IMAGE 100,320,50,50 pixel crop \"./imageTest.jpg\"";
+LINETEXT 100,370 left top "crop to 50x50";
+
+
+LINETEXT 320,320 left bottom "IMAGE 320,320,200,100 pixel crop \"./imageTest.jpg\"";
+LINETEXT 320,400 left top "crop to 200x100";
 
 # DEFINE TEMPLATE toto 
 # 

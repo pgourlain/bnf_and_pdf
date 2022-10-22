@@ -1,7 +1,9 @@
 ﻿using Irony.Parsing;
 using PdfSharpCore.Drawing;
+using PdfSharpDslCore.Drawing;
 using PdfSharpDslCore.Evaluation;
 using PdfSharpDslCore.Extensions;
+using SixLabors.ImageSharp;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -72,12 +74,32 @@ namespace PdfSharpDslCore.Parser
                 case "LineToSmt":
                     ExecuteLineTo(drawer, node);
                     break;
+                case "ImageSmt":
+                    ExecuteImage(drawer, node);
+                    break;
                 case "PdfLine":
                     Visit(drawer, node.ChildNodes[0]);
                     break;
                 default:
                     throw new NotImplementedException($"{node.Term.Name} is not yet implemented");
             }
+        }
+
+        private void ExecuteImage(IPdfDocumentDrawer drawer, ParseTreeNode node)
+        {
+            string unit = "point";
+            bool crop = false;
+            var imageLocation = node.ChildNode("ImageLocation");
+            var imagePath = (string?)node.ChildNodes[2].Token?.Value;
+            var (x, y, w, h) = ParseTextLocation(imageLocation.ChildNodes[0]);
+            if (w is not null && imageLocation.ChildNodes.Count > 1)
+            {
+                //try to parse unit and cropping
+                unit = imageLocation.ChildNodes[1].Term.Name;
+                crop = imageLocation.ChildNodes[2].ChildNodes.Count > 0;
+            }
+            using XImage image = XImage.FromFile(imagePath);
+            drawer.DrawImage(image, x, y, w, h, unit == "pixel", crop);
         }
 
         private void ExecuteLineTo(IPdfDocumentDrawer drawer, ParseTreeNode node)
@@ -118,7 +140,8 @@ namespace PdfSharpDslCore.Parser
 
         private void ExecuteTable(IPdfDocumentDrawer drawer, ParseTreeNode node)
         {
-            //throw new NotImplementedException();
+            //another way is to use MigraDoc to draw Table
+            //it can be used later
             //rows that contains data, desired height and width
             //
             var (x, y) = ParsePointLocation(node.ChildNodes[0].ChildNodes[0]);
@@ -261,13 +284,13 @@ namespace PdfSharpDslCore.Parser
 
         private static (XStringAlignment, XLineAlignment) ParseTextAlignment(ParseTreeNode alignNode)
         {
-            ParseTreeNode? hNode = null;
-            ParseTreeNode? vNode = null;
-            if (alignNode.ChildNodes.Count > 0)
+            ParseTreeNode? hNode = alignNode.Term.Name == "HAlign" ? alignNode : null;
+            ParseTreeNode? vNode = alignNode.Term.Name == "VAlign" ? alignNode : null;
+            if (hNode ==null && alignNode.ChildNodes.Count > 0)
             {
                 hNode = alignNode.ChildNodes[0];
             }
-            if (alignNode.ChildNodes.Count > 1)
+            if (vNode == null && alignNode.ChildNodes.Count > 1)
             {
                 vNode = alignNode.ChildNodes[1];
             }
