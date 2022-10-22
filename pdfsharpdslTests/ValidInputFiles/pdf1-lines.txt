@@ -1,0 +1,12 @@
+﻿# sample
+SET PEN black 1
+SET BRUSH black
+SET FONT "Arial" 20 bold
+
+MOVETO 300, 200;
+LINETO 400, 200;
+
+MOVETO 300, 400;
+LINETO 400, 600;
+
+
