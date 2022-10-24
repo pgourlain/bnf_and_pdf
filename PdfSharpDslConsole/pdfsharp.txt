@@ -1,4 +1,6 @@
 # sample
+NEWPAGE A4 portrait;
+
 SET PEN black 1
 SET BRUSH black
 SET FONT "Arial" 20 bold
@@ -14,7 +16,7 @@ SET PEN red 1
 RECT 0,100,-0.1,25
 SET PEN black 1
 
-NEWPAGE;
+NEWPAGE A4 landscape;
 TITLE hcenter "ELLIPSE and RECT";
 ELLIPSE 5, 5, -5, -5;
 RECT 5, 5, -5, -5;
@@ -27,7 +29,7 @@ FILLRECT 250, 100, 50,50;
 SET BRUSH green;
 FILLELLIPSE 250, 200, 50,50;
 
-NEWPAGE;
+NEWPAGE A4 portrait;
 SET BRUSH black;
 
 TITLE hcenter "Text TEST";

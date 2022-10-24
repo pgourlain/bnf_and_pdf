@@ -1,6 +1,7 @@
 
 using Irony;
 using Irony.Parsing;
+using PdfSharpCore;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Drawing.BarCodes;
 using SixLabors.Fonts;
@@ -73,6 +74,8 @@ namespace PdfSharpDslCore.Parser
             var VAlign = new NonTerminal("VAlign");
             var LineTextSmt = new NonTerminal("LineTextSmt");
             var NewPageSmt = new NonTerminal("NewPage");
+            var PageSize = new NonTerminal("PageSize");
+            var PageOrientation = new NonTerminal("PageOrientation");
             var TableSmt = new NonTerminal("TableSmt");
             var TableContent = new NonTerminal("TableContent");
             var TableHead = new NonTerminal("TableHead");
@@ -206,7 +209,14 @@ namespace PdfSharpDslCore.Parser
             LineTextSmt.Rule = ToTerm("LINETEXT") + RectOrPointLocation + TextAlignment + TextOrientation + sstring;
             BrushType.Rule = Empty /* | GradientBrush*/;
 
-            NewPageSmt.Rule = ToTerm("NEWPAGE");
+            PageSize.Rule = Empty;
+            foreach (var prop in Enum.GetNames(typeof(PageSize)))
+            {
+                PageSize.Rule |= ToTerm(prop, $"pagesize-{prop}");
+            }
+            
+            PageOrientation.Rule = Empty | "portrait" | "landscape";
+            NewPageSmt.Rule = ToTerm("NEWPAGE") + PageSize + PageOrientation;
 
             Title.Rule = ToTerm("TITLE") + Margin + HAlign + sstring;
             Margin.Rule = Empty | number_literal;

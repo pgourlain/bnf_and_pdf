@@ -122,8 +122,17 @@ TODO
 ## New page
 
 ```text
-NEWPAGE;
+# NEWPAGE [PageSize] [PageOrientation];
+NEWPAGE ;
+NEWPAGE A4 portrait;
 ```
+
+**[PageSize]** is one of 
+- A0, A1, A2, A3, A4, A5, A6, B0, B1, B2, B3, B4, B5, Crown, Demy, DoubleDemy, Elephant, Executive, Folio, Foolscap, GovernmentLetter, LargePost, Ledger, 
+Legal, Letter, Medium, Post, QuadDemy, Quarto, RA0, RA1, RA2, RA3, RA4, RA5, Royal, Size10x14, Statement, STMT, Tabloid, Undefined
+
+**[PageSize]** is one of 
+- portrait, landscape
 
 ## Image
 
@@ -149,7 +158,24 @@ IMAGE 100,320,50,50 pixel crop "C:/Samples/imageTest.jpg";
 
 ## Text
 
-TODO
+```text
+# LINETEXT PointOrRect [hAlign] [vAlign] [Orientation] "text"
+LINETEXT 42,100 "Horizontal text"
+
+LINETEXT 42,100 vertical "Horizontal text"
+LINETEXT 42,100 left bottom vertical "Horizontal text";
+```
+
+**[hAlign]** is one of
+- left, right, hcenter
+
+**[vAlign]** is one of
+- top, bottom, vcenter
+
+**[Orientation]** is one of
+- horizontal, vertical
+
+
 
 ## Table
 

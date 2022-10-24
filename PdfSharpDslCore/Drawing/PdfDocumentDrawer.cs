@@ -1,5 +1,6 @@
 
 
+using PdfSharpCore;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Drawing.BarCodes;
 using PdfSharpCore.Drawing.Layout;
@@ -22,6 +23,8 @@ namespace PdfSharpDslCore.Drawing
         XGraphics? _gfx;
         private bool disposedValue;
         XPoint _currentPoint = new XPoint(0, 0);
+        PageSize _defaultPageSize = PageSize.A4;
+        PageOrientation _defaultPageOrientation = PageOrientation.Portrait;
 
         public PdfDocumentDrawer(PdfDocument document)
         {
@@ -39,7 +42,8 @@ namespace PdfSharpDslCore.Drawing
                 if (_currentPage is null)
                 {
                     _currentPage = _document.AddPage();
-                    _currentPage.Size = PdfSharpCore.PageSize.A4;
+                    _currentPage.Size = _defaultPageSize;
+                    _currentPage.Orientation = _defaultPageOrientation;
                 }
                 return _currentPage;
             }
@@ -506,9 +510,19 @@ namespace PdfSharpDslCore.Drawing
             Gfx.ScaleTransform(scaleX, scaleY);
         }
 
-        public void NewPage()
+        public void NewPage(PageSize? pageSize=null, PageOrientation? pageOrientation=null)
         {
-            CurrentPage = _document.AddPage();
+            _defaultPageSize = pageSize ?? _defaultPageSize;
+            _defaultPageOrientation = pageOrientation ?? _defaultPageOrientation;
+            CurrentPage = AddPage();
+        }
+
+        private PdfPage AddPage()
+        {
+            var page = _document.AddPage();
+            page.Size = _defaultPageSize;
+            page.Orientation = _defaultPageOrientation;
+            return page;
         }
 
         public void MoveTo(double x, double y)

@@ -1,5 +1,6 @@
 ﻿
 
+using PdfSharpCore;
 using PdfSharpCore.Drawing;
 
 namespace PdfSharpDslCore.Drawing
@@ -26,7 +27,7 @@ namespace PdfSharpDslCore.Drawing
         XBrush CurrentBrush { get; set; }
         XFont CurrentFont { get; set; }
 
-        void NewPage();
+        void NewPage(PageSize? pageSize=null, PageOrientation? pageOrientation=null);
         void DrawLine(double x, double y, double x1, double y1);
         void DrawTitle(string text, double margin, XStringAlignment hAlign, XLineAlignment vAlign);
         void DrawEllipse(double x, double y, double w, double h, bool isFilled);

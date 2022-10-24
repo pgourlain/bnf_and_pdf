@@ -1,4 +1,5 @@
 ﻿using Irony.Parsing;
+using PdfSharpCore;
 using PdfSharpCore.Drawing;
 using PdfSharpDslCore.Drawing;
 using PdfSharpDslCore.Evaluation;
@@ -51,7 +52,7 @@ namespace PdfSharpDslCore.Parser
                     ExecuteViewSize(drawer, node.ChildNodes[1]);
                     break;
                 case "NewPage":
-                    ExecuteNewPage(drawer);
+                    ExecuteNewPage(drawer, node);
                     break;
                 case "LineSmt":
                     ExecuteLine(drawer, node);
@@ -229,9 +230,21 @@ namespace PdfSharpDslCore.Parser
         }
 
 
-        private static void ExecuteNewPage(IPdfDocumentDrawer drawer)
+        private static void ExecuteNewPage(IPdfDocumentDrawer drawer, ParseTreeNode node)
         {
-            drawer.NewPage();
+            var nSize = node.ChildNode("PageSize");
+            var nOrientation = node.ChildNode("PageOrientation");
+            PageSize? pageSize = null;
+            if (nSize.ChildNodes.Count >0 && Enum.TryParse<PageSize>(nSize.ChildNodes[0].Token.Text, out var size))
+            {
+                pageSize = size;
+            }
+            PageOrientation? pageOrientation = null;
+            if (nOrientation.ChildNodes.Count > 0 && Enum.TryParse<PageOrientation>(nOrientation.ChildNodes[0].Token.Text, true, out var orientation))
+            {
+                pageOrientation = orientation;
+            }
+            drawer.NewPage(pageSize, pageOrientation);
         }
 
         private static void ExecuteViewSize(IPdfDocumentDrawer drawer, ParseTreeNode node)
