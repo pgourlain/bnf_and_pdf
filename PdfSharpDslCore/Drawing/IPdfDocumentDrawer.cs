@@ -2,6 +2,7 @@
 
 using PdfSharpCore;
 using PdfSharpCore.Drawing;
+using System.Collections.Generic;
 
 namespace PdfSharpDslCore.Drawing
 {
@@ -36,5 +37,7 @@ namespace PdfSharpDslCore.Drawing
         void DrawTable(double x, double y, TableDefinition tblDef);
         void DrawImage(XImage image, double x, double y, double? w, double? h);
         void DrawImage(XImage image, double x, double y, double? w, double? h, bool sizeInPixel, bool cropImage);
+        void DrawPie(double x, double y, double? w, double? h, double startAngle, double sweepAngle, bool isFilled);
+        void DrawPolygon(IEnumerable<XPoint> points, bool isFilled);
     }
 }

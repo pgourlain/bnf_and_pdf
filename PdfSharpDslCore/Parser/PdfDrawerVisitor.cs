@@ -81,9 +81,48 @@ namespace PdfSharpDslCore.Parser
                 case "PdfLine":
                     Visit(drawer, node.ChildNodes[0]);
                     break;
+                case "PieSmt":
+                    ExecutePie(drawer, node, false);
+                    break;
+                case "PolygonSmt":
+                    ExecutePolygon(drawer, node, false);
+                    break;
+                case "FillPieSmt":
+                    ExecutePie(drawer, node, true);
+                    break;
+                case "FillPolygonSmt":
+                    ExecutePolygon(drawer, node, true);
+                    break;
                 default:
                     throw new NotImplementedException($"{node.Term.Name} is not yet implemented");
             }
+        }
+
+        private void ExecutePolygon(IPdfDocumentDrawer drawer, ParseTreeNode node, bool isFilled)
+        {
+            List<XPoint> points = new List<XPoint>();
+
+            var (x, y) = ParsePointLocation(node.ChildNodes[1]);
+            points.Add(new XPoint(x, y)) ;
+            (x, y) = ParsePointLocation(node.ChildNodes[2]);
+            points.Add(new XPoint(x, y));
+            var polygonPoint = node.ChildNode("PolygonPoint");
+            foreach (var ptNode in polygonPoint.ChildNodes)
+            {
+                (x, y) = ParsePointLocation(ptNode);
+                points.Add(new XPoint(x, y));
+            }
+            drawer.DrawPolygon(points, isFilled);
+
+        }
+
+        private void ExecutePie(IPdfDocumentDrawer drawer, ParseTreeNode node, bool isFilled)
+        {
+            var (x,y, w,h) = ParseRectLocation(node.ChildNodes[1]);
+            var startAngle = Evaluate(node.ChildNodes[2]) ?? 0;
+            var sweepAngle = Evaluate(node.ChildNodes[3]) ?? 0;
+
+            drawer.DrawPie(x, y, w, h, startAngle, sweepAngle, isFilled);
         }
 
         private void ExecuteImage(IPdfDocumentDrawer drawer, ParseTreeNode node)

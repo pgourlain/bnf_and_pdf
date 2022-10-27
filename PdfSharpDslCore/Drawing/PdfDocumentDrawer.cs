@@ -6,6 +6,7 @@ using PdfSharpCore.Drawing.BarCodes;
 using PdfSharpCore.Drawing.Layout;
 using PdfSharpCore.Pdf;
 using System;
+using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
 using System.Xml.Linq;
@@ -510,7 +511,7 @@ namespace PdfSharpDslCore.Drawing
             Gfx.ScaleTransform(scaleX, scaleY);
         }
 
-        public void NewPage(PageSize? pageSize=null, PageOrientation? pageOrientation=null)
+        public void NewPage(PageSize? pageSize = null, PageOrientation? pageOrientation = null)
         {
             _defaultPageSize = pageSize ?? _defaultPageSize;
             _defaultPageOrientation = pageOrientation ?? _defaultPageOrientation;
@@ -599,5 +600,30 @@ namespace PdfSharpDslCore.Drawing
                 }
             }
         }
+
+        public void DrawPie(double x, double y, double? w, double? h, double startAngle, double sweepAngle, bool isFilled)
+        {
+            if (isFilled)
+            {
+                Gfx.DrawPie(CurrentPen, CurrentBrush, x, y, w ?? 0, h ?? 0, startAngle, sweepAngle);
+            }
+            else
+            {
+                Gfx.DrawPie(CurrentPen, x, y, w ?? 0, h ?? 0, startAngle, sweepAngle);
+            }
+        }
+
+        public void DrawPolygon(IEnumerable<XPoint> points, bool isFilled)
+        {
+            if (isFilled)
+            {
+                Gfx.DrawPolygon(CurrentPen, CurrentBrush, points.ToArray(), XFillMode.Alternate);
+            }
+            else
+            {
+                Gfx.DrawPolygon(CurrentPen, points.ToArray());
+            }
+        }
+
     }
 }

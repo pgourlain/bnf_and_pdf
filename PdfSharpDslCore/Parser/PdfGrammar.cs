@@ -105,7 +105,11 @@ namespace PdfSharpDslCore.Parser
             var PixelOrPoint = new NonTerminal("PixelOrPoint");
             var CropExp = new NonTerminal("CropExp");
             var ImageLocation = new NonTerminal("ImageLocation");
-
+            var PieSmt = new NonTerminal("PieSmt");
+            var FillPieSmt = new NonTerminal("FillPieSmt");
+            var PolygonSmt = new NonTerminal("PolygonSmt");
+            var PolygonPoint = new NonTerminal("PolygonPoint");
+            var FillPolygonSmt = new NonTerminal("FillPolygonSmt");
             NumberExpression.Rule = number_literal | MultipleNumberExpression;
             MultipleNumberExpression.Rule = BinaryExpression | Parenthesized_NumberExpression;
             Parenthesized_NumberExpression.Rule = ToTerm("(") + NumberExpression + ToTerm(")");
@@ -148,6 +152,10 @@ namespace PdfSharpDslCore.Parser
                 | TextSmt
                 | TableSmt
                 | ImageSmt
+                | PieSmt
+                | PolygonSmt
+                | FillPolygonSmt
+                | FillPieSmt
             ;
 
             #region basics rules
@@ -251,6 +259,11 @@ namespace PdfSharpDslCore.Parser
             //PreferShift because
             ImageSmt.Rule = ToTerm("IMAGE") + ImageLocation + ImplyPrecedenceHere(11) + sstring;
 
+            PieSmt.Rule = ToTerm("PIE") + RectLocation + NumberExpression + NumberExpression;
+            PolygonSmt.Rule = ToTerm("POLYGON") + PointLocation + PointLocation + PolygonPoint;
+            PolygonPoint.Rule = MakePlusRule(PolygonPoint, PointLocation);
+            FillPieSmt.Rule = ToTerm("FILLPIE") + RectLocation + NumberExpression + NumberExpression;
+            FillPolygonSmt.Rule = ToTerm("FILLPOLYGON") + PointLocation + PointLocation + PolygonPoint;
 
             RegisterOperators(10, opDivide, opMultiply);
             RegisterOperators(9, opPlus, opMinus);

@@ -34,6 +34,11 @@ else
 }
 ```
 
+or download source code, then goto PdfSharpDslConsole and run it
+```shell
+dotnet run 
+```
+
 # Language specification
 
 It's a list of drawing "orders" follow by ';' 
@@ -114,6 +119,26 @@ FILLRECT, FILLELLIPSE use PEN (outline) and BRUSH (fill)
 - positive number : number of point from left
 - negative number : number of point from right
 - formula : supports only "+ - * / ( )"
+
+
+## Pie, FillPie 
+
+```text
+# PIE RectLocation startAngle sweepAngle
+PIE 10,10,120,120 0 90;
+FILLPIE 10,10,120,120 0 90;
+```
+
+
+## Polygon, FillPolygon
+
+```text
+# POLYGON PointLocation PointLocation PointLocation [PointLocation PointLocation PointLocation ...]
+POLYGON 300,300 350,320 330,350 240,240;
+
+FILLPOLYGON 100,100 150,120 130,150 240,40;
+```
+
 
 ## MoveTo, LineTo
 
