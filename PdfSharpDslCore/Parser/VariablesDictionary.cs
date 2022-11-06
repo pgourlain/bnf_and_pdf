@@ -22,11 +22,18 @@ namespace PdfSharpDslCore.Parser
 
         public ICollection<object> Values => throw new NotImplementedException();
 
-        public int Count => throw new NotImplementedException();
+        public int Count => _inner.Count;
 
         public bool IsReadOnly => false;
 
-        public object this[string key] { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public object this[string key] { get {
+            if (this.TryGetValue(key, out var value))
+            {
+                return value;
+            }
+            return null;
+        } 
+        set => throw new NotImplementedException(); }
 
         public void Add(string key, object value)
         {
