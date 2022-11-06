@@ -2,3 +2,5 @@ X=30
 Y=40
 C=2500
 S=coucou
+S1=coucoucoucou
+S2=coucou1
