@@ -6,6 +6,7 @@ using PdfSharpDslCore.Evaluation;
 using PdfSharpDslCore.Extensions;
 using SixLabors.ImageSharp;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -16,14 +17,14 @@ namespace PdfSharpDslCore.Parser
     /// </summary>
     public class PdfDrawerVisitor
     {
-        protected Dictionary<string, object> _variables = new Dictionary<string, object>();
+        protected IDictionary<string, object> _variables = new Dictionary<string,object>();
         public PdfDrawerVisitor() { }
 
         public void Draw(IPdfDocumentDrawer drawer, ParseTree tree)
         {
             if (tree == null) return;
             if (drawer == null) throw new ArgumentNullException(nameof(drawer));
-
+            _variables = new VariablesDictionary(drawer);
             foreach (var node in tree.Root.ChildNodes)
             {
                 Visit(drawer, node);
@@ -163,18 +164,18 @@ namespace PdfSharpDslCore.Parser
 
         private void ExecuteTitle(IPdfDocumentDrawer drawer, ParseTreeNode node)
         {
-            var text = (string)node.ChildNodes[3].Token.Value;
-            var margin = ParseNumber(node.ChildNodes[1]);
+            var text = Convert.ToString(EvaluateForObject(node.ChildNodes[3], _variables));
+            var margin = ParseMargin(node.ChildNodes[1]);
             var (hAlign, vAlign) = ParseTextAlignment(node.ChildNodes[2]);
 
             drawer.DrawTitle(text, margin ?? 0, hAlign, vAlign);
         }
 
-        private static double? ParseNumber(ParseTreeNode node)
+        private double? ParseMargin(ParseTreeNode node)
         {
             if (node.ChildNodes.Count > 0)
             {
-                return Convert.ToDouble(node.ChildNodes[0].Token.Value);
+                return EvaluateForDouble(node.ChildNodes[0]);
             }
             return null;
         }
@@ -270,7 +271,7 @@ namespace PdfSharpDslCore.Parser
         }
 
 
-        private static void ExecuteNewPage(IPdfDocumentDrawer drawer, ParseTreeNode node)
+        private void ExecuteNewPage(IPdfDocumentDrawer drawer, ParseTreeNode node)
         {
             var nSize = node.ChildNode("PageSize");
             var nOrientation = node.ChildNode("PageOrientation");
@@ -299,7 +300,7 @@ namespace PdfSharpDslCore.Parser
             var nodeAlignment = node.ChildNodes[2];
             var nodeOrientation = node.ChildNodes[3];
             var contentNode = node.ChildNodes[4];
-            var text = (string?)contentNode.Token?.Value;
+            var text = Convert.ToString(EvaluateForObject(contentNode, _variables));
             TextOrientation textOrientation = new TextOrientation { Orientation = TextOrientationEnum.Horizontal, Angle = null };
 
             if (nodeOrientation.ChildNodes.Count > 0)
@@ -325,7 +326,7 @@ namespace PdfSharpDslCore.Parser
         {
             var nodeLocation = node.ChildNodes[1];
             var contentNode = node.ChildNodes[2];
-            var text = (string?)contentNode.Token?.Value;
+            var text = Convert.ToString(EvaluateForObject(contentNode, _variables));
 
             if (text is not null)
             {
@@ -453,21 +454,13 @@ namespace PdfSharpDslCore.Parser
         {
             var v = EvaluateForObject(node.ChildNodes[3], _variables);
             var varName = node.ChildNodes[1].Token.ValueString;
-            if (this._variables.ContainsKey(varName))
-            {
-                this._variables[varName] = v;
-
-            }
-            else
-            {
-                this._variables.Add(varName, v);
-            }
+            _variables.Add(varName, v);
         }
 
         private void ExecutePen(IPdfDocumentDrawer drawer, ParseTreeNode node)
         {
 
-            var width = Convert.ToDouble(node.ChildNodes[2].Token.Value);
+            var width = EvaluateForDouble(node.ChildNodes[2])??0;
             var color = ParseColor(node.ChildNodes[1]);
 
             drawer.CurrentPen = new XPen(color, width);
@@ -521,10 +514,10 @@ namespace PdfSharpDslCore.Parser
             drawer.CurrentFont = ExtractFont(node);
         }
 
-        private static XFont ExtractFont(ParseTreeNode node)
+        private XFont ExtractFont(ParseTreeNode node)
         {
             var fontName = (string)node.ChildNodes[1].Token.Value;
-            var fontSize = Convert.ToDouble(node.ChildNodes[2].Token.Value);
+            var fontSize = EvaluateForDouble(node.ChildNodes[2], _variables) ?? 0;
             var style = ParseStyle(node.ChildNodes.Count > 3 ? node.ChildNodes[3] : null);
             return new XFont(fontName, fontSize, style, XPdfFontOptions.UnicodeDefault);
         }

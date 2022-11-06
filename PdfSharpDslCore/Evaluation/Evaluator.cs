@@ -87,8 +87,8 @@ namespace PdfSharpDslCore.Evaluation
                     {
                         throw new NotImplementedException();
                     }
-                case "var":
-                    return new VariableEvaluation((string)node.Token.Value, variables);
+                case "VarRef":
+                    return new VariableEvaluation((string)node.ChildNodes[1].Token.Value, variables);
                 case "string":
                     return new ConstantEvaluation(node.Token.Value);
 

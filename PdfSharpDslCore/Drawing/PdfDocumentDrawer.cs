@@ -107,6 +107,9 @@ namespace PdfSharpDslCore.Drawing
             }
         }
 
+        public double PageWidth => CurrentPage.Width;
+        public double PageHeight => CurrentPage.Height;
+
 
         private XGraphics Gfx
         {

@@ -42,6 +42,7 @@ namespace PdfSharpDslCore.Parser
             colorNumber.AddPrefix("0x", NumberOptions.Hex);
             var variable_literal = new IdentifierTerminal("var");
 
+
             var comment = new CommentTerminal("comment", "#", "\r", "\n", "\u2085", "\u2028", "\u2029");
             //comment must to be added to NonGrammarTerminals list; it is not used directly in grammar rules,
             // so we add it to this list to let Scanner know that it is also a valid terminal. 
@@ -121,11 +122,13 @@ namespace PdfSharpDslCore.Parser
             var FormulaTerm = new NonTerminal("FormulaTerm");
             var UnaryExpression = new NonTerminal("UnaryExpression");
             var VarSmt = new NonTerminal("VarSmt");
+            var VarRef = new NonTerminal("VarRef");
 
             FormulaExpression.Rule = FormulaTerm | UnaryExpression | BinaryExpression;
-            FormulaTerm.Rule = number_literal | Parenthesized_Expression | variable_literal | sstring;
+            FormulaTerm.Rule = number_literal | Parenthesized_Expression | VarRef | sstring;
             UnaryExpression.Rule = UnOp + FormulaTerm;
             UnOp.Rule = ToTerm("+") | "-";
+            VarRef.Rule = "$" + variable_literal;
             //NumberExpression.Rule = number_literal | MultipleNumberExpression | variable_literal;
             //MultipleNumberExpression.Rule = BinaryExpression | Parenthesized_NumberExpression;
             Parenthesized_Expression.Rule = ToTerm("(") + FormulaExpression + ToTerm(")");
@@ -189,9 +192,9 @@ namespace PdfSharpDslCore.Parser
             LineSmt.Rule = ToTerm("LINE") + RectLocation;
             MoveToSmt.Rule = ToTerm("MOVETO") + PointLocation;
             LineToSmt.Rule = ToTerm("LINETO") + PointLocation;
-            PenSmt.Rule = ToTerm("PEN") + ColorExp + number_literal;
+            PenSmt.Rule = ToTerm("PEN") + ColorExp + FormulaExpression;
             BrushSmt.Rule = ToTerm("BRUSH") + ColorExp + BrushType;
-            FontSmt.Rule = ToTerm("FONT") + sstring + number_literal + styleExpr;
+            FontSmt.Rule = ToTerm("FONT") + sstring + FormulaExpression + styleExpr;
             VarSmt.Rule = ToTerm("VAR") + variable_literal+"="+ FormulaExpression;
 
             ColorExp.Rule = NamedColor | HexColor;
@@ -228,7 +231,7 @@ namespace PdfSharpDslCore.Parser
             TextOrientation.Rule = Empty | "vertical" | "horizontal" | number_literal; //number for angle in degree
 
             //simple line
-            LineTextSmt.Rule = ToTerm("LINETEXT") + RectOrPointLocation + TextAlignment + TextOrientation + sstring;
+            LineTextSmt.Rule = ToTerm("LINETEXT") + RectOrPointLocation + TextAlignment + TextOrientation + FormulaExpression;
             BrushType.Rule = Empty /* | GradientBrush*/;
 
             PageSize.Rule = Empty;
@@ -240,8 +243,8 @@ namespace PdfSharpDslCore.Parser
             PageOrientation.Rule = Empty | "portrait" | "landscape";
             NewPageSmt.Rule = ToTerm("NEWPAGE") + PageSize + PageOrientation;
 
-            Title.Rule = ToTerm("TITLE") + Margin + HAlign + sstring;
-            Margin.Rule = Empty | number_literal;
+            Title.Rule = ToTerm("TITLE") + Margin + HAlign + FormulaExpression;
+            Margin.Rule = Empty | FormulaExpression;
 
 
             TableSmt.Rule = ToTerm("TABLE") + TableLocation + TableContent + ToTerm("ENDTABLE");

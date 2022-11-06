@@ -27,6 +27,8 @@ namespace PdfSharpDslCore.Drawing
         XPen CurrentPen { get; set; }
         XBrush CurrentBrush { get; set; }
         XFont CurrentFont { get; set; }
+        double PageWidth { get; }
+        double PageHeight { get; }
 
         void NewPage(PageSize? pageSize=null, PageOrientation? pageOrientation=null);
         void DrawLine(double x, double y, double x1, double y1);
