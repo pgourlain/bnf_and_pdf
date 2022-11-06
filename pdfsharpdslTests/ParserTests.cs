@@ -57,7 +57,7 @@ namespace pdfsharpdslTests
         }
         class PdfDrawerForTestsVisitor : PdfDrawerVisitor
         {
-            public Dictionary<string, object> Vars => _variables;
+            public IDictionary<string, object> Vars => _variables;
             public PdfDrawerForTestsVisitor()
             {
 
