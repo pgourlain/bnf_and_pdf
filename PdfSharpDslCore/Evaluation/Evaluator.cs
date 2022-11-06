@@ -16,24 +16,52 @@ namespace PdfSharpDslCore.Evaluation
             _rootNode = rootNode;
         }
 
-        public double? Execute(/*variables*/)
+        public double? EvaluateForDouble(IDictionary<string, object> variables)
         {
-            var result = PerformEvaluate(_rootNode).Value;
+            var result = Evaluate(variables);
             if (result is null) return null;
             return Convert.ToDouble(result);
         }
 
-        private Evaluation PerformEvaluate(ParseTreeNode node)
+
+        public object? Evaluate(IDictionary<string, object> variables)
         {
+
+            var result = PerformEvaluate(_rootNode, variables).Value;
+            return result;
+        }
+ 
+
+        private Evaluation PerformEvaluate(ParseTreeNode node, IDictionary<string, object> variables)
+        {
+            ParseTreeNode? opNode;
+            ParseTreeNode? rightNode;
+            Evaluation right ;
+            BinaryOperation op;
             switch (node.Term.Name)
             {
+                case "UnaryExpression":
+                    opNode = node.ChildNodes[0];
+                    rightNode = node.ChildNodes[1];
+                    right = PerformEvaluate(rightNode, variables);
+                    op = BinaryOperation.Add;
+                    switch (opNode.Term.Name)
+                    {
+                        case "+":
+                            op = BinaryOperation.Add;
+                            break;
+                        case "-":
+                            op = BinaryOperation.Sub;
+                            break;
+                    }
+                    return new UnaryEvaluation(right, op);
                 case "BinaryExpression":
                     var leftNode = node.ChildNodes[0];
-                    var opNode = node.ChildNodes[1];
-                    var rightNode = node.ChildNodes[2];
-                    Evaluation left = PerformEvaluate(leftNode);
-                    Evaluation right = PerformEvaluate(rightNode);
-                    BinaryOperation op = BinaryOperation.Add;
+                    opNode = node.ChildNodes[1];
+                    rightNode = node.ChildNodes[2];
+                    Evaluation left = PerformEvaluate(leftNode, variables);
+                    right = PerformEvaluate(rightNode, variables);
+                    op = BinaryOperation.Add;
                     switch (opNode.Term.Name)
                     {
                         case "+":
@@ -53,12 +81,17 @@ namespace PdfSharpDslCore.Evaluation
                 case "number":
                     var value = Convert.ToDouble(node.Token.Value);
                     return new ConstantEvaluation(value);
-                case "NumberExpression":
-                    if (node.ChildNodes.Count == 1) return PerformEvaluate(node.ChildNodes[0]);
+                case "FormulaExpression":
+                    if (node.ChildNodes.Count == 1) return PerformEvaluate(node.ChildNodes[0], variables);
                     else
                     {
                         throw new NotImplementedException();
                     }
+                case "var":
+                    return new VariableEvaluation((string)node.Token.Value, variables);
+                case "string":
+                    return new ConstantEvaluation(node.Token.Value);
+
                 case "auto":
                     return new ConstantEvaluation(null);
             }

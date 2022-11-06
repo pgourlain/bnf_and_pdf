@@ -25,32 +25,79 @@ namespace PdfSharpDslCore.Evaluation
         {
             get
             {
-                var leftValue = 0.0;
-                var rightValue = 0.0;
-                if (this.left.Value == null || this.right.Value == null)
+                var leftValue = this.left.Value;
+                var rightValue = this.right.Value;
+
+                if (leftValue == null || rightValue == null)
                 {
                     throw new InvalidOperationException("Either left or right value of the binary evaluation has been evaluated to null.");
                 }
-                if (!double.TryParse(this.left.Value.ToString(), out leftValue) ||
-                    !double.TryParse(this.right.Value.ToString(), out rightValue))
+                bool leftIsNan = false;
+                if (double.TryParse(leftValue.ToString(), out var dblValue))
                 {
-                    throw new InvalidOperationException("Either left or right value of the binary evaluation cannot be evaluated as a float value.");
+                    leftValue = dblValue;
                 }
-                switch (oper)
+                else
                 {
-                    case BinaryOperation.Add:
-                        return leftValue + rightValue;
-                    case BinaryOperation.Sub:
-                        return leftValue - rightValue;
-                    case BinaryOperation.Mul:
-                        return leftValue * rightValue;
-                    case BinaryOperation.Div:
-                        return leftValue / rightValue;
-                    default:
-                        break;
+                    leftIsNan = true;
+                }
+                bool rightIsNan = false;
+                if (double.TryParse(rightValue.ToString(), out dblValue))
+                {
+                    rightValue = dblValue;
+                }
+                else
+                {
+                    rightIsNan = true;
                 }
 
+                //TODO: check if operation can be done when type are differents             
+
+                if (leftIsNan && rightIsNan)
+                {
+                    return StringOperation(leftValue, rightValue, oper);
+                }
+                else if (!leftIsNan && !rightIsNan)
+                {
+                    return DoubleOperation(leftValue, rightValue, oper);
+                }
+                else
+                {
+                    return StringOperation(leftValue, rightValue, oper);
+                }
+
+
                 throw new InvalidOperationException("Invalid binary operation.");
+            }
+        }
+
+        private double DoubleOperation(object leftValue, object rightValue, BinaryOperation oper)
+        {
+            var l = (double)leftValue;
+            var r = (double)rightValue;
+            switch (oper)
+            {
+                case BinaryOperation.Add:
+                    return l + r;
+                case BinaryOperation.Sub:
+                    return l - r;
+                case BinaryOperation.Mul:
+                    return l * r;
+                case BinaryOperation.Div:
+                    return l / r;
+                default:
+                    throw new NotSupportedException("Operation not supported on double");
+            }
+        }
+
+        private object StringOperation(object leftValue, object rightValue, BinaryOperation oper)
+        {
+            switch (oper)
+            {
+                case BinaryOperation.Add:
+                    return leftValue.ToString() + rightValue.ToString();
+                default:
+                    throw new NotSupportedException("Operation not supported on string");
             }
         }
 

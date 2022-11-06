@@ -11,6 +11,11 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq.Expressions;
+using System.Runtime.CompilerServices;
+
+
+[assembly: InternalsVisibleTo("pdfsharpdslTests")]
+
 
 namespace PdfSharpDslCore.Parser
 {
@@ -35,6 +40,7 @@ namespace PdfSharpDslCore.Parser
             var colorNumber = new NumberLiteral("ColorValue");
             colorNumber.AddPrefix("g", NumberOptions.Default | NumberOptions.AllowStartEndDot);
             colorNumber.AddPrefix("0x", NumberOptions.Hex);
+            var variable_literal = new IdentifierTerminal("var");
 
             var comment = new CommentTerminal("comment", "#", "\r", "\n", "\u2085", "\u2028", "\u2029");
             //comment must to be added to NonGrammarTerminals list; it is not used directly in grammar rules,
@@ -96,11 +102,10 @@ namespace PdfSharpDslCore.Parser
             var ViewSizeSmt = new NonTerminal("ViewSizeSmt");
             var Title = new NonTerminal("TitleSmt");
             var Margin = new NonTerminal("Margin");
-            var NumberExpression = new NonTerminal("NumberExpression");
-            var MultipleNumberExpression = new NonTerminal("MultipleNumberExpression");
-            var Parenthesized_NumberExpression = new NonTerminal("Parenthesized_NumberExpression");
+            var Parenthesized_Expression = new NonTerminal("Parenthesized_Expression");
             var BinaryExpression = new NonTerminal("BinaryExpression");
-            var Operator = new NonTerminal("Operator");
+            var BinOp = new NonTerminal("BinOp");
+            var UnOp = new NonTerminal("UnOp");
             var semiOpt = new NonTerminal("semiOpt");
             var PixelOrPoint = new NonTerminal("PixelOrPoint");
             var CropExp = new NonTerminal("CropExp");
@@ -110,16 +115,23 @@ namespace PdfSharpDslCore.Parser
             var PolygonSmt = new NonTerminal("PolygonSmt");
             var PolygonPoint = new NonTerminal("PolygonPoint");
             var FillPolygonSmt = new NonTerminal("FillPolygonSmt");
-            NumberExpression.Rule = number_literal | MultipleNumberExpression;
-            MultipleNumberExpression.Rule = BinaryExpression | Parenthesized_NumberExpression;
-            Parenthesized_NumberExpression.Rule = ToTerm("(") + NumberExpression + ToTerm(")");
-            BinaryExpression.Rule = NumberExpression + Operator + NumberExpression;
-            var opPlus = ToTerm("+");
-            var opMinus = ToTerm("-");
-            var opDivide = ToTerm("/");
-            var opMultiply = ToTerm("*");
+            
+            
+            var FormulaExpression = new NonTerminal("FormulaExpression");
+            var FormulaTerm = new NonTerminal("FormulaTerm");
+            var UnaryExpression = new NonTerminal("UnaryExpression");
+            var VarSmt = new NonTerminal("VarSmt");
 
-            Operator.Rule = opPlus | opMinus | opDivide | opMultiply;
+            FormulaExpression.Rule = FormulaTerm | UnaryExpression | BinaryExpression;
+            FormulaTerm.Rule = number_literal | Parenthesized_Expression | variable_literal | sstring;
+            UnaryExpression.Rule = UnOp + FormulaTerm;
+            UnOp.Rule = ToTerm("+") | "-";
+            //NumberExpression.Rule = number_literal | MultipleNumberExpression | variable_literal;
+            //MultipleNumberExpression.Rule = BinaryExpression | Parenthesized_NumberExpression;
+            Parenthesized_Expression.Rule = ToTerm("(") + FormulaExpression + ToTerm(")");
+            BinaryExpression.Rule = FormulaExpression + BinOp + FormulaExpression;
+
+            BinOp.Rule = ToTerm("+") | "-" | "*" | "/";
             #endregion
 
             // set the PROGRAM to be the root node of PDF lines.
@@ -161,17 +173,18 @@ namespace PdfSharpDslCore.Parser
             #region basics rules
             RectLocation.Rule = PointLocation + comma + PointLocation;
 
-            PointLocation.Rule = NumberExpression + comma + NumberExpression;
+            PointLocation.Rule = FormulaExpression + comma + FormulaExpression;
             RectOrPointLocation.Rule = RectLocation | PointLocation;
 
             #endregion
 
             SetSmt.Rule = ToTerm("SET") + SetContent;
-            SetContent.Rule = PenSmt | BrushSmt | FontSmt;
+            SetContent.Rule = PenSmt | BrushSmt | FontSmt | VarSmt;
             RectSmt.Rule = ToTerm("RECT") + RectLocation;
             FillRectSmt.Rule = ToTerm("FILLRECT") + RectLocation;
             EllipseSmt.Rule = ToTerm("ELLIPSE") + RectLocation;
             FillEllipseSmt.Rule = ToTerm("FILLELLIPSE") + RectLocation;
+            
 
             LineSmt.Rule = ToTerm("LINE") + RectLocation;
             MoveToSmt.Rule = ToTerm("MOVETO") + PointLocation;
@@ -179,6 +192,7 @@ namespace PdfSharpDslCore.Parser
             PenSmt.Rule = ToTerm("PEN") + ColorExp + number_literal;
             BrushSmt.Rule = ToTerm("BRUSH") + ColorExp + BrushType;
             FontSmt.Rule = ToTerm("FONT") + sstring + number_literal + styleExpr;
+            VarSmt.Rule = ToTerm("VAR") + variable_literal+"="+ FormulaExpression;
 
             ColorExp.Rule = NamedColor | HexColor;
             foreach (var prop in typeof(XColors).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static))
@@ -245,11 +259,11 @@ namespace PdfSharpDslCore.Parser
             TableCol.Rule = ToTerm("COL") + sstring + semi;
             TableLocation.Rule = PointLocation /*+ "," + PointAutoLocation*/;
             PointAutoLocation.Rule = NumberOrAuto + "," + NumberOrAuto;
-            NumberOrAuto.Rule = NumberExpression | "auto";
+            NumberOrAuto.Rule = FormulaExpression | "auto";
             TableHeadStyle.Rule = Empty | ColorExp;
             TableColFont.Rule = Empty | ToTerm("FONT=") + sstring + "," + number_literal + "," + styleExpr;
             TableColColors.Rule = Empty | ColorExp + ColorExp;
-            TableRowStyle.Rule = Empty | NumberExpression;
+            TableRowStyle.Rule = Empty | FormulaExpression;
 
             ViewSizeSmt.Rule = ToTerm("VIEWSIZE") + PointLocation;
 
@@ -259,20 +273,20 @@ namespace PdfSharpDslCore.Parser
             //PreferShift because
             ImageSmt.Rule = ToTerm("IMAGE") + ImageLocation + ImplyPrecedenceHere(11) + sstring;
 
-            PieSmt.Rule = ToTerm("PIE") + RectLocation + NumberExpression + NumberExpression;
+            PieSmt.Rule = ToTerm("PIE") + RectLocation + FormulaExpression + FormulaExpression;
             PolygonSmt.Rule = ToTerm("POLYGON") + PointLocation + PointLocation + PolygonPoint;
             PolygonPoint.Rule = MakePlusRule(PolygonPoint, PointLocation);
-            FillPieSmt.Rule = ToTerm("FILLPIE") + RectLocation + NumberExpression + NumberExpression;
+            FillPieSmt.Rule = ToTerm("FILLPIE") + RectLocation + FormulaExpression + FormulaExpression;
             FillPolygonSmt.Rule = ToTerm("FILLPOLYGON") + PointLocation + PointLocation + PolygonPoint;
 
-            RegisterOperators(10, opDivide, opMultiply);
-            RegisterOperators(9, opPlus, opMinus);
+            RegisterOperators(1, "+", "-");
+            RegisterOperators(2, "*", "/");
             RegisterBracePair("(", ")");
 
             MarkPunctuation(";", ",", "(", ")", "TABLE", "ENDTABLE", "HEAD", "ENDHEAD", "ROW", "ENDROW");
             RegisterBracePair("(", ")");
-            MarkTransient(PdfLineContent, SetContent, NumberOrAuto, Parenthesized_NumberExpression,
-                Operator, MultipleNumberExpression, styleExpr, semiOpt, PixelOrPoint);
+            MarkTransient(PdfLineContent, SetContent, NumberOrAuto, Parenthesized_Expression,
+                BinOp, styleExpr, semiOpt, PixelOrPoint, UnOp, FormulaExpression, FormulaTerm);
 
             this.AddTermsReportGroup("punctuation", comma);
             this.AddTermsReportGroup("operator", "+", "-", "/", "*");
