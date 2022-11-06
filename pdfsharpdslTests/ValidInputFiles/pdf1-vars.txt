@@ -1,0 +1,7 @@
+SET VAR X=30;
+SET VAR Y=$X+10;
+SET VAR C=$X*$X+$Y*$Y;
+SET VAR S="coucou";
+SET VAR S1="coucou"+$S;
+SET VAR S2="coucou"+1;
+

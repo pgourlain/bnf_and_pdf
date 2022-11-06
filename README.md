@@ -49,18 +49,48 @@ All coordinates are specified in 'points'
 - 1 millimeter = 1 * 25.4 / 72.0 points
 - 1 centimeter => 1 * 2.54 / 72.0 points
 
+## Formula feature
+
+- a formula result can be string or double
+- aritmetic operation are : + - / *
+- variable reference : $VarName, and must be declared before with SET VAR VarName=Formula
+
+```text
+SET VAR A=2
+SET VAR B=3
+SET VAR CSquare=$A*$A+$B*$B
+```
+
+Formula can be used in :
+- each number in [PointLocation, RectLocation, Width, FontSize, startAngle, sweepAngle]
+
+
 ## Color and Brush
 
 ```text
 # SET PEN Color Width
 SET PEN black 1;
 
+**Width** is one of
+- number
+- Formula
+
+
 # SET BRUSH Color
 SET BRUSH black;
+
+**Color** is one of
+- NamedColor : [color list](./README.md#named-color-list)
+- HexColor : 0xRGB 
+    - sample: 0xFFEEBB
 
 # SET FONT FontName FontSize [FontStyle]
 SET FONT "Arial" 20 bold;
 ```
+
+**FontName**  is one of 
+- string
+- Variable reference
 
 **[FontStyle]** is one of
 - **regular** (if not specified)
@@ -70,10 +100,7 @@ SET FONT "Arial" 20 bold;
 - underline
 - strikeout
 
-**Color** is one of
-- NamedColor : [color list](./README.md#named-color-list)
-- HexColor : 0xRGB 
-    - sample: 0xFFEEBB
+
 
 ## Title
 
@@ -110,6 +137,7 @@ FILLELLIPSE 250, 200, 50,50;
 # LINE RectLocation
 LINE 100,100, 200, 100;
 ```
+here Width and Height of RectLocation is X1 and Y1
 
 LINE, ELLIPSE, RECT use PEN (outline) 
 

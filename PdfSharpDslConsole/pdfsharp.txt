@@ -3,18 +3,21 @@ NEWPAGE A4 portrait;
 
 SET PEN black 1
 SET BRUSH black
-SET FONT "Arial" 20 bold
+SET VAR FSize=21
+SET FONT "Arial" $FSize bold
 
 # draw text on top of the page
 TITLE hcenter "TITLE TEST";
-TITLE 50 hcenter "My title with margin 50";
+SET VAR MarginTop=($FSize*2);
+TITLE $MarginTop hcenter ("My title with margin "+$MarginTop);
 TITLE 100 left "My title with margin 100";
 TITLE 100 right "My title with margin 100";
 TITLE 100 right "My title with margin 100";
 TITLE -0.1 left "My title with margin -0.1";
-SET PEN red 1
-RECT 0,100,-0.1,25
-SET PEN black 1
+SET PEN red 1;
+RECT 0,100,-0.1,($FSize+5);
+SET VAR NormalPen=1;
+SET PEN black $NormalPen;
 
 NEWPAGE A4 landscape;
 TITLE hcenter "ELLIPSE and RECT";
@@ -35,7 +38,7 @@ SET BRUSH black;
 TITLE hcenter "Text TEST";
 SET FONT "Consolas" 8 ;
 
-LINETEXT 42,100 left vcenter vertical "Vertical text to 90°";
+LINETEXT 42,100 left vcenter vertical ("Vertical text to "+ 90 +"°");
 SET FONT "Consolas" 12 bold ;
 SET BRUSH g1.4;
 LINETEXT 100,100 left vcenter "color grayscale 1.4";
@@ -234,3 +237,28 @@ FILLPIE 10,10,120,120 0 90;
 FILLPOLYGON 100,100 150,120 130,150 240,40;
 
 POLYGON 300,300 350,320 330,350 240,240;
+
+NEWPAGE landscape;
+
+SET FONT "Arial" 20 bold ;
+TITLE hcenter "System variables";
+
+SET VAR Y = $PAGEHEIGHT/2;
+SET VAR X=$PAGEWIDTH/2;
+SET FONT "Consolas" 20;
+LINETEXT $X,$Y hcenter vcenter "center text on page based on PAGEWIDTH/PAGEHEIGHT";
+LINE $X,0, $X, $PAGEHEIGHT;
+LINE 0,$Y, $PAGEWIDTH,$Y ;
+
+
+NEWPAGE portrait;
+
+SET FONT "Arial" 20 bold ;
+TITLE hcenter "ViewSize to 100x140";
+SET FONT "Consolas" 3;
+SET PEN red 0.1;
+VIEWSIZE 100,140;
+LINETEXT 50,70 hcenter vcenter "center text on page based on viewSize";
+LINE 50,0, 50, 140;
+LINE 0,70, 100,70 ;
+

@@ -7,7 +7,7 @@
 		<Nullable>enable</Nullable>
 		<Title>Generate PDF using DSL</Title>
 		<PackageId>PdfSharpDslCore</PackageId>
-		<Version>0.9.3</Version>
+		<Version>0.9.4</Version>
 		<Authors>Pierrick Gourlain</Authors>
 		<Company></Company>
 		<Description>A DSL using PdfSharpCore to generate PDF</Description>
