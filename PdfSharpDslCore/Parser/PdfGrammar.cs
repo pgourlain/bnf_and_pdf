@@ -76,7 +76,7 @@ namespace PdfSharpDslCore.Parser
             var TextSmt = new NonTerminal("TextSmt");
             var RectOrPointLocation = new NonTerminal("RectOrPointLocation");
             var TextAlignment = new NonTerminal("TextAlignment");
-            var TextOrientation = new NonTerminal("TextOrientation");
+            var TextOrientationAndText = new NonTerminal("TextOrientationAndText");
             var HAlign = new NonTerminal("HAlign");
             var VAlign = new NonTerminal("VAlign");
             var LineTextSmt = new NonTerminal("LineTextSmt");
@@ -228,10 +228,10 @@ namespace PdfSharpDslCore.Parser
             TextAlignment.Rule = HAlign + VAlign;
             HAlign.Rule = Empty | "left" | "right" | "hcenter";
             VAlign.Rule = Empty | "top" | "bottom" | "vcenter";
-            TextOrientation.Rule = Empty | "vertical" | "horizontal" | number_literal; //number for angle in degree
+            TextOrientationAndText.Rule = Empty + FormulaExpression | "vertical" + FormulaExpression | "horizontal" + FormulaExpression | FormulaExpression + FormulaExpression;
 
             //simple line
-            LineTextSmt.Rule = ToTerm("LINETEXT") + RectOrPointLocation + TextAlignment + TextOrientation + FormulaExpression;
+            LineTextSmt.Rule = ToTerm("LINETEXT") + RectOrPointLocation + TextAlignment + TextOrientationAndText;
             BrushType.Rule = Empty /* | GradientBrush*/;
 
             PageSize.Rule = Empty;
@@ -274,7 +274,7 @@ namespace PdfSharpDslCore.Parser
             CropExp.Rule = Empty | "crop" | "fit";
             ImageLocation.Rule = PointLocation | RectLocation + PixelOrPoint + CropExp;
             //PreferShift because
-            ImageSmt.Rule = ToTerm("IMAGE") + ImageLocation + ImplyPrecedenceHere(11) + sstring;
+            ImageSmt.Rule = ToTerm("IMAGE") + ImageLocation + ImplyPrecedenceHere(11) + FormulaExpression;
 
             PieSmt.Rule = ToTerm("PIE") + RectLocation + FormulaExpression + FormulaExpression;
             PolygonSmt.Rule = ToTerm("POLYGON") + PointLocation + PointLocation + PolygonPoint;

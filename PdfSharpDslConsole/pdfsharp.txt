@@ -41,7 +41,8 @@ SET FONT "Consolas" 8 ;
 LINETEXT 42,100 left vcenter vertical ("Vertical text to "+ 90 +"°");
 SET FONT "Consolas" 12 bold ;
 SET BRUSH g1.4;
-LINETEXT 100,100 left vcenter "color grayscale 1.4";
+SET VAR T="color grayscale 1.4";
+LINETEXT 100,100 left vcenter $T;
 SET BRUSH g1.5;
 LINETEXT 100,110 left vcenter "color grayscale 1.5";
 SET BRUSH g1.6;
@@ -83,7 +84,8 @@ LINETEXT 400,200 left bottom 60 "LINETO";
 LINETO 400, 200;
 LINETEXT 450,286.6025 left bottom 120 "LINETO";
 LINETO 450, 286.6025;
-LINETEXT 400,373.205 left bottom 180 "LINETO";
+SET VAR PI=180;
+LINETEXT 400,373.205 left bottom $PI "LINETO";
 LINETO 400, 373.205;
 LINETEXT 300, 373.205 left bottom 240 "LINETO";
 LINETO 300, 373.205;
@@ -200,7 +202,8 @@ IMAGE 320,320,200,100 pixel crop "K:/projets/github/bnf_and_pdf/PdfSharpDslConso
 
 SET FONT "Consolas" 8;
 SET BRUSH black;
-LINETEXT 100,100 left bottom "IMAGE 100,100 \"./imageTest.jpg\"";
+SET VAR IMGFILE="IMAGE 100,100 \"./imageTest.jpg\"";
+LINETEXT 100,100 left bottom $IMGFILE;
 
 LINETEXT 320,100 left bottom "IMAGE 320,100,34,34 point \"./imageTest.jpg\"";
 LINETEXT 320,135 left top "scale to 34x34";
@@ -212,9 +215,6 @@ LINETEXT 100,370 left top "crop to 50x50";
 LINETEXT 320,320 left bottom "IMAGE 320,320,200,100 pixel crop \"./imageTest.jpg\"";
 LINETEXT 320,400 left top "crop to 200x100";
 
-# DEFINE TEMPLATE toto 
-# 
-# ENDDEFINE
 
 NEWPAGE landscape;
 

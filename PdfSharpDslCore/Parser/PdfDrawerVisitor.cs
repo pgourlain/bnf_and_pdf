@@ -298,18 +298,19 @@ namespace PdfSharpDslCore.Parser
         {
             var nodeLocation = node.ChildNodes[1];
             var nodeAlignment = node.ChildNodes[2];
-            var nodeOrientation = node.ChildNodes[3];
-            var contentNode = node.ChildNodes[4];
+            var nodeOrientationAndText = node.ChildNodes[3];
+            var nodeOrientation = nodeOrientationAndText.ChildNodes.Count > 1 ? nodeOrientationAndText.ChildNodes[0] : null;
+            var contentNode = nodeOrientationAndText.ChildNodes.Count > 1 ? nodeOrientationAndText.ChildNodes[1] : nodeOrientationAndText.ChildNodes[0];
             var text = Convert.ToString(EvaluateForObject(contentNode, _variables));
             TextOrientation textOrientation = new TextOrientation { Orientation = TextOrientationEnum.Horizontal, Angle = null };
 
-            if (nodeOrientation.ChildNodes.Count > 0)
+            if (nodeOrientation!= null)
             {
-                if (nodeOrientation.ChildNodes[0].Term.Name == "number")
+                if (nodeOrientation.Term.Name == "number" || nodeOrientation.Token is null)
                 {
-                    textOrientation = textOrientation with { Angle = Convert.ToDouble(nodeOrientation.ChildNodes[0].Token.Value) };
+                    textOrientation = textOrientation with { Angle = EvaluateForDouble(nodeOrientation) };
                 }
-                else if (Enum.TryParse<TextOrientationEnum>((string)nodeOrientation.ChildNodes[0].Token.Value, true, out var specifiedOrientation))
+                else if (Enum.TryParse<TextOrientationEnum>((string)nodeOrientation.Token.Value, true, out var specifiedOrientation))
                 {
                     textOrientation = textOrientation with { Orientation = specifiedOrientation };
                 }
