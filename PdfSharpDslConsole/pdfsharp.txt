@@ -38,6 +38,12 @@ SET BRUSH black;
 TITLE hcenter "Text TEST";
 SET FONT "Consolas" 8 ;
 
+SET VAR Y = $PAGEHEIGHT/2;
+SET VAR X=$PAGEWIDTH/2;
+LINE $X,0, $X, $PAGEHEIGHT;
+LINE 0,$Y, $PAGEWIDTH,$Y ;
+
+
 LINETEXT 42,100 left vcenter vertical ("Vertical text to "+ 90 +"°");
 SET FONT "Consolas" 12 bold ;
 SET BRUSH g1.4;
@@ -52,6 +58,15 @@ LINETEXT 100,130 left vcenter "color grayscale 1.7";
 SET BRUSH g1.8;
 LINETEXT 100,140 left vcenter "color grayscale 1.8";
 LINETEXT 60,100 left vcenter vertical "Vertical text to 90°";
+SET BRUSH black;
+
+# Yellow with transparency
+SET HBRUSH 0x50ffe9b2; 
+LINETEXT $X,($Y-100) left vcenter "left align";
+LINETEXT $X,($Y-80) right vcenter "right align";
+
+SET HBRUSH 0x00000000; 
+
 
 NEWPAGE;
 SET FONT "Arial" 20 bold; 

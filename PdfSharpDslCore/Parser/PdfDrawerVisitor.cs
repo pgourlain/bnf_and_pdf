@@ -17,7 +17,7 @@ namespace PdfSharpDslCore.Parser
     /// </summary>
     public class PdfDrawerVisitor
     {
-        protected IDictionary<string, object> _variables = new Dictionary<string,object>();
+        protected IDictionary<string, object> _variables = new Dictionary<string, object>();
         public PdfDrawerVisitor() { }
 
         public void Draw(IPdfDocumentDrawer drawer, ParseTree tree)
@@ -304,7 +304,7 @@ namespace PdfSharpDslCore.Parser
             var text = Convert.ToString(EvaluateForObject(contentNode, _variables));
             TextOrientation textOrientation = new TextOrientation { Orientation = TextOrientationEnum.Horizontal, Angle = null };
 
-            if (nodeOrientation!= null)
+            if (nodeOrientation != null)
             {
                 if (nodeOrientation.Term.Name == "number" || nodeOrientation.Token is null)
                 {
@@ -443,6 +443,7 @@ namespace PdfSharpDslCore.Parser
             {
                 "PenSmt" => ExecutePen,
                 "BrushSmt" => ExecuteBrush,
+                "HBrushSmt" => ExecuteHBrush,
                 "FontSmt" => ExecuteFont,
                 "VarSmt" => ExecuteSetVar,
                 _ => NotImplemented
@@ -461,7 +462,7 @@ namespace PdfSharpDslCore.Parser
         private void ExecutePen(IPdfDocumentDrawer drawer, ParseTreeNode node)
         {
 
-            var width = EvaluateForDouble(node.ChildNodes[2])??0;
+            var width = EvaluateForDouble(node.ChildNodes[2]) ?? 0;
             var color = ParseColor(node.ChildNodes[1]);
 
             drawer.CurrentPen = new XPen(color, width);
@@ -499,6 +500,11 @@ namespace PdfSharpDslCore.Parser
                     uint argb = ((uint)0xff000000) | Convert.ToUInt32(colorValue);
                     return XColor.FromArgb(argb);
                 }
+                else if (node.ChildNodes[0].Token.Length == 10)
+                {
+                    int argb = Convert.ToInt32(colorValue);
+                    return XColor.FromArgb(argb);
+                }
                 return XColor.FromArgb(Convert.ToInt32(colorValue));
             }
         }
@@ -508,6 +514,20 @@ namespace PdfSharpDslCore.Parser
             var color = ParseColor(node.ChildNodes[1]);
 
             drawer.CurrentBrush = new XSolidBrush(color);
+        }
+
+
+        private void ExecuteHBrush(IPdfDocumentDrawer drawer, ParseTreeNode node)
+        {
+            var color = ParseColor(node.ChildNodes[1]);
+            if (color.A == 0)
+            {
+                drawer.HighlightBrush = null;
+            }
+            else
+            {
+                drawer.HighlightBrush = new XSolidBrush(color);
+            }
         }
 
         private void ExecuteFont(IPdfDocumentDrawer drawer, ParseTreeNode node)

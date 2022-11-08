@@ -62,6 +62,7 @@ namespace PdfSharpDslCore.Parser
             var FillEllipseSmt = new NonTerminal("FillEllipseSmt");
             var PenSmt = new NonTerminal("PenSmt");
             var BrushSmt = new NonTerminal("BrushSmt");
+            var HBrushSmt = new NonTerminal("HBrushSmt");
             var BrushType = new NonTerminal("BrushType");
             var FontSmt = new NonTerminal("FontSmt");
             var ImageSmt = new NonTerminal("ImageSmt");
@@ -182,7 +183,7 @@ namespace PdfSharpDslCore.Parser
             #endregion
 
             SetSmt.Rule = ToTerm("SET") + SetContent;
-            SetContent.Rule = PenSmt | BrushSmt | FontSmt | VarSmt;
+            SetContent.Rule = PenSmt | BrushSmt | FontSmt | VarSmt | HBrushSmt;
             RectSmt.Rule = ToTerm("RECT") + RectLocation;
             FillRectSmt.Rule = ToTerm("FILLRECT") + RectLocation;
             EllipseSmt.Rule = ToTerm("ELLIPSE") + RectLocation;
@@ -194,6 +195,8 @@ namespace PdfSharpDslCore.Parser
             LineToSmt.Rule = ToTerm("LINETO") + PointLocation;
             PenSmt.Rule = ToTerm("PEN") + ColorExp + FormulaExpression;
             BrushSmt.Rule = ToTerm("BRUSH") + ColorExp + BrushType;
+            //TODO: how to deactivate HBRUSH...
+            HBrushSmt.Rule = ToTerm("HBRUSH") + ColorExp + BrushType;
             FontSmt.Rule = ToTerm("FONT") + sstring + FormulaExpression + styleExpr;
             VarSmt.Rule = ToTerm("VAR") + variable_literal+"="+ FormulaExpression;
 

@@ -19,6 +19,7 @@ namespace PdfSharpDslCore.Drawing
         PdfPage? _currentPage;
         XPen? _currentPen;
         XBrush? _currentBrush;
+        XBrush? _highlightBrush;
 
         XFont? _currentFont;
         XGraphics? _gfx;
@@ -88,6 +89,18 @@ namespace PdfSharpDslCore.Drawing
             set
             {
                 _currentBrush = value;
+            }
+        }
+
+        public XBrush? HighlightBrush
+        {
+            get
+            {
+                return _highlightBrush;
+            }
+            set
+            {
+                _highlightBrush = value;
             }
         }
 
@@ -322,16 +335,67 @@ namespace PdfSharpDslCore.Drawing
             {
                 Gfx.RotateAtTransform(angle, new XPoint(x, y));
             }
+            var textSize = Gfx.MeasureString(text, CurrentFont);
             if (w == null || h == null)
             {
                 Gfx.DrawString(text, CurrentFont, CurrentBrush, x, y, fmt);
+                
+                if (_highlightBrush != null)
+                {
+                    var r = RectFromStringFormat(x, y, textSize, fmt);
+                    //
+                    //var highlightColor = XColor.FromArgb(50, 255, 233, 178);
+                    //var b = new XSolidBrush(highlightColor);
+                    Gfx.DrawRectangle(_highlightBrush, r);
+                }
             }
             else
             {
-                //fmt is not used, because DrawSTring support only TopLeft
+                //fmt is not used, because DrawString support only TopLeft
                 var r = new XRect(x, y, w.Value, h.Value);
                 Gfx.DrawString(text, CurrentFont, CurrentBrush, r, fmt);
+                if (_highlightBrush != null)
+                {
+                    var hr = RectFromStringFormat(x, y, textSize, fmt);
+                    hr.Intersect(r);
+                    //var highlightColor = XColor.FromArgb(50, 255, 233, 178);
+                    //var b = new XSolidBrush(highlightColor);
+                    Gfx.DrawRectangle(_highlightBrush, hr);
+                }
             }
+        }
+
+        private XRect RectFromStringFormat(double x, double y, XSize textSize, XStringFormat fmt)
+        {
+            var result = new XRect(x, y, textSize.Width, textSize.Height);
+
+            var xOffset = 0.0;
+            var yOffset = 0.0;
+            switch (fmt.Alignment)
+            {
+                case XStringAlignment.Center:
+                    xOffset -= textSize.Width / 2;
+                    break;
+                case XStringAlignment.Near:
+                    break;
+                case XStringAlignment.Far:
+                    xOffset -= textSize.Width;
+                    break;
+            }
+            switch (fmt.LineAlignment)
+            {
+                case XLineAlignment.Center:
+                    yOffset -= textSize.Height / 2;
+                    break;
+                case XLineAlignment.Near:
+                    break;
+                case XLineAlignment.Far:
+                    yOffset -= textSize.Height;
+                    break;
+            }
+            result.Offset(xOffset, yOffset);
+
+            return result;
         }
 
         public void DrawTitle(string text, double margin, XStringAlignment hAlign, XLineAlignment vAlign)
@@ -354,28 +418,6 @@ namespace PdfSharpDslCore.Drawing
             //if debug
             //Gfx.DrawRectangle(XPens.Red, r);
         }
-        //public void DrawNumber(string numberAsString, double rightAnchor, double centerY)
-        //{
-
-        //    var page = CurrentPage;
-        //    if (rightAnchor < 0)
-        //    {
-        //        rightAnchor = page.Width + rightAnchor;
-        //    }
-        //    if (centerY < 0)
-        //    {
-        //        centerY = page.Height + centerY;
-        //    }
-        //    var fmt = new XStringFormat
-        //    {
-        //        Alignment = XStringAlignment.Far,
-        //        LineAlignment = XLineAlignment.Center
-        //    };
-        //    Gfx.DrawString(numberAsString, CurrentFont, CurrentBrush, rightAnchor, centerY, fmt);
-        //    //IF debug
-        //    // var measure = Gfx.MeasureString(numberAsString, CurrentFont, fmt);
-        //    // Gfx.DrawRectangle(XPens.Red, rightAnchor - measure.Width, centerY - measure.Height / 2, measure.Width, measure.Height);
-        //}
 
         public void DrawTable(double x, double y, TableDefinition tblDef)
         {

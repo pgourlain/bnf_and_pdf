@@ -26,6 +26,7 @@ namespace PdfSharpDslCore.Drawing
         void SetViewSize(double w, double h);
         XPen CurrentPen { get; set; }
         XBrush CurrentBrush { get; set; }
+        XBrush? HighlightBrush { get; set; }
         XFont CurrentFont { get; set; }
         double PageWidth { get; }
         double PageHeight { get; }
