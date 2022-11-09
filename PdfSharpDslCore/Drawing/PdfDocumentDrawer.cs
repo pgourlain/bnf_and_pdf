@@ -339,7 +339,7 @@ namespace PdfSharpDslCore.Drawing
             if (w == null || h == null)
             {
                 Gfx.DrawString(text, CurrentFont, CurrentBrush, x, y, fmt);
-                
+
                 if (_highlightBrush != null)
                 {
                     var r = RectFromStringFormat(x, y, textSize, fmt);
@@ -363,6 +363,37 @@ namespace PdfSharpDslCore.Drawing
                     Gfx.DrawRectangle(_highlightBrush, hr);
                 }
             }
+        }
+
+        private XRect RectFromStringFormat(XRect r, XSize textSize, XStringFormat fmt)
+        {
+            var result = new XRect(r.TopLeft, textSize);
+            
+            switch (fmt.Alignment)
+            {
+                case XStringAlignment.Center:
+                    result.Offset((r.Width - textSize.Width)/2, 0);
+                    break;
+                case XStringAlignment.Near:
+                    break;
+                case XStringAlignment.Far:
+                    result.Offset(r.Right-textSize.Width, 0);
+                    break;
+            }
+            switch (fmt.LineAlignment)
+            {
+                case XLineAlignment.Center:
+                    result.Offset(0,(r.Height - textSize.Height) / 2);
+                    break;
+                case XLineAlignment.Near:
+                    break;
+                case XLineAlignment.Far:
+                    result.Offset(0, r.Bottom - textSize.Height);
+                    break;
+            }
+            //to crop if text is larger/higher than provided rectangle
+            result.Intersect(r);
+            return result;
         }
 
         private XRect RectFromStringFormat(double x, double y, XSize textSize, XStringFormat fmt)
@@ -415,8 +446,11 @@ namespace PdfSharpDslCore.Drawing
             }
             var r = new XRect(0, margin, page.Width, textSize.Height);
             Gfx.DrawString(text, CurrentFont, CurrentBrush, r, fmt);
-            //if debug
-            //Gfx.DrawRectangle(XPens.Red, r);
+            if (_highlightBrush != null)
+            {
+                var hr = RectFromStringFormat(r, textSize, fmt);
+                Gfx.DrawRectangle(_highlightBrush, hr);
+            }
         }
 
         public void DrawTable(double x, double y, TableDefinition tblDef)

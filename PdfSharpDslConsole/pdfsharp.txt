@@ -10,12 +10,23 @@ SET FONT "Arial" $FSize bold
 TITLE hcenter "TITLE TEST";
 SET VAR MarginTop=($FSize*2);
 TITLE $MarginTop hcenter ("My title with margin "+$MarginTop);
+
 TITLE 100 left "My title with margin 100";
 TITLE 100 right "My title with margin 100";
-TITLE 100 right "My title with margin 100";
 TITLE -0.1 left "My title with margin -0.1";
+
+SET HBRUSH 0x50ffe9b2; 
+TITLE 150 hcenter "Highlighting section";
+TITLE 200 left "My title with margin 100";
+TITLE 200 right "My title with margin 100";
+SET HBRUSH 0x00000000; 
+
 SET PEN red 1;
 RECT 0,100,-0.1,($FSize+5);
+
+
+
+
 SET VAR NormalPen=1;
 SET PEN black $NormalPen;
 
@@ -35,7 +46,10 @@ FILLELLIPSE 250, 200, 50,50;
 NEWPAGE A4 portrait;
 SET BRUSH black;
 
+SET HBRUSH 0x50ffe9b2; 
 TITLE hcenter "Text TEST";
+SET HBRUSH 0x00000000; 
+
 SET FONT "Consolas" 8 ;
 
 SET VAR Y = $PAGEHEIGHT/2;
@@ -60,11 +74,12 @@ LINETEXT 100,140 left vcenter "color grayscale 1.8";
 LINETEXT 60,100 left vcenter vertical "Vertical text to 90°";
 SET BRUSH black;
 
-# Yellow with transparency
+# Yellow hightlighting brush with transparency
 SET HBRUSH 0x50ffe9b2; 
 LINETEXT $X,($Y-100) left vcenter "left align";
 LINETEXT $X,($Y-80) right vcenter "right align";
 
+# first byte is Alpha channel => transparency
 SET HBRUSH 0x00000000; 
 
 
@@ -212,8 +227,8 @@ IMAGE 100,100 "./imageTest.jpg";
 
 IMAGE 320,100,34,34 point "./imageTest.jpg";
 
-IMAGE 100,320,50,50 pixel crop "K:\\projets\\github\\bnf_and_pdf\\PdfSharpDslConsole\\imageTest.jpg";
-IMAGE 320,320,200,100 pixel crop "K:/projets/github/bnf_and_pdf/PdfSharpDslConsole/imageTest.jpg";
+# IMAGE 100,320,50,50 pixel crop "K:\\projets\\github\\bnf_and_pdf\\PdfSharpDslConsole\\imageTest.jpg";
+# IMAGE 320,320,200,100 pixel crop "K:/projets/github/bnf_and_pdf/PdfSharpDslConsole/imageTest.jpg";
 
 SET FONT "Consolas" 8;
 SET BRUSH black;
