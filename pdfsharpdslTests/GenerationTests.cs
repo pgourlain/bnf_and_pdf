@@ -10,7 +10,7 @@ using System.Text;
 
 namespace pdfsharpdslTests
 {
-    public class GenerationTests
+    public class GenerationTests : BaseTests
     {
         [Theory()]
         [InlineData("pdf1-lines.txt")]
@@ -79,10 +79,7 @@ namespace pdfsharpdslTests
 
         private MemoryStream GeneratePdf(string dslFileContent)
         {
-            var p = new Irony.Parsing.Parser(new PdfGrammar());
-
-            var parsingResult = p.Parse(dslFileContent);
-            Assert.False(parsingResult.HasErrors());
+            var parsingResult = ParseText(dslFileContent);
 
             //PdfSharpCore cclasses
             using var document = new PdfDocument();

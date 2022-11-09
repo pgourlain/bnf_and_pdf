@@ -46,8 +46,8 @@ It's a list of drawing "orders" follow by ';'
 All coordinates are specified in 'points'
 
 - 1 inch = 72.0 points
-- 1 millimeter = 1 * 25.4 / 72.0 points
-- 1 centimeter => 1 * 2.54 / 72.0 points
+- 1 millimeter = 72.0 points / 25.4 ~=> 2.84 points
+- 1 centimeter = 72.0 points / 2.54 ~=> 28.34 points
 
 ## Formula feature
 
@@ -106,11 +106,11 @@ SET FONT "Arial" 20 bold;
 
 Draw text with a specified margin from top or bottom if negative.
 ```text
-# TITLE HorizontalAlignment "text to draw" 
-TITLE hcenter "TITLE TEST";
+# TITLE HAlign=HorizontalAlignment Text="text to draw" 
+TITLE HAlign=hcenter Text="TITLE TEST";
 
 # TITLE [MarginTop] HorizontalAlignment "text to draw" 
-TITLE 50 hcenter "My title with margin 50";
+TITLE Margin=50 HAlign=hcenter Text="My title with margin 50";
 
 ```  
 
@@ -153,8 +153,8 @@ FILLRECT, FILLELLIPSE use PEN (outline) and BRUSH (fill)
 
 ```text
 # PIE RectLocation startAngle sweepAngle
-PIE 10,10,120,120 0 90;
-FILLPIE 10,10,120,120 0 90;
+PIE 10,10,120,120 Start=0 Angle=90;
+FILLPIE 10,10,120,120 Start=0 Angle=90;
 ```
 
 
@@ -162,9 +162,9 @@ FILLPIE 10,10,120,120 0 90;
 
 ```text
 # POLYGON PointLocation PointLocation PointLocation [PointLocation PointLocation PointLocation ...]
-POLYGON 300,300 350,320 330,350 240,240;
+POLYGON 300,300, 350,320, 330,350, 240,240;
 
-FILLPOLYGON 100,100 150,120 130,150 240,40;
+FILLPOLYGON 100,100, 150,120, 130,150, 240,40;
 ```
 
 
@@ -190,15 +190,15 @@ Legal, Letter, Medium, Post, QuadDemy, Quarto, RA0, RA1, RA2, RA3, RA4, RA5, Roy
 ## Image
 
 ```text
-# IMAGE PointLocation ImageFilePath
-IMAGE 100,100 "./imageTest.jpg";
+# IMAGE PointLocation Source=ImageFilePath
+IMAGE 100,100 Source="./imageTest.jpg";
 
 # IMAGE PointLocation,width,height width_height_unit ImageFilePath
-IMAGE 320,100,34,34 point "./imageTest.jpg";
+IMAGE 320,100,34,34 point Source="./imageTest.jpg";
 
 # IMAGE PointLocation,width,height width_height_unit [cropping] ImageFilePath
-IMAGE 100,320,50,50 pixel crop "C:\\Samples\\imageTest.jpg";
-IMAGE 100,320,50,50 pixel crop "C:/Samples/imageTest.jpg";
+IMAGE 100,320,50,50 pixel crop Source="C:\\Samples\\imageTest.jpg";
+IMAGE 100,320,50,50 pixel crop Source="C:/Samples/imageTest.jpg";
 ```
 
 **ImageFilePath** : path can be relative or absolute
@@ -213,10 +213,10 @@ IMAGE 100,320,50,50 pixel crop "C:/Samples/imageTest.jpg";
 
 ```text
 # LINETEXT PointOrRect [hAlign] [vAlign] [Orientation] "text"
-LINETEXT 42,100 "Horizontal text"
+LINETEXT 42,100 Text="Horizontal text"
 
-LINETEXT 42,100 vertical "Horizontal text"
-LINETEXT 42,100 left bottom vertical "Horizontal text";
+LINETEXT 42,100 vertical Text="Horizontal text"
+LINETEXT 42,100 left bottom vertical Text="Horizontal text";
 ```
 
 **[hAlign]** is one of

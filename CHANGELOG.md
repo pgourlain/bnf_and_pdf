@@ -1,8 +1,10 @@
 
 # Change log
 
-## Version 0.9.x
+## Version 0.9.6 (December 15, 2022)
 * HIGHLIGHTTEXT
+* Breaking changes : due to grammar conflicts on formulas and to have a self documented language
+	- see readme for language ehancements
 
 
 ## Version 0.9.5 (November 7, 2022)

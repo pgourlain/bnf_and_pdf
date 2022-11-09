@@ -2,3 +2,7 @@
 SET PEN black 1
 SET BRUSH black
 SET FONT "Arial" 20 bold
+
+TITLE Text="coucou";
+
+NEWPAGE A4 portrait

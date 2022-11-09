@@ -1,24 +1,24 @@
 # sample
 NEWPAGE A4 portrait;
 
-SET PEN black 1
-SET BRUSH black
-SET VAR FSize=21
-SET FONT "Arial" $FSize bold
+SET PEN black 1;
+SET BRUSH black;
+SET VAR FSize=21;
+SET FONT "Arial" $FSize bold;
 
 # draw text on top of the page
-TITLE hcenter "TITLE TEST";
+TITLE HAlign=hcenter Text="TITLE TEST";
 SET VAR MarginTop=($FSize*2);
-TITLE $MarginTop hcenter ("My title with margin "+$MarginTop);
+TITLE Margin=$MarginTop HAlign=hcenter Text=("My title with margin "+$MarginTop);
 
-TITLE 100 left "My title with margin 100";
-TITLE 100 right "My title with margin 100";
-TITLE -0.1 left "My title with margin -0.1";
+TITLE Margin=100 HAlign=left Text="My title with margin 100";
+TITLE Margin=100 HAlign=right Text="My title with margin 100";
+TITLE Margin=-0.1 HAlign=left Text="My title with margin -0.1";
 
 SET HBRUSH 0x50ffe9b2; 
-TITLE 150 hcenter "Highlighting section";
-TITLE 200 left "My title with margin 100";
-TITLE 200 right "My title with margin 100";
+TITLE Margin=150 HAlign=hcenter Text="Highlighting section";
+TITLE Margin=200 HAlign=left Text="My TITLE with margin 100";
+TITLE Margin=200 HAlign=right Text="My TITLE with margin 100";
 SET HBRUSH 0x00000000; 
 
 SET PEN red 1;
@@ -31,7 +31,7 @@ SET VAR NormalPen=1;
 SET PEN black $NormalPen;
 
 NEWPAGE A4 landscape;
-TITLE hcenter "ELLIPSE and RECT";
+TITLE HAlign=hcenter Text="ELLIPSE and RECT";
 ELLIPSE 5, 5, -5, -5;
 RECT 5, 5, -5, -5;
 
@@ -47,7 +47,7 @@ NEWPAGE A4 portrait;
 SET BRUSH black;
 
 SET HBRUSH 0x50ffe9b2; 
-TITLE hcenter "Text TEST";
+TITLE HAlign=hcenter Text="Text TEST";
 SET HBRUSH 0x00000000; 
 
 SET FONT "Consolas" 8 ;
@@ -58,26 +58,26 @@ LINE $X,0, $X, $PAGEHEIGHT;
 LINE 0,$Y, $PAGEWIDTH,$Y ;
 
 
-LINETEXT 42,100 left vcenter vertical ("Vertical text to "+ 90 +"°");
+LINETEXT 42,100 HAlign=left VAlign=vcenter Orientation=vertical Text=("Vertical text to "+ 90 +"°");
 SET FONT "Consolas" 12 bold ;
 SET BRUSH g1.4;
 SET VAR T="color grayscale 1.4";
-LINETEXT 100,100 left vcenter $T;
+LINETEXT 100,100 HAlign=left VAlign=vcenter Text=$T;
 SET BRUSH g1.5;
-LINETEXT 100,110 left vcenter "color grayscale 1.5";
+LINETEXT 100,110 HAlign=left VAlign=vcenter Text="color grayscale 1.5";
 SET BRUSH g1.6;
-LINETEXT 100,120 left vcenter "color grayscale 1.6";
+LINETEXT 100,120 HAlign=left VAlign=vcenter Text="color grayscale 1.6";
 SET BRUSH g1.7;
-LINETEXT 100,130 left vcenter "color grayscale 1.7";
+LINETEXT 100,130 HAlign=left VAlign=vcenter Text="color grayscale 1.7";
 SET BRUSH g1.8;
-LINETEXT 100,140 left vcenter "color grayscale 1.8";
-LINETEXT 60,100 left vcenter vertical "Vertical text to 90°";
+LINETEXT 100,140 HAlign=left VAlign=vcenter Text="color grayscale 1.8";
+LINETEXT 60,100 HAlign=left VAlign=vcenter Orientation=vertical Text="Vertical text to 90°";
 SET BRUSH black;
 
 # Yellow hightlighting brush with transparency
 SET HBRUSH 0x50ffe9b2; 
-LINETEXT $X,($Y-100) left vcenter "left align";
-LINETEXT $X,($Y-80) right vcenter "right align";
+LINETEXT $X,($Y-100) HAlign=left VAlign=vcenter Text="left align";
+LINETEXT $X,($Y-80) HAlign=right VAlign=vcenter Text="right align";
 
 # first byte is Alpha channel => transparency
 SET HBRUSH 0x00000000; 
@@ -85,10 +85,10 @@ SET HBRUSH 0x00000000;
 
 NEWPAGE;
 SET FONT "Arial" 20 bold; 
-TITLE hcenter "Line TEST";
+TITLE HAlign=hcenter Text="Line TEST";
 
 SET FONT "Consolas" 12 bold ;
-LINETEXT 100,100 left bottom "LINE";
+LINETEXT 100,100 HAlign=left VAlign=bottom Text="LINE";
 LINE 100,100, 200, 100;
 LINE 100,120, 200, 120;
 LINE 200,100, 200, 90;
@@ -106,20 +106,20 @@ LINE 200,130, 200, 120;
 # lineTo(-T/2, -T*Math.sqrt(3)/2);
 # 100 * 1.7320 / 2 => 86.6025
 
-LINETEXT 150*(2),200*2 left bottom "formula at 150*(2),200*2";
+LINETEXT 150*(2),200*2 HAlign=left VAlign=bottom Text="formula at 150*(2),200*2";
 
-LINETEXT 300,200 left bottom "MOVETO/LINETO";
+LINETEXT 300,200 HAlign=left VAlign=bottom Text="MOVETO/LINETO";
 MOVETO 300, 200;
-LINETEXT 400,200 left bottom 60 "LINETO";
+LINETEXT 400,200 HAlign=left VAlign=bottom Orientation=60 Text="LINETO";
 LINETO 400, 200;
-LINETEXT 450,286.6025 left bottom 120 "LINETO";
+LINETEXT 450,286.6025 HAlign=left VAlign=bottom Orientation=120 Text="LINETO";
 LINETO 450, 286.6025;
 SET VAR PI=180;
-LINETEXT 400,373.205 left bottom $PI "LINETO";
+LINETEXT 400,373.205 HAlign=left VAlign=bottom Orientation=$PI Text="LINETO";
 LINETO 400, 373.205;
-LINETEXT 300, 373.205 left bottom 240 "LINETO";
+LINETEXT 300, 373.205 HAlign=left VAlign=bottom Orientation=240 Text="LINETO";
 LINETO 300, 373.205;
-LINETEXT 250, 286.6025 left bottom 300 "LINETO";
+LINETEXT 250, 286.6025 HAlign=left VAlign=bottom Orientation=300 Text="LINETO";
 LINETO 250, 286.6025;
 LINETO 300, 200;
 
@@ -128,7 +128,7 @@ LINETO 300, 200;
 NEWPAGE;
 
 SET FONT "Arial" 20 bold ;
-TITLE hcenter "Table TEST";
+TITLE HAlign=hcenter Text="Table TEST";
 
 SET FONT "Arial" 8 regular;
 SET PEN black 0.5;
@@ -140,11 +140,11 @@ TABLE 20, 700
 # HEAD [BackColor]
 HEAD g1.9
 # COL desiredwidth maxwidth [Font=name,size,style] [FontColor BackColor] headerName
-COL auto auto FONT="Consolas", 8, bold green g1.9 "FirstName";
-COL auto 40 FONT="Consolas", 8, regular red lightblue "LastName"; 
-COL auto 40 "Age";
-COL auto 40 "Title";
-COL auto 40 "Project";
+COL Width=auto MaxWidth=auto FONT="Consolas", 8, bold green g1.9 "FirstName";
+COL Width=auto MaxWidth=40 FONT="Consolas", 8, regular red lightblue "LastName"; 
+COL Width=auto MaxWidth=40 "Age";
+COL Width=auto MaxWidth=40 "Title";
+COL Width=auto MaxWidth=40 "Project";
 ENDHEAD
 ROW
 COL "Pierrick";
@@ -220,63 +220,63 @@ ENDTABLE
 NEWPAGE;
 
 SET FONT "Arial" 20 bold ;
-TITLE hcenter "Image TEST";
+TITLE HAlign=hcenter Text="Image TEST";
 
 
-IMAGE 100,100 "./imageTest.jpg";
+IMAGE 100,100 Source="./imageTest.jpg";
 
-IMAGE 320,100,34,34 point "./imageTest.jpg";
+IMAGE 320,100,34,34 point Source="./imageTest.jpg";
 
-# IMAGE 100,320,50,50 pixel crop "K:\\projets\\github\\bnf_and_pdf\\PdfSharpDslConsole\\imageTest.jpg";
-# IMAGE 320,320,200,100 pixel crop "K:/projets/github/bnf_and_pdf/PdfSharpDslConsole/imageTest.jpg";
+# IMAGE 100,320,50,50 pixel crop Source="K:\\projets\\github\\bnf_and_pdf\\PdfSharpDslConsole\\imageTest.jpg";
+# IMAGE 320,320,200,100 pixel crop Source="K:/projets/github/bnf_and_pdf/PdfSharpDslConsole/imageTest.jpg";
 
 SET FONT "Consolas" 8;
 SET BRUSH black;
 SET VAR IMGFILE="IMAGE 100,100 \"./imageTest.jpg\"";
-LINETEXT 100,100 left bottom $IMGFILE;
+LINETEXT 100,100 HAlign=left VAlign=bottom Text=$IMGFILE;
 
-LINETEXT 320,100 left bottom "IMAGE 320,100,34,34 point \"./imageTest.jpg\"";
-LINETEXT 320,135 left top "scale to 34x34";
+LINETEXT 320,100 HAlign=left VAlign=bottom Text="IMAGE 320,100,34,34 point \"./imageTest.jpg\"";
+LINETEXT 320,135 HAlign=left VAlign=top Text="scale to 34x34";
 
-LINETEXT 100,320 left bottom "IMAGE 100,320,50,50 pixel crop \"./imageTest.jpg\"";
-LINETEXT 100,370 left top "crop to 50x50";
+LINETEXT 100,320 HAlign=left VAlign=bottom Text="IMAGE 100,320,50,50 pixel crop \"./imageTest.jpg\"";
+LINETEXT 100,370 HAlign=left VAlign=top Text="crop to 50x50";
 
 
-LINETEXT 320,320 left bottom "IMAGE 320,320,200,100 pixel crop \"./imageTest.jpg\"";
-LINETEXT 320,400 left top "crop to 200x100";
+LINETEXT 320,320 HAlign=left VAlign=bottom Text="IMAGE 320,320,200,100 pixel crop \"./imageTest.jpg\"";
+LINETEXT 320,400 HAlign=left VAlign=top Text="crop to 200x100";
 
 
 NEWPAGE landscape;
 
 SET BRUSH lightgreen;
 
-FILLPIE 10,10,120,120 90 90;
+FILLPIE 10,10,120,120 Start=90 Angle=90;
 
 SET BRUSH red;
-FILLPIE 10,10,120,120 180 35;
+FILLPIE 10,10,120,120 Start=180 Angle=35;
 
 SET BRUSH violet;
-FILLPIE 10,10,120,120 215 100;
+FILLPIE 10,10,120,120 Start=215 Angle=100;
 
 SET BRUSH yellow;
-FILLPIE 10,10,120,120 315 45;
+FILLPIE 10,10,120,120 Start=315 Angle=45;
 
 SET BRUSH maroon;
-FILLPIE 10,10,120,120 0 90;
+FILLPIE 10,10,120,120 Start=0 Angle=90;
 
-FILLPOLYGON 100,100 150,120 130,150 240,40;
+FILLPOLYGON 100,100, 150,120, 130,150, 240,40;
 
-POLYGON 300,300 350,320 330,350 240,240;
+POLYGON 300,300, 350,320, 330,350, 240,240;
 
 NEWPAGE landscape;
 
 SET FONT "Arial" 20 bold ;
-TITLE hcenter "System variables";
+TITLE HAlign=hcenter Text="System variables";
 
 SET VAR Y = $PAGEHEIGHT/2;
 SET VAR X=$PAGEWIDTH/2;
 SET FONT "Consolas" 20;
-LINETEXT $X,$Y hcenter vcenter "center text on page based on PAGEWIDTH/PAGEHEIGHT";
+LINETEXT $X,$Y HAlign=hcenter VAlign=vcenter Text="center text on page based on PAGEWIDTH/PAGEHEIGHT";
 LINE $X,0, $X, $PAGEHEIGHT;
 LINE 0,$Y, $PAGEWIDTH,$Y ;
 
@@ -284,11 +284,11 @@ LINE 0,$Y, $PAGEWIDTH,$Y ;
 NEWPAGE portrait;
 
 SET FONT "Arial" 20 bold ;
-TITLE hcenter "ViewSize to 100x140";
+TITLE HAlign=hcenter Text="ViewSize to 100x140";
 SET FONT "Consolas" 3;
 SET PEN red 0.1;
 VIEWSIZE 100,140;
-LINETEXT 50,70 hcenter vcenter "center text on page based on viewSize";
+LINETEXT 50,70 HAlign=hcenter VAlign=vcenter Text="center text on page based on viewSize";
 LINE 50,0, 50, 140;
 LINE 0,70, 100,70 ;
 

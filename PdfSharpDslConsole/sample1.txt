@@ -3,7 +3,7 @@ SET PEN black 1
 SET BRUSH blueviolet
 SET FONT "Arial" 20 bold 
 RECT 5, 5, -5, -5
-LINETEXT 5,5,-5,-5 hcenter top "Text capacity"
+LINETEXT 5,5,-5,-5 hcenter top Text="Text capacity"
 SET BRUSH gray
 SET FONT "Consolas" 12 bold 
 SET PEN red 0.2
@@ -46,18 +46,18 @@ TEXT"
 TEXT 100,100 "bonjour tout le monde"
 
 RECT 100, 150, 1, 50
-LINETEXT 100,150 right vcenter "bonjour tout ""le monde"""
-LINETEXT 100,170 left vcenter "bonjour tout le monde"
-LINETEXT 100,190 hcenter vcenter "bonjour tout le monde"
+LINETEXT 100,150 HAlign=right VAlign=vcenter Text="bonjour tout ""le monde"""
+LINETEXT 100,170 HAlign=left VAlign=vcenter Text="bonjour tout le monde"
+LINETEXT 100,190 HAlign=hcenter VAlign=vcenter Text="bonjour tout le monde"
 
 SET BRUSH 0xfdfdfd
-LINETEXT 100,250 left vcenter "color 0x0d0d0d"
+LINETEXT 100,250 HAlign=left VAlign=vcenter "color 0x0d0d0d"
 
 SET BRUSH g1.4
-LINETEXT 100,350 left vcenter "color grayscale 1.4"
+LINETEXT 100,350 HAlign=left VAlign=vcenter "color grayscale 1.4"
 SET BRUSH g1.5
-LINETEXT 100,360 left vcenter "color grayscale 1.4"
+LINETEXT 100,360 HAlign=left VAlign=vcenter "color grayscale 1.4"
 SET BRUSH g1.6
-LINETEXT 100,370 left vcenter "color grayscale 1.4"
+LINETEXT 100,370 HAlign=left VAlign=vcenter "color grayscale 1.4"
 SET BRUSH g1.7
-LINETEXT 100,380 left vcenter "color grayscale 1.4"
+LINETEXT 100,380 HAlign=left VAlign=vcenter "color grayscale 1.4"
