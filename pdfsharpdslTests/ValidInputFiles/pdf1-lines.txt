@@ -9,4 +9,13 @@ LINETO 400, 200;
 MOVETO 300, 400;
 LINETO 400, 600;
 
+LINETEXT 10,10 Text="coucou";
+LINETEXT 10,10 HAlign=left Text="coucou";
+LINETEXT 10,10 VAlign=top Text="coucou";
+LINETEXT 10,10 HAlign=left VAlign=top Text="coucou";
+LINETEXT 10,10 Orientation=vertical Text="coucou";
+LINETEXT 10,10 HAlign=left Orientation=vertical Text="coucou";
+LINETEXT 10,10 VAlign=top Orientation=vertical Text="coucou";
+LINETEXT 10,10 HAlign=left VAlign=top Orientation=vertical Text="coucou";
+
 

@@ -121,8 +121,8 @@ namespace PdfSharpDslCore.Parser
         private void ExecutePie(IPdfDocumentDrawer drawer, ParseTreeNode node, bool isFilled)
         {
             var (x, y, w, h) = ParseRectLocation(node.ChildNodes[1]);
-            var startAngle = EvaluateForDouble(node.ChildNodes[2]) ?? 0;
-            var sweepAngle = EvaluateForDouble(node.ChildNodes[3]) ?? 0;
+            var startAngle = EvaluateForDouble(node.ChildNodes[3]) ?? 0;
+            var sweepAngle = EvaluateForDouble(node.ChildNodes[5]) ?? 0;
 
             drawer.DrawPie(x, y, w, h, startAngle, sweepAngle, isFilled);
         }
@@ -132,7 +132,7 @@ namespace PdfSharpDslCore.Parser
             string unit = "point";
             bool crop = false;
             var imageLocation = node.ChildNode("ImageLocation");
-            var imagePath = (string?)node.ChildNodes[2].Token?.Value;
+            var imagePath = (string?)node.ChildNodes[3].Token?.Value;
             var (x, y, w, h) = ParseTextLocation(imageLocation.ChildNodes[0]);
             if (w is not null && imageLocation.ChildNodes.Count > 1)
             {
@@ -164,7 +164,7 @@ namespace PdfSharpDslCore.Parser
 
         private void ExecuteTitle(IPdfDocumentDrawer drawer, ParseTreeNode node)
         {
-            var text = Convert.ToString(EvaluateForObject(node.ChildNodes[3], _variables));
+            var text = Convert.ToString(EvaluateForObject(node.ChildNodes[4], _variables));
             var margin = ParseMargin(node.ChildNodes[1]);
             var (hAlign, vAlign) = ParseTextAlignment(node.ChildNodes[2]);
 
@@ -175,7 +175,7 @@ namespace PdfSharpDslCore.Parser
         {
             if (node.ChildNodes.Count > 0)
             {
-                return EvaluateForDouble(node.ChildNodes[0]);
+                return EvaluateForDouble(node.ChildNodes[2]);
             }
             return null;
         }
@@ -296,16 +296,18 @@ namespace PdfSharpDslCore.Parser
 
         private void ExecuteLineText(IPdfDocumentDrawer drawer, ParseTreeNode node)
         {
-            var nodeLocation = node.ChildNodes[1];
-            var nodeAlignment = node.ChildNodes[2];
-            var nodeOrientationAndText = node.ChildNodes[3];
-            var nodeOrientation = nodeOrientationAndText.ChildNodes.Count > 1 ? nodeOrientationAndText.ChildNodes[0] : null;
-            var contentNode = nodeOrientationAndText.ChildNodes.Count > 1 ? nodeOrientationAndText.ChildNodes[1] : nodeOrientationAndText.ChildNodes[0];
+            //revoir
+            var nodeLocation = node.ChildNode("RectOrPointLocation");
+            var nodeAlignment = node.ChildNode("TextAlignment");
+            var nodeOrientation = node.ChildNode("TextOrientation");
+            //var nodeOrientation = nodeOrientationAndText.ChildNodes.Count > 2 ? nodeOrientationAndText.ChildNodes[2] : null;
+            var contentNode = node.ChildNodes.Last();
             var text = Convert.ToString(EvaluateForObject(contentNode, _variables));
             TextOrientation textOrientation = new TextOrientation { Orientation = TextOrientationEnum.Horizontal, Angle = null };
 
-            if (nodeOrientation != null)
+            if (nodeOrientation != null && nodeOrientation.ChildNodes.Count > 2)
             {
+                nodeOrientation = nodeOrientation.ChildNodes[2];
                 if (nodeOrientation.Term.Name == "number" || nodeOrientation.Token is null)
                 {
                     textOrientation = textOrientation with { Angle = EvaluateForDouble(nodeOrientation) };
@@ -341,13 +343,13 @@ namespace PdfSharpDslCore.Parser
         {
             ParseTreeNode? hNode = alignNode.Term.Name == "HAlign" ? alignNode : null;
             ParseTreeNode? vNode = alignNode.Term.Name == "VAlign" ? alignNode : null;
-            if (hNode == null && alignNode.ChildNodes.Count > 0)
+            if (hNode != null && alignNode.ChildNodes.Count > 2)
             {
-                hNode = alignNode.ChildNodes[0];
+                hNode = alignNode.ChildNodes[2];
             }
-            if (vNode == null && alignNode.ChildNodes.Count > 1)
+            if (vNode != null && alignNode.ChildNodes.Count > 1)
             {
-                vNode = alignNode.ChildNodes[1];
+                vNode = alignNode.ChildNodes[2];
             }
             return ParseTextAlignment(hNode, vNode);
         }
@@ -355,9 +357,9 @@ namespace PdfSharpDslCore.Parser
         {
             var hAlign = XStringAlignment.Near;
             var vAlign = XLineAlignment.Near;
-            if (hNode != null && hNode.ChildNodes.Count > 0)
+            if (hNode != null && hNode.ChildNodes.Count > 2)
             {
-                switch (hNode.ChildNodes[0].Token.Value)
+                switch (hNode.ChildNodes[2].Token.Value)
                 {
                     case "left":
                         break;
@@ -369,9 +371,9 @@ namespace PdfSharpDslCore.Parser
                         break;
                 }
             }
-            if (vNode != null && vNode.ChildNodes.Count > 0)
+            if (vNode != null && vNode.ChildNodes.Count > 2)
             {
-                switch (vNode.ChildNodes[0].Token.Value)
+                switch (vNode.ChildNodes[2].Token.Value)
                 {
                     case "top":
                         break;
@@ -537,9 +539,14 @@ namespace PdfSharpDslCore.Parser
 
         private XFont ExtractFont(ParseTreeNode node)
         {
+            int index = 0;
             var fontName = (string)node.ChildNodes[1].Token.Value;
-            var fontSize = EvaluateForDouble(node.ChildNodes[2], _variables) ?? 0;
-            var style = ParseStyle(node.ChildNodes.Count > 3 ? node.ChildNodes[3] : null);
+            if (node.Term.Name != "FontSmt")
+            {
+                index++;
+            }
+            var fontSize = EvaluateForDouble(node.ChildNodes[2+index], _variables) ?? 0;
+            var style = ParseStyle(node.ChildNodes.Count > (3 + index) ? node.ChildNodes[3 + index] : null);
             return new XFont(fontName, fontSize, style, XPdfFontOptions.UnicodeDefault);
         }
 

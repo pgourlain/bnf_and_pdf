@@ -8,18 +8,24 @@ using PdfSharpDslCore.Parser;
 
 namespace pdfsharpdslTests
 {
-    public class ParserTests
+    public class ParserTests : BaseTests
     {
+
+        [Fact]
+        public void CheckGrammarErrors()
+        {
+            var p = CreateParser();
+            Assert.Empty(p.Language.Errors);
+        }
+
 
         [Theory()]
         [InlineData("pdf1.txt")]
+        [InlineData("pdf1-linetext.txt")]
         public void TestValidFiles(string file)
         {
             var input = File.ReadAllText($"./ValidInputFiles/{file}");
-            var p = new Irony.Parsing.Parser(new PdfGrammar());
-
-            var parsingResult = p.Parse(input);
-            Assert.False(parsingResult.HasErrors());
+            ParseText( input );
         }
 
         [Theory()]
@@ -27,34 +33,12 @@ namespace pdfsharpdslTests
         public void TestInValidFiles(string file)
         {
             var input = File.ReadAllText($"./InvalidInputFiles/{file}");
-            var p = new Irony.Parsing.Parser(new PdfGrammar());
+            var p = CreateParser();
 
             var parsingResult = p.Parse(input);
             Assert.True(parsingResult.HasErrors());
         }
 
-        private ParseTree ParseText(string text)
-        {
-            var p = new Irony.Parsing.Parser(new PdfGrammar());
-
-            var parsingResult = p.Parse($"{text}\r\n");
-            Assert.False(parsingResult.HasErrors(), AsDisplayString(parsingResult));
-            return parsingResult;
-        }
-
-        string AsDisplayString(ParseTree parsingResult)
-        {
-            StringBuilder sb = new StringBuilder();
-
-            foreach (var error in parsingResult.ParserMessages)
-            {
-                sb.Append(error.Location.ToString());
-                sb.Append("=>");
-                sb.Append(error);
-                sb.AppendLine();
-            }
-            return sb.ToString();
-        }
         class PdfDrawerForTestsVisitor : PdfDrawerVisitor
         {
             public IDictionary<string, object> Vars => _variables;

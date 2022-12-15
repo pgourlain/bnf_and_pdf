@@ -11,19 +11,8 @@ using System.Threading.Tasks;
 
 namespace pdfsharpdslTests
 {
-    public class VisitorTests
+    public class VisitorTests : BaseTests
     {
-
-        private ParseTree ParseText(string text)
-        {
-            var p = new Irony.Parsing.Parser(new PdfGrammar());
-
-            var parsingResult = p.Parse($"{text}\r\n");
-            Assert.False(parsingResult.HasErrors());
-            return parsingResult;
-        }
-
-
         [Fact]
         public void TestValidFiles()
         {
