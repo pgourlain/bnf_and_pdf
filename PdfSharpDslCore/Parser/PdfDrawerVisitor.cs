@@ -95,8 +95,30 @@ namespace PdfSharpDslCore.Parser
                 case "FillPolygonSmt":
                     ExecutePolygon(drawer, node, true);
                     break;
+                case "ForSmt":
+                    ExecuteForStatement(drawer, node);
+                    break;
                 default:
                     throw new NotImplementedException($"{node.Term.Name} is not yet implemented");
+            }
+        }
+
+        private void ExecuteForStatement(IPdfDocumentDrawer drawer, ParseTreeNode node)
+        {
+            var varName = InternalSetVar(node);
+            var from = Convert.ToInt32(_variables[varName]);
+            var to = Convert.ToInt32(EvaluateForObject(node.ChildNodes[5], _variables));
+            var forbody = node.ChildNode("BlockFor").ChildNode("EmbbededSmtList");
+            if (forbody != null)
+            {
+                for (int i = from; i <= to; i++)
+                {
+                    _variables.Add(varName, i);
+                    foreach (var subNode in forbody.ChildNodes)
+                    {
+                        Visit(drawer, subNode);
+                    }
+                }
             }
         }
 
@@ -343,14 +365,14 @@ namespace PdfSharpDslCore.Parser
         {
             ParseTreeNode? hNode = alignNode.Term.Name == "HAlign" ? alignNode : null;
             ParseTreeNode? vNode = alignNode.Term.Name == "VAlign" ? alignNode : null;
-            if (hNode != null && alignNode.ChildNodes.Count > 2)
-            {
-                hNode = alignNode.ChildNodes[2];
-            }
-            if (vNode != null && alignNode.ChildNodes.Count > 1)
-            {
-                vNode = alignNode.ChildNodes[2];
-            }
+            //if (hNode != null && alignNode.ChildNodes.Count > 2)
+            //{
+            //    hNode = alignNode.ChildNodes[2];
+            //}
+            //if (vNode != null && alignNode.ChildNodes.Count > 1)
+            //{
+            //    vNode = alignNode.ChildNodes[2];
+            //}
             return ParseTextAlignment(hNode, vNode);
         }
         private static (XStringAlignment, XLineAlignment) ParseTextAlignment(ParseTreeNode? hNode, ParseTreeNode? vNode)
@@ -456,9 +478,15 @@ namespace PdfSharpDslCore.Parser
 
         private void ExecuteSetVar(IPdfDocumentDrawer drawer, ParseTreeNode node)
         {
+            InternalSetVar(node);
+        }
+
+        private string InternalSetVar(ParseTreeNode node)
+        {
             var v = EvaluateForObject(node.ChildNodes[3], _variables);
             var varName = node.ChildNodes[1].Token.ValueString;
             _variables.Add(varName, v);
+            return varName;
         }
 
         private void ExecutePen(IPdfDocumentDrawer drawer, ParseTreeNode node)

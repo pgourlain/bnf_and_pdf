@@ -1,6 +1,9 @@
 
 # Change log
 
+## Version 0.9.7 (December 15, 2022)
+* Add For statement
+
 ## Version 0.9.6 (December 15, 2022)
 * HIGHLIGHTTEXT
 * Breaking changes : due to grammar conflicts on formulas and to have a self documented language

@@ -12,6 +12,7 @@ namespace pdfsharpdslTests
         [Theory()]
         [InlineData("SET VAR X=180+80+80+80+80;")]
         [InlineData("SET VAR X=180+80;")]
+        [InlineData("SET VAR X=180+80+80+80+80;SET VAR X=180+80;")]
         public void FormulasCheck(string formula)
         {
             var parsingResult = ParseText(formula);

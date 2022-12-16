@@ -124,6 +124,7 @@ namespace PdfSharpDslCore.Parser
             var PolygonSmt = new NonTerminal("PolygonSmt");
             var PolygonPoint = new NonTerminal("PolygonPoint");
             var FillPolygonSmt = new NonTerminal("FillPolygonSmt");
+            var ForSmt = new NonTerminal("ForSmt");
 
 
             var FormulaExpression = new NonTerminal("FormulaExpression");
@@ -189,6 +190,7 @@ namespace PdfSharpDslCore.Parser
                 | PolygonSmt
                 | FillPolygonSmt
                 | FillPieSmt
+                | ForSmt
             ;
 
             #region basics rules
@@ -288,7 +290,7 @@ namespace PdfSharpDslCore.Parser
             TableColHeadList.Rule = MakeStarRule(TableColHeadList, TableHeadCol);
             TableHeadCol.Rule = ToTerm("COL") + TableColWidth + TableColFont + TableColColors + sstring + semi;
             //desiredWidth and maxWidth
-            TableColWidth.Rule = Arg("Width")+NumberOrAuto + Arg("MaxWidth") + NumberOrAuto;
+            TableColWidth.Rule = Arg("Width") + NumberOrAuto + Arg("MaxWidth") + NumberOrAuto;
             TableColList.Rule = MakeStarRule(TableColList, TableCol);
             TableRow.Rule = ToTerm("ROW") + TableRowStyle + TableColList + ToTerm("ENDROW");
             TableCol.Rule = ToTerm("COL") + sstring + semi;
@@ -314,12 +316,20 @@ namespace PdfSharpDslCore.Parser
             FillPieSmt.Rule = ToTerm("FILLPIE") + RectLocation + Arg("Start") + FormulaExpression + Arg("Angle") + FormulaExpression;
             FillPolygonSmt.Rule = ToTerm("FILLPOLYGON") + PointLocation + comma + PointLocation + comma + PolygonPoint;
 
+            var EmbbededSmtList = new NonTerminal("EmbbededSmtList");
+            var BlockFor = new NonTerminal("BlockFor");
+            ForSmt.Rule = ToTerm("FOR") + variable_literal + "=" + FormulaExpression + "TO" + FormulaExpression + BlockFor;
+            var EmbbededSmtListOpt = new NonTerminal("EmbbededSmtListOpt");
+            BlockFor.Rule = ToTerm("DO") + EmbbededSmtListOpt + "ENDFOR";
+            EmbbededSmtListOpt.Rule = Empty + EmbbededSmtList;
+            EmbbededSmtList.Rule = MakePlusRule(EmbbededSmtList, null, PdfLine);
+
             RegisterBracePair("(", ")");
 
             MarkPunctuation(";", ",", "(", ")", "TABLE", "ENDTABLE", "HEAD", "ENDHEAD", "ROW", "ENDROW", "§");
             RegisterBracePair("(", ")");
             MarkTransient(PdfLineContent, SetContent, NumberOrAuto,
-                 styleExpr, semiOpt, PixelOrPoint, HAlignValue, TextOrientationValue, VAlignValue);
+                 styleExpr, semiOpt, PixelOrPoint, HAlignValue, TextOrientationValue, VAlignValue, EmbbededSmtListOpt);
 
             this.AddTermsReportGroup("punctuation", comma);
             this.AddToNoReportGroup("(", "++", "--");
