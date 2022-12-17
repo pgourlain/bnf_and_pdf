@@ -6,9 +6,14 @@ using PdfSharpDslCore.Evaluation;
 using PdfSharpDslCore.Extensions;
 using SixLabors.ImageSharp;
 using System;
+using System.Buffers.Text;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices.ComTypes;
+using System.Text;
+using System.Xml.Linq;
 
 namespace PdfSharpDslCore.Parser
 {
@@ -17,7 +22,8 @@ namespace PdfSharpDslCore.Parser
     /// </summary>
     public class PdfDrawerVisitor
     {
-        protected IDictionary<string, object> _variables = new Dictionary<string, object>();
+        protected IDictionary<string, object?> _variables = new Dictionary<string, object?>();
+        protected IDictionary<string, ParseTreeNode> _udfs = new Dictionary<string, ParseTreeNode>();
         public PdfDrawerVisitor() { }
 
         public void Draw(IPdfDocumentDrawer drawer, ParseTree tree)
@@ -25,12 +31,20 @@ namespace PdfSharpDslCore.Parser
             if (tree == null) return;
             if (drawer == null) throw new ArgumentNullException(nameof(drawer));
             _variables = new VariablesDictionary(drawer);
-            foreach (var node in tree.Root.ChildNodes)
+
+            //define each udf before visiting in order to accept call before definition
+            tree.Root.ChildNodes.Where(x => x.Term?.Name == "UdfSmt").ToList().ForEach(ExecuteUdfStatement);
+            Visit(drawer, tree.Root.ChildNodes);
+        }
+
+        private void Visit(IPdfDocumentDrawer drawer, ParseTreeNodeList nodes)
+        {
+            foreach (var node in nodes)
             {
                 Visit(drawer, node);
             }
-        }
 
+        }
         private void Visit(IPdfDocumentDrawer drawer, ParseTreeNode node)
         {
             switch (node.Term.Name)
@@ -80,7 +94,7 @@ namespace PdfSharpDslCore.Parser
                 case "ImageSmt":
                     ExecuteImage(drawer, node);
                     break;
-                case "PdfLine":
+                case "PdfInstruction":
                     Visit(drawer, node.ChildNodes[0]);
                     break;
                 case "PieSmt":
@@ -95,8 +109,87 @@ namespace PdfSharpDslCore.Parser
                 case "FillPolygonSmt":
                     ExecutePolygon(drawer, node, true);
                     break;
+                case "ForSmt":
+                    ExecuteForStatement(drawer, node);
+                    break;
+                case "UdfSmt":
+                    //nothing to do, it's already done before
+                    break;
+                case "UdfInvokeSmt":
+                    ExecuteUdfInvokeStatement(drawer, node);
+                    break;
                 default:
                     throw new NotImplementedException($"{node.Term.Name} is not yet implemented");
+            }
+        }
+
+        private void ExecuteUdfInvokeStatement(IPdfDocumentDrawer drawer, ParseTreeNode node)
+        {
+            var fnName = node.ChildNodes[1].Token.ValueString;
+            var arguments = node.ChildNode("UdfInvokeArgumentslist");
+            var evaluatedArgs = arguments.ChildNodes.Select(x => EvaluateForObject(x, _variables)).ToArray();
+
+            if (_udfs.TryGetValue(fnName, out var defNode))
+            {
+                var defArgs = defNode.ChildNode("UdfArgumentslist");
+                var defBody = defNode.ChildNode("UdfBlock").ChildNode("EmbbededSmtList");
+                if (defArgs.ChildNodes.Count != evaluatedArgs.Length)
+                {
+                    throw new PdfParserException($"UDF '{fnName}' arguments count not match, provided ${evaluatedArgs.Length}, expected ${defArgs.ChildNodes.Count}.");
+                }
+                var vars = _variables;
+                if (vars is IVariablesDictionary savable) savable.SaveVariables();
+                try
+                {
+                    for (int i = 0; i < defArgs.ChildNodes.Count; i++)
+                    {
+                        var defVar = defArgs.ChildNodes[i];
+                        _variables.Add(defVar.Token.ValueString, evaluatedArgs[i] ?? null!);
+                    }
+
+                    Visit(drawer, defBody.ChildNodes);
+                }
+                finally
+                {
+                    //replace IT
+                    if (vars is IVariablesDictionary restorable) restorable.RestoreVariables();
+                }
+            }
+            else if (!UdfCustomCall(drawer, fnName, evaluatedArgs))
+            {
+                throw new PdfParserException($"UDF {fnName} is not found.");
+            }
+
+        }
+
+        protected virtual bool UdfCustomCall(IPdfDocumentDrawer drawer, string udfName, object?[] arguments)
+        {
+            return false;
+        }
+
+        private void ExecuteUdfStatement(ParseTreeNode node)
+        {
+            var fnName = node.ChildNodes[0].Token.ValueString;
+            if (_udfs.ContainsKey(fnName))
+            {
+                throw new PdfParserException($"An another UDF '{fnName}' is already defined.");
+            }
+            _udfs.Add(fnName, node);
+        }
+
+        private void ExecuteForStatement(IPdfDocumentDrawer drawer, ParseTreeNode node)
+        {
+            var varName = InternalSetVar(node);
+            var from = Convert.ToInt32(_variables[varName]);
+            var to = Convert.ToInt32(EvaluateForObject(node.ChildNodes[5], _variables));
+            var forbody = node.ChildNode("ForBlock").ChildNode("EmbbededSmtList");
+            if (forbody != null)
+            {
+                for (int i = from; i <= to; i++)
+                {
+                    _variables.Add(varName, i);
+                    Visit(drawer, forbody.ChildNodes);
+                }
             }
         }
 
@@ -132,7 +225,8 @@ namespace PdfSharpDslCore.Parser
             string unit = "point";
             bool crop = false;
             var imageLocation = node.ChildNode("ImageLocation");
-            var imagePath = (string?)node.ChildNodes[3].Token?.Value;
+            var isEmbedded = node.ChildNode("ImageRawOrSource").ChildNodes[0].Token.ValueString == "Data";
+            var imagePath = ((string?)node.ChildNodes[3].Token?.Value) ?? string.Empty;
             var (x, y, w, h) = ParseTextLocation(imageLocation.ChildNodes[0]);
             if (w is not null && imageLocation.ChildNodes.Count > 1)
             {
@@ -140,8 +234,24 @@ namespace PdfSharpDslCore.Parser
                 unit = imageLocation.ChildNodes[1].Term.Name;
                 crop = imageLocation.ChildNodes[2].ChildNodes.Count > 0;
             }
-            using XImage image = XImage.FromFile(imagePath);
-            drawer.DrawImage(image, x, y, w, h, unit == "pixel", crop);
+            XImage image;
+            if (isEmbedded && !string.IsNullOrWhiteSpace(imagePath))
+            {
+                if (imagePath.StartsWith("data:image"))
+                {
+                    imagePath = imagePath.Split(',')[1];
+                }
+                using var stream = new MemoryStream(System.Convert.FromBase64String(imagePath));
+                image = XImage.FromStream(() => stream);
+            }
+            else
+            {
+                image = XImage.FromFile(imagePath);
+            }
+            using (image)
+            {
+                drawer.DrawImage(image, x, y, w, h, unit == "pixel", crop);
+            }
         }
 
         private void ExecuteLineTo(IPdfDocumentDrawer drawer, ParseTreeNode node)
@@ -343,14 +453,6 @@ namespace PdfSharpDslCore.Parser
         {
             ParseTreeNode? hNode = alignNode.Term.Name == "HAlign" ? alignNode : null;
             ParseTreeNode? vNode = alignNode.Term.Name == "VAlign" ? alignNode : null;
-            if (hNode != null && alignNode.ChildNodes.Count > 2)
-            {
-                hNode = alignNode.ChildNodes[2];
-            }
-            if (vNode != null && alignNode.ChildNodes.Count > 1)
-            {
-                vNode = alignNode.ChildNodes[2];
-            }
             return ParseTextAlignment(hNode, vNode);
         }
         private static (XStringAlignment, XLineAlignment) ParseTextAlignment(ParseTreeNode? hNode, ParseTreeNode? vNode)
@@ -429,12 +531,12 @@ namespace PdfSharpDslCore.Parser
         {
             return EvaluateForDouble(node, _variables);
         }
-        private static double? EvaluateForDouble(ParseTreeNode node, IDictionary<string, object> variables)
+        private static double? EvaluateForDouble(ParseTreeNode node, IDictionary<string, object?> variables)
         {
             return new Evaluator(node).EvaluateForDouble(variables);
         }
 
-        private static object? EvaluateForObject(ParseTreeNode node, IDictionary<string, object> variables)
+        private static object? EvaluateForObject(ParseTreeNode node, IDictionary<string, object?> variables)
         {
             return new Evaluator(node).Evaluate(variables);
         }
@@ -456,9 +558,15 @@ namespace PdfSharpDslCore.Parser
 
         private void ExecuteSetVar(IPdfDocumentDrawer drawer, ParseTreeNode node)
         {
+            InternalSetVar(node);
+        }
+
+        private string InternalSetVar(ParseTreeNode node)
+        {
             var v = EvaluateForObject(node.ChildNodes[3], _variables);
             var varName = node.ChildNodes[1].Token.ValueString;
             _variables.Add(varName, v);
+            return varName;
         }
 
         private void ExecutePen(IPdfDocumentDrawer drawer, ParseTreeNode node)
@@ -545,7 +653,7 @@ namespace PdfSharpDslCore.Parser
             {
                 index++;
             }
-            var fontSize = EvaluateForDouble(node.ChildNodes[2+index], _variables) ?? 0;
+            var fontSize = EvaluateForDouble(node.ChildNodes[2 + index], _variables) ?? 0;
             var style = ParseStyle(node.ChildNodes.Count > (3 + index) ? node.ChildNodes[3 + index] : null);
             return new XFont(fontName, fontSize, style, XPdfFontOptions.UnicodeDefault);
         }

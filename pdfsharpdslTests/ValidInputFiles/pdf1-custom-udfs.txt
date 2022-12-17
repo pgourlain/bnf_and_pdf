@@ -1,0 +1,28 @@
+﻿# UDFs Samples
+
+
+UDF ARROW(X,Y,R)
+	SET FONT "Consolas" 12 bold ;
+	LINETEXT $X,$Y HAlign=left VAlign=bottom Text="LINE";
+	LINE $X,$Y, $X+100, $Y;
+	LINE $X,$Y+20, $X+100, $Y+20;
+	LINE $X+100,$Y, $X+100, $Y-10;
+	LINE $X+100,$Y-10, $X+120, $Y+10;
+	LINE $X+120,$Y+10, $X+100, $Y+30;
+	LINE $X+100,$Y+30, $X+100, $Y+20;
+ENDUDF
+
+CALL CUSTOM1(1);
+CALL CUSTOM2(1,2);
+CALL CUSTOM3(1,2,3);
+CALL CUSTOM4(1,2,3, 4);
+CALL CUSTOM5(1,2,3, 4,5);
+CALL CUSTOM6(1,2,3, 4,5,6);
+CALL CUSTOM7(1,2,3, 4,5,6,7);
+CALL CUSTOM8(1,2,3, 4,5,6,7,8);
+CALL CUSTOM9(1,2,3, 4,5,6,7,8,9);
+CALL CUSTOM10(1,2,3, 4,5,6,7,8,9,10);
+
+
+
+

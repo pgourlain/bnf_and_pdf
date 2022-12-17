@@ -27,11 +27,13 @@ namespace PdfSharpDslCore.Evaluation
                 var isNan = false;
                 if (rightValue == null)
                 {
-                    throw new InvalidOperationException("Either left or right value of the binary evaluation has been evaluated to null.");
+                    throw new InvalidOperationException("Right value of the unary evaluation has been evaluated to null.");
                 }
                 if (double.TryParse(rightValue.ToString(), out var dblValue))
                 {
                     rightValue = dblValue;
+                } else
+                {
                     isNan = true;
                 }
 

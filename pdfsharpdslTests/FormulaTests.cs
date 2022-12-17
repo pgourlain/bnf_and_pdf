@@ -1,17 +1,21 @@
 ﻿using PdfSharpDslCore.Parser;/**/
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace pdfsharpdslTests
 {
+    [ExcludeFromCodeCoverage]
+
     public class FormulaTests : BaseTests
     {
         [Theory()]
         [InlineData("SET VAR X=180+80+80+80+80;")]
         [InlineData("SET VAR X=180+80;")]
+        [InlineData("SET VAR X=180+80+80+80+80;SET VAR X=180+80;")]
         public void FormulasCheck(string formula)
         {
             var parsingResult = ParseText(formula);

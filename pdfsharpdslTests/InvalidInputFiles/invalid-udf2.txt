@@ -1,0 +1,9 @@
+﻿# UDFs Samples
+
+
+CALL ARROW(100,100,0);
+
+CALL ARROWBEFOREDEF(100,100);
+
+
+

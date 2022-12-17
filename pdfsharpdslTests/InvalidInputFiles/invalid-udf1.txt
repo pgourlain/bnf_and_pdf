@@ -1,0 +1,18 @@
+﻿# UDFs Samples
+
+
+UDF ARROW(X,Y,R)
+	SET FONT "Consolas" 12 bold ;
+	LINETEXT $X,$Y HAlign=left VAlign=bottom Text="LINE";
+	LINE $X,$Y, $X+100, $Y;
+	LINE $X,$Y+20, $X+100, $Y+20;
+	LINE $X+100,$Y, $X+100, $Y-10;
+	LINE $X+100,$Y-10, $X+120, $Y+10;
+	LINE $X+120,$Y+10, $X+100, $Y+30;
+	LINE $X+100,$Y+30, $X+100, $Y+20;
+ENDUDF
+
+CALL ARROW(100,100);
+
+
+

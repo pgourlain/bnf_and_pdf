@@ -1,6 +1,12 @@
 
 # Change log
 
+## Version 0.9.7 (December 17, 2022)
+* Add For statement
+* Add UDF statement
+* Add "Data" argument on Image that support Base64 images (like in html)
+* fixes and code coverage
+
 ## Version 0.9.6 (December 15, 2022)
 * HIGHLIGHTTEXT
 * Breaking changes : due to grammar conflicts on formulas and to have a self documented language

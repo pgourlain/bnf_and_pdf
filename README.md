@@ -63,6 +63,7 @@ SET VAR CSquare=$A*$A+$B*$B
 
 Formula can be used in :
 - each number in [PointLocation, RectLocation, Width, FontSize, startAngle, sweepAngle]
+- in UserDefineFunction (UDF)
 
 
 ## Color and Brush
@@ -193,12 +194,17 @@ Legal, Letter, Medium, Post, QuadDemy, Quarto, RA0, RA1, RA2, RA3, RA4, RA5, Roy
 # IMAGE PointLocation Source=ImageFilePath
 IMAGE 100,100 Source="./imageTest.jpg";
 
+# IMAGE PointLocation Data=Base64 encoded image
+IMAGE 100,100 Source="data:image/...";
+
 # IMAGE PointLocation,width,height width_height_unit ImageFilePath
 IMAGE 320,100,34,34 point Source="./imageTest.jpg";
 
 # IMAGE PointLocation,width,height width_height_unit [cropping] ImageFilePath
 IMAGE 100,320,50,50 pixel crop Source="C:\\Samples\\imageTest.jpg";
 IMAGE 100,320,50,50 pixel crop Source="C:/Samples/imageTest.jpg";
+
+
 ```
 
 **ImageFilePath** : path can be relative or absolute
@@ -233,6 +239,29 @@ LINETEXT 42,100 left bottom vertical Text="Horizontal text";
 ## Table
 
 TODO
+
+## User Define Function
+
+### define function
+
+```text
+UDF MyUdf()
+LINETEXT 100,100 Text="Horizontal text"
+ENDUDF
+
+UDF MyUdf1(X,Y)
+LINETEXT $X,$Y Text="Horizontal text"
+ENDUDF
+```
+
+### Call an User Define Function
+
+```text
+CALL MyUdf();
+# udf with parameters
+CALL MyUdf1(100,100);
+```
+each parameter can be a Formula
 
 ## Named Color list
 
