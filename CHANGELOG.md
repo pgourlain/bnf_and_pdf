@@ -3,7 +3,7 @@
 
 ## Version 0.9.8 (xxx 2022)
 * Add pen style (solid, dot, dashdot, dashdotdot)
-* Add support callback function in formula
+* Add support callback function in formula (custom function)
 
 ## Version 0.9.7 (December 17, 2022)
 * Add For statement
