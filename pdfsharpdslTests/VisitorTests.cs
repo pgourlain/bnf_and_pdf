@@ -32,11 +32,15 @@ namespace pdfsharpdslTests
         [InlineData("SET VAR X=-(2);", -2.0)]
         [InlineData("SET VAR X=\"coucou3\"+(2);", "coucou32")]
         [InlineData("SET VAR X=\"3\"+(2);", 5.0)]
+        [InlineData("SET VAR X=\"3\"+(Random()+Random(1,2,3));", 9.0)]
+        [InlineData("SET VAR A=2;SET VAR B=3;SET VAR X=Sum($A*$A, $B*$B,Sum(1,2,3));", 19.0)]
         public void TestFormulaEvaluator(string input, object expected)
         {
             var res = ParseText(input);
             var mock = new Mock<IPdfDocumentDrawer>();
             var visitor = new PdfDrawerForTestsVisitor();
+            visitor.RegisterFormulaFunction("RANDOM", (args) => args.Sum(x => Convert.ToDouble(x)));
+            visitor.RegisterFormulaFunction("Sum", (args) => args.Sum(x => Convert.ToDouble(x)));
             visitor.Draw(mock.Object, res);
             Assert.Equal(expected, visitor.Vars["X"]);
         }

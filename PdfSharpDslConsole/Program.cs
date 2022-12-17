@@ -1,11 +1,7 @@
-﻿using PdfSharpCore.Drawing;
-using PdfSharpCore.Fonts;
+﻿using PdfSharpCore.Fonts;
 using PdfSharpCore.Pdf;
-using PdfSharpCore.Utils;
-using PdfSharpDslCore;
 using PdfSharpDslCore.Drawing;
 using PdfSharpDslCore.Parser;
-using SixLabors.Fonts;
 
 //GlobalFontSettings.FontResolver = new FontResolver();
 GlobalFontSettings.DefaultFontEncoding = PdfFontEncoding.Unicode;
@@ -32,8 +28,12 @@ GlobalFontSettings.DefaultFontEncoding = PdfFontEncoding.Unicode;
 
 
 var parser = new Irony.Parsing.Parser(new PdfGrammar());
-
-var parsingResult = parser.Parse(File.ReadAllText("pdfsharp.txt"));
+var fileName = "pdfsharp.txt";
+if (args.Length > 0)
+{
+    fileName = args[0];
+}
+var parsingResult = parser.Parse(File.ReadAllText(fileName));
 
 if (parsingResult.HasErrors())
 {

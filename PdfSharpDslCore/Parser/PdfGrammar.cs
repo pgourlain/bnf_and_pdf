@@ -46,6 +46,7 @@ namespace PdfSharpDslCore.Parser
             var variable_literal = new IdentifierTerminal("var");
             KeyTerm lpar = ToTerm("(");
             KeyTerm rpar = ToTerm(")");
+            KeyTerm comma = ToTerm(",", "comma");
 
             var comment = new CommentTerminal("comment", "#", "\r", "\n", "\u2085", "\u2028", "\u2029");
             //comment must to be added to NonGrammarTerminals list; it is not used directly in grammar rules,
@@ -142,15 +143,23 @@ namespace PdfSharpDslCore.Parser
             RegisterOperators(10, "*", "/", "%");
 
             FormulaRoot = FormulaExpression;
-            var oneFormula = new NonTerminal("OneTerminal");
+            var CustomFunctionExpression = new NonTerminal("CustomFunctionExpression");
             FormulaExpression.Rule = BinaryExpression | FormulaPrimary;
-            //FormulaExpression.Rule = oneFormula;
-            oneFormula.Rule = BinaryExpression | FormulaPrimary;
-            FormulaPrimary.Rule = LiteralExpression | UnaryExpression | Parenthesized_Expression;
+            FormulaPrimary.Rule = LiteralExpression | UnaryExpression | Parenthesized_Expression | CustomFunctionExpression;
+
             LiteralExpression.Rule = number_literal | VarRef | sstring;
             UnaryExpression.Rule = UnOp + FormulaExpression;
             Parenthesized_Expression.Rule = lpar + FormulaExpression + rpar;
             BinaryExpression.Rule = FormulaExpression + BinOp + FormulaExpression;
+
+            var CallInvokeArgumentslist = new NonTerminal("CallInvokeArgumentslist");
+            CallInvokeArgumentslist.Rule = MakePlusRule(CallInvokeArgumentslist, comma, FormulaExpression);
+
+            var CustomFunctionArgs = new NonTerminal("CustomFunctionArgs");
+            CustomFunctionExpression.Rule = variable_literal + CustomFunctionArgs;
+            var CustomFunctionArgsOpt = new NonTerminal("CustomFunctionArgsOpt");
+            CustomFunctionArgs.Rule = lpar + CustomFunctionArgsOpt + rpar;
+            CustomFunctionArgsOpt.Rule = Empty | CallInvokeArgumentslist;
 
             UnOp.Rule = ToTerm("+") | "-";
             VarRef.Rule = "$" + variable_literal;
@@ -168,7 +177,7 @@ namespace PdfSharpDslCore.Parser
             // A line can be an empty line, or it's a number followed by a statement list ended by a new-line.
             KeyTerm semi = ToTerm(";", "semi");
             semi.ErrorAlias = "';' expected";
-            KeyTerm comma = ToTerm(",", "comma");
+
             comma.ErrorAlias = "',' expected";
             semiOpt.Rule = Empty | semi;
 
@@ -218,7 +227,11 @@ namespace PdfSharpDslCore.Parser
             LineSmt.Rule = ToTerm("LINE") + RectLocation;
             MoveToSmt.Rule = ToTerm("MOVETO") + PointLocation;
             LineToSmt.Rule = ToTerm("LINETO") + PointLocation;
-            PenSmt.Rule = ToTerm("PEN") + ColorExp + FormulaExpression;
+            var stylePenOpt = new NonTerminal("StylePenOpt");
+            var stylePen = new NonTerminal("StylePen");
+            stylePenOpt.Rule = Empty | stylePen;
+            stylePen.Rule = ToTerm("solid") | "dash" | "dot" | "dashdot" | "dashdotdot";
+            PenSmt.Rule = ToTerm("PEN") + ColorExp + FormulaExpression + stylePenOpt;
             BrushSmt.Rule = ToTerm("BRUSH") + ColorExp + BrushType;
             //TODO: how to deactivate HBRUSH...
             HBrushSmt.Rule = ToTerm("HBRUSH") + ColorExp + BrushType;
@@ -345,12 +358,10 @@ namespace PdfSharpDslCore.Parser
 
             var UdfInvokeArguments = new NonTerminal("UdfInvokeArguments");
             var UdfInvokeArgumentslistOpt = new NonTerminal("UdfInvokeArgumentslistOpt");
-            var UdfInvokeArgumentslist = new NonTerminal("UdfInvokeArgumentslist");
-
             UdfInvokeSmt.Rule = ToTerm("CALL") + variable_literal + PreferShiftHere() + UdfInvokeArguments;
             UdfInvokeArguments.Rule = lpar + UdfInvokeArgumentslistOpt + rpar;
-            UdfInvokeArgumentslistOpt.Rule = Empty | UdfInvokeArgumentslist;
-            UdfInvokeArgumentslist.Rule = MakePlusRule(UdfInvokeArgumentslist, comma, FormulaExpression);
+            UdfInvokeArgumentslistOpt.Rule = Empty | CallInvokeArgumentslist;
+            
 
             RegisterBracePair("(", ")");
 
@@ -360,7 +371,8 @@ namespace PdfSharpDslCore.Parser
                  styleExpr, semiOpt, PixelOrPoint, HAlignValue, TextOrientationValue, VAlignValue, 
                  EmbbededSmtListOpt,
                  UdfArguments, UdfArgumentslistOpt,
-                 UdfInvokeArguments, UdfInvokeArgumentslistOpt);
+                 UdfInvokeArguments, UdfInvokeArgumentslistOpt, stylePenOpt,
+                 CustomFunctionArgs, CustomFunctionArgsOpt);
 
             this.AddTermsReportGroup("punctuation", comma);
             this.AddToNoReportGroup("(", "++", "--");

@@ -31,5 +31,13 @@ namespace pdfsharpdslTests
             var parsingResult = ParseText< FormulaExpressionGrammar>(formula);
             Assert.False(parsingResult.HasErrors());
         }
+
+        [Theory()]
+        [InlineData("SET VAR X=180+80+80+80+Random();")]
+        public void FormulasWithCustomFunctionCheck(string formula)
+        {
+            var parsingResult = ParseText(formula);
+            Assert.False(parsingResult.HasErrors());
+        }
     }
 }

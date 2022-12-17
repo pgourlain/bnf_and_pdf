@@ -296,6 +296,7 @@ LINE 0,70, 100,70 ;
 
 NEWPAGE portrait;
 
+SET PEN black 1 dashdot;
 
 UDF ARROW(X,Y,R)
 	SET FONT "Consolas" 12 bold ;
@@ -310,6 +311,7 @@ ENDUDF
 
 CALL ARROW(100,100,0);
 
+SET PEN black 2 dashdotdot;
 FOR Y=1 TO 5 DO
 
 CALL ARROW(100,100 + $Y*50,0);

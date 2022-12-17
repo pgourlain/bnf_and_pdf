@@ -1,6 +1,10 @@
 
 # Change log
 
+## Version 0.9.8 (December 17, 2022)
+* Add pen style (solid, dot, dashdot, dashdotdot)
+* Add support callback function in formula (custom function)
+
 ## Version 0.9.7 (December 17, 2022)
 * Add For statement
 * Add UDF statement
