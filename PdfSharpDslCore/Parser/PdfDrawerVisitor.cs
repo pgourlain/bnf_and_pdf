@@ -24,6 +24,7 @@ namespace PdfSharpDslCore.Parser
     {
         protected IDictionary<string, object?> _variables = new Dictionary<string, object?>();
         protected IDictionary<string, ParseTreeNode> _udfs = new Dictionary<string, ParseTreeNode>();
+        protected IDictionary<string, Func<object[],object>> _customFunctions = new Dictionary<string, Func<object[], object>>();
         public PdfDrawerVisitor() { }
 
         public void Draw(IPdfDocumentDrawer drawer, ParseTree tree)
@@ -35,6 +36,24 @@ namespace PdfSharpDslCore.Parser
             //define each udf before visiting in order to accept call before definition
             tree.Root.ChildNodes.Where(x => x.Term?.Name == "UdfSmt").ToList().ForEach(ExecuteUdfStatement);
             Visit(drawer, tree.Root.ChildNodes);
+        }
+
+        /// <summary>
+        /// register a custom function 
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="func"></param>
+        public void RegisterFormulaFunction(string name, Func<object[], object> func)
+        {
+            var fnName = name.ToUpperInvariant();
+            if (_customFunctions.ContainsKey(fnName))
+            {
+                _customFunctions[fnName] = func;
+            }
+            else
+            {
+                _customFunctions.Add(name.ToUpperInvariant(), func);
+            }
         }
 
         private void Visit(IPdfDocumentDrawer drawer, ParseTreeNodeList nodes)
@@ -126,8 +145,8 @@ namespace PdfSharpDslCore.Parser
         private void ExecuteUdfInvokeStatement(IPdfDocumentDrawer drawer, ParseTreeNode node)
         {
             var fnName = node.ChildNodes[1].Token.ValueString;
-            var arguments = node.ChildNode("UdfInvokeArgumentslist");
-            var evaluatedArgs = arguments.ChildNodes.Select(x => EvaluateForObject(x, _variables)).ToArray();
+            var arguments = node.ChildNode("CallInvokeArgumentslist");
+            var evaluatedArgs = arguments.ChildNodes.Select(x => EvaluateForObject(x, _variables, _customFunctions)).ToArray();
 
             if (_udfs.TryGetValue(fnName, out var defNode))
             {
@@ -181,7 +200,7 @@ namespace PdfSharpDslCore.Parser
         {
             var varName = InternalSetVar(node);
             var from = Convert.ToInt32(_variables[varName]);
-            var to = Convert.ToInt32(EvaluateForObject(node.ChildNodes[5], _variables));
+            var to = Convert.ToInt32(EvaluateForObject(node.ChildNodes[5], _variables,_customFunctions));
             var forbody = node.ChildNode("ForBlock").ChildNode("EmbbededSmtList");
             if (forbody != null)
             {
@@ -274,7 +293,7 @@ namespace PdfSharpDslCore.Parser
 
         private void ExecuteTitle(IPdfDocumentDrawer drawer, ParseTreeNode node)
         {
-            var text = Convert.ToString(EvaluateForObject(node.ChildNodes[4], _variables));
+            var text = Convert.ToString(EvaluateForObject(node.ChildNodes[4], _variables, _customFunctions));
             var margin = ParseMargin(node.ChildNodes[1]);
             var (hAlign, vAlign) = ParseTextAlignment(node.ChildNodes[2]);
 
@@ -412,7 +431,7 @@ namespace PdfSharpDslCore.Parser
             var nodeOrientation = node.ChildNode("TextOrientation");
             //var nodeOrientation = nodeOrientationAndText.ChildNodes.Count > 2 ? nodeOrientationAndText.ChildNodes[2] : null;
             var contentNode = node.ChildNodes.Last();
-            var text = Convert.ToString(EvaluateForObject(contentNode, _variables));
+            var text = Convert.ToString(EvaluateForObject(contentNode, _variables, _customFunctions));
             TextOrientation textOrientation = new TextOrientation { Orientation = TextOrientationEnum.Horizontal, Angle = null };
 
             if (nodeOrientation != null && nodeOrientation.ChildNodes.Count > 2)
@@ -439,7 +458,7 @@ namespace PdfSharpDslCore.Parser
         {
             var nodeLocation = node.ChildNodes[1];
             var contentNode = node.ChildNodes[2];
-            var text = Convert.ToString(EvaluateForObject(contentNode, _variables));
+            var text = Convert.ToString(EvaluateForObject(contentNode, _variables, _customFunctions));
 
             if (text is not null)
             {
@@ -529,16 +548,18 @@ namespace PdfSharpDslCore.Parser
 
         private double? EvaluateForDouble(ParseTreeNode node)
         {
-            return EvaluateForDouble(node, _variables);
+            return EvaluateForDouble(node, _variables, _customFunctions);
         }
-        private static double? EvaluateForDouble(ParseTreeNode node, IDictionary<string, object?> variables)
+        private static double? EvaluateForDouble(ParseTreeNode node, IDictionary<string, object?> variables,
+            IDictionary<string, Func<object[], object>> funcs)
         {
-            return new Evaluator(node).EvaluateForDouble(variables);
+            return new Evaluator(node, funcs).EvaluateForDouble(variables);
         }
 
-        private static object? EvaluateForObject(ParseTreeNode node, IDictionary<string, object?> variables)
+        private static object? EvaluateForObject(ParseTreeNode node, IDictionary<string, object?> variables,
+            IDictionary<string, Func<object[], object>> funcs)
         {
-            return new Evaluator(node).Evaluate(variables);
+            return new Evaluator(node, funcs).Evaluate(variables);
         }
 
         private void ExecuteSet(IPdfDocumentDrawer drawer, ParseTreeNode node)
@@ -563,7 +584,7 @@ namespace PdfSharpDslCore.Parser
 
         private string InternalSetVar(ParseTreeNode node)
         {
-            var v = EvaluateForObject(node.ChildNodes[3], _variables);
+            var v = EvaluateForObject(node.ChildNodes[3], _variables, _customFunctions);
             var varName = node.ChildNodes[1].Token.ValueString;
             _variables.Add(varName, v);
             return varName;
@@ -574,8 +595,15 @@ namespace PdfSharpDslCore.Parser
 
             var width = EvaluateForDouble(node.ChildNodes[2]) ?? 0;
             var color = ParseColor(node.ChildNodes[1]);
-
-            drawer.CurrentPen = new XPen(color, width);
+            XDashStyle style = XDashStyle.Solid;
+            var n = node.ChildNode("StylePen");
+            if (n != null && n.ChildNodes.Count > 0)
+            {
+                Enum.TryParse<XDashStyle>(n.ChildNodes[0].Token.ValueString, true, out style);
+            }
+            var pen = new XPen(color, width);
+            pen.DashStyle = style;
+            drawer.CurrentPen = pen;
         }
 
         private XColor ParseColor(ParseTreeNode node)
@@ -653,7 +681,7 @@ namespace PdfSharpDslCore.Parser
             {
                 index++;
             }
-            var fontSize = EvaluateForDouble(node.ChildNodes[2 + index], _variables) ?? 0;
+            var fontSize = EvaluateForDouble(node.ChildNodes[2 + index], _variables, _customFunctions) ?? 0;
             var style = ParseStyle(node.ChildNodes.Count > (3 + index) ? node.ChildNodes[3 + index] : null);
             return new XFont(fontName, fontSize, style, XPdfFontOptions.UnicodeDefault);
         }

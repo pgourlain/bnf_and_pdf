@@ -69,8 +69,12 @@ Formula can be used in :
 ## Color and Brush
 
 ```text
-# SET PEN Color Width
+# SET PEN Color Width [Style]
 SET PEN black 1;
+SET PEN black 1 solid;
+SET PEN black 1 dot;
+SET PEN black 1 dashdot;
+SET PEN black 1 dashdotdot;
 
 **Width** is one of
 - number

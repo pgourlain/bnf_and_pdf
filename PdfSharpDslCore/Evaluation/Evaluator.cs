@@ -1,4 +1,5 @@
 ﻿using Irony.Parsing;
+using PdfSharpDslCore.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -11,9 +12,11 @@ namespace PdfSharpDslCore.Evaluation
     internal class Evaluator
     {
         ParseTreeNode _rootNode;
-        public Evaluator(ParseTreeNode rootNode)
+        IDictionary<string, Func<object[], object>> _funcs;
+        public Evaluator(ParseTreeNode rootNode, IDictionary<string, Func<object[], object>> funcs)
         {
             _rootNode = rootNode;
+            _funcs = funcs;
         }
 
         public double? EvaluateForDouble(IDictionary<string, object?> variables)
@@ -95,6 +98,11 @@ namespace PdfSharpDslCore.Evaluation
 
                 case "auto":
                     return new ConstantEvaluation(null!);
+                case "CustomFunctionExpression":
+                    var fnName = (string)node.ChildNodes[0].Token.Value;
+                    var args = node.ChildNode("CallInvokeArgumentslist");
+                    var arguments = args?.ChildNodes.Select(n => PerformEvaluate(n, variables)).ToArray();
+                    return new CustomFunctionEvaluation(_funcs[fnName.ToUpperInvariant()], arguments!);
             }
 
             throw new InvalidOperationException($"Unrecognizable term {node.Term.Name}.");
