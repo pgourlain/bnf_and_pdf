@@ -55,7 +55,8 @@ namespace PdfSharpDslCore.Parser
             #region variables
             var PDF = new NonTerminal("PDF");
             var PdfLine = new NonTerminal("PdfLine");
-            var PdfLineContent = new NonTerminal("PdfLineContent");
+            var PdfInstruction = new NonTerminal("PdfInstruction");
+            var PdfPrimaryInstruction = new NonTerminal("PdfPrimaryInstruction");
             var SetSmt = new NonTerminal("SetSmt");
             var RectSmt = new NonTerminal("RectSmt");
             var LineSmt = new NonTerminal("LineSmt");
@@ -125,7 +126,8 @@ namespace PdfSharpDslCore.Parser
             var PolygonPoint = new NonTerminal("PolygonPoint");
             var FillPolygonSmt = new NonTerminal("FillPolygonSmt");
             var ForSmt = new NonTerminal("ForSmt");
-
+            var UdfSmt = new NonTerminal("UdfSmt");
+            var UdfInvokeSmt = new NonTerminal("UdfInvokeSmt");
 
             var FormulaExpression = new NonTerminal("FormulaExpression");
             var LiteralExpression = new NonTerminal("LiteralExpression");
@@ -169,9 +171,11 @@ namespace PdfSharpDslCore.Parser
             comma.ErrorAlias = "',' expected";
             semiOpt.Rule = Empty | semi;
 
-            PdfLine.Rule = PdfLineContent + semiOpt;
+            PdfLine.Rule = UdfSmt | PdfInstruction;
 
-            PdfLineContent.Rule = SetSmt
+            PdfInstruction.Rule = PdfPrimaryInstruction + semiOpt;
+
+            PdfPrimaryInstruction.Rule = SetSmt
                 | RectSmt
                 | FillRectSmt
                 | EllipseSmt
@@ -191,6 +195,7 @@ namespace PdfSharpDslCore.Parser
                 | FillPolygonSmt
                 | FillPieSmt
                 | ForSmt
+                | UdfInvokeSmt
             ;
 
             #region basics rules
@@ -317,19 +322,42 @@ namespace PdfSharpDslCore.Parser
             FillPolygonSmt.Rule = ToTerm("FILLPOLYGON") + PointLocation + comma + PointLocation + comma + PolygonPoint;
 
             var EmbbededSmtList = new NonTerminal("EmbbededSmtList");
-            var BlockFor = new NonTerminal("BlockFor");
-            ForSmt.Rule = ToTerm("FOR") + variable_literal + "=" + FormulaExpression + "TO" + FormulaExpression + BlockFor;
+            var ForBlock = new NonTerminal("ForBlock");
+            ForSmt.Rule = ToTerm("FOR") + variable_literal + "=" + FormulaExpression + "TO" + FormulaExpression + ForBlock;
             var EmbbededSmtListOpt = new NonTerminal("EmbbededSmtListOpt");
-            BlockFor.Rule = ToTerm("DO") + EmbbededSmtListOpt + "ENDFOR";
+            ForBlock.Rule = ToTerm("DO") + EmbbededSmtListOpt + "ENDFOR";
             EmbbededSmtListOpt.Rule = Empty + EmbbededSmtList;
-            EmbbededSmtList.Rule = MakePlusRule(EmbbededSmtList, null, PdfLine);
+            EmbbededSmtList.Rule = MakePlusRule(EmbbededSmtList, null, PdfInstruction);
+
+            var UdfArgumentslistOpt = new NonTerminal("UdfArgumentslistOpt");
+            var UdfArguments = new NonTerminal("UdfArguments");
+            var UdfArgumentslist = new NonTerminal("UdfArgumentslist");
+            var UdfBlock = new NonTerminal("UdfBlock");
+            UdfArguments.Rule = lpar + UdfArgumentslistOpt + rpar;
+            UdfArgumentslistOpt.Rule = Empty | UdfArgumentslist;
+            UdfSmt.Rule = ToTerm("UDF") + variable_literal + PreferShiftHere() + UdfArguments + UdfBlock;
+            UdfArgumentslist.Rule = MakePlusRule(UdfArgumentslist, comma, variable_literal);
+            UdfBlock.Rule = EmbbededSmtListOpt + "ENDUDF";
+
+
+            var UdfInvokeArguments = new NonTerminal("UdfInvokeArguments");
+            var UdfInvokeArgumentslistOpt = new NonTerminal("UdfInvokeArgumentslistOpt");
+            var UdfInvokeArgumentslist = new NonTerminal("UdfInvokeArgumentslist");
+
+            UdfInvokeSmt.Rule = ToTerm("CALL") + variable_literal + PreferShiftHere() + UdfInvokeArguments;
+            UdfInvokeArguments.Rule = lpar + UdfInvokeArgumentslistOpt + rpar;
+            UdfInvokeArgumentslistOpt.Rule = Empty | UdfInvokeArgumentslist;
+            UdfInvokeArgumentslist.Rule = MakePlusRule(UdfInvokeArgumentslist, comma, FormulaExpression);
 
             RegisterBracePair("(", ")");
 
-            MarkPunctuation(";", ",", "(", ")", "TABLE", "ENDTABLE", "HEAD", "ENDHEAD", "ROW", "ENDROW", "§");
+            MarkPunctuation(";", ",", "(", ")", "TABLE", "ENDTABLE", "HEAD", "ENDHEAD", "ROW", "ENDROW", "ENDFOR", "UDF", "ENDUDF");
             RegisterBracePair("(", ")");
-            MarkTransient(PdfLineContent, SetContent, NumberOrAuto,
-                 styleExpr, semiOpt, PixelOrPoint, HAlignValue, TextOrientationValue, VAlignValue, EmbbededSmtListOpt);
+            MarkTransient(PdfLine, PdfPrimaryInstruction, SetContent, NumberOrAuto,
+                 styleExpr, semiOpt, PixelOrPoint, HAlignValue, TextOrientationValue, VAlignValue, 
+                 EmbbededSmtListOpt,
+                 UdfArguments, UdfArgumentslistOpt,
+                 UdfInvokeArguments, UdfInvokeArgumentslistOpt);
 
             this.AddTermsReportGroup("punctuation", comma);
             this.AddToNoReportGroup("(", "++", "--");

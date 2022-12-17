@@ -14,7 +14,7 @@ namespace pdfsharpdslTests
     {
         [Theory()]
         [InlineData("pdf1-lines.txt")]
-        public void TestdrawingOutPut(string file)
+        public void TestdrawingLinesOutPut(string file)
         {
             var input = File.ReadAllText($"./ValidInputFiles/{file}");
             using var memStm = GeneratePdf(input);
@@ -29,6 +29,28 @@ namespace pdfsharpdslTests
             var lines = ExtractLines(p).ToArray();
             Assert.Equal(4, lines.Length);
             //TODO check values extracted from lines
+        }
+
+        [Theory()]
+        [InlineData("pdf1-udfs.txt")]
+        public void TestdrawingUdfsOutPut(string file)
+        {
+            var input = File.ReadAllText($"./ValidInputFiles/{file}");
+            using var memStm = GeneratePdf(input);
+            //generation note failed
+            Assert.True(true);
+        }
+
+        [Theory()]
+        [InlineData("invalid-udf1.txt")]
+        [InlineData("invalid-udf2.txt")]
+        public void TestdrawinginvalidUdfsOutPut(string file)
+        {
+            var input = File.ReadAllText($"./InvalidInputFiles/{file}");
+            Assert.Throws<PdfParserException>(() =>
+            {
+                using var memStm = GeneratePdf(input);
+            });
         }
 
         private IEnumerable<string> ExtractLines(PdfPage p)

@@ -292,64 +292,25 @@ LINETEXT 50,70 HAlign=hcenter VAlign=vcenter Text="center text on page based on 
 LINE 50,0, 50, 140;
 LINE 0,70, 100,70 ;
 
-NEWPAGE A4 portrait;
-SET FONT "Tahoma" 14 bold;
-SET PEN black 0.5;
-SET BRUSH black;
-
-SET VAR MARGIN = 28.34;
-LINETEXT 10,$MARGIN Text="RELEVE DE PRESENCE";
-
-SET FONT "Tahoma" 10;
-LINETEXT 10,($MARGIN+20) Text="Intervenant :        Pierrick Gourlain"
-LINETEXT 10,($MARGIN+35) Text="Mois :               11/2022"
-LINETEXT 10,($MARGIN+50) Text="Projet :             EX20220103-CN-BL"
-LINETEXT 10,($MARGIN+65) Text="Client :             B'INFORMATION SERVICES"
-
-SET FONT "Tahoma" 8;
-
-TITLE Margin=-38.34 HAlign=hcenter Text="EXPACEO S.A.S au capital de 120 000 \u20AC - R.C.S. NANTERRE 518 356 118";
-TITLE Margin=-28.34 HAlign=hcenter Text="1, Rue Royale - 318 Bureaux de la Colline - 92213 SAINT-CLOUD CEDEX - Tél. 01 80 87 54 00";
 
 
-LINETEXT $MARGIN,($MARGIN+100),80,15 HAlign=hcenter VAlign=vcenter Text="Semaine";
-
-LINETEXT $MARGIN,($MARGIN+115),80,105 HAlign=hcenter VAlign=vcenter Text="44";
+NEWPAGE portrait;
 
 
-LINETEXT ($MARGIN+160),($MARGIN+100),105,15 HAlign=hcenter VAlign=vcenter Text="Date";
+UDF ARROW(X,Y,R)
+	SET FONT "Consolas" 12 bold ;
+	LINETEXT $X,$Y HAlign=left VAlign=bottom Text="LINE";
+	LINE $X,$Y, $X+100, $Y;
+	LINE $X,$Y+20, $X+100, $Y+20;
+	LINE $X+100,$Y, $X+100, $Y-10;
+	LINE $X+100,$Y-10, $X+120, $Y+10;
+	LINE $X+120,$Y+10, $X+100, $Y+30;
+	LINE $X+100,$Y+30, $X+100, $Y+20;
+ENDUDF
 
+CALL ARROW(100,100,0);
 
-LINETEXT ($MARGIN+80+80+115),($MARGIN+100),80,15 HAlign=hcenter VAlign=vcenter Text="Présence";
+FOR Y=1 TO 5 DO
 
-
-LINETEXT ($MARGIN+80+80+85+115),($MARGIN+100),80,15 HAlign=hcenter VAlign=vcenter Text="Remarques";
-
-
-LINETEXT ($MARGIN+80+80+85+85+115),($MARGIN+100),80,15 HAlign=hcenter VAlign=vcenter Text="Total";
-
-FOR J=0 TO 4 DO
-    SET VAR MARGIN = 28.34 + 115*$J;
-    SET VAR L=(28.34+80);
-    SET VAR T=($MARGIN+130);
-    
-    RECT ($L),($MARGIN+115),80,105;
-    RECT ($L+80),($MARGIN+115),105,105;
-    RECT ($L+80+115),($MARGIN+115),80,105;
-    RECT ($L+80+85+115),($MARGIN+115),80,105;
-    RECT ($L+80+85+85+115),($MARGIN+115),80,105;
-
-    FOR X=0 TO 5 DO
-        MOVETO $L,($T+15*$X);
-        LINETO ($L+80+105),($T+15*$X);
-
-        MOVETO $L+80+115,($T+15*$X);
-        LINETO ($L+80+80+115),($T+15*$X);
-
-        MOVETO $L+80+85+115,($T+15*$X);
-        LINETO ($L+80+80+85+115),($T+15*$X);
-
-        MOVETO $L+80+85+85+115,($T+15*$X);
-        LINETO ($L+80+80+85+85+115),($T+15*$X);
-    ENDFOR
+CALL ARROW(100,100 + $Y*50,0);
 ENDFOR

@@ -63,6 +63,7 @@ SET VAR CSquare=$A*$A+$B*$B
 
 Formula can be used in :
 - each number in [PointLocation, RectLocation, Width, FontSize, startAngle, sweepAngle]
+- in UserDefineFunction (UDF)
 
 
 ## Color and Brush
@@ -233,6 +234,29 @@ LINETEXT 42,100 left bottom vertical Text="Horizontal text";
 ## Table
 
 TODO
+
+## User Define Function
+
+### define function
+
+```text
+UDF MyUdf()
+LINETEXT 100,100 Text="Horizontal text"
+ENDUDF
+
+UDF MyUdf1(X,Y)
+LINETEXT $X,$Y Text="Horizontal text"
+ENDUDF
+```
+
+### Call an User Define Function
+
+```text
+CALL MyUdf();
+# udf with parameters
+CALL MyUdf1(100,100);
+```
+each parameter can be a Formula
 
 ## Named Color list
 

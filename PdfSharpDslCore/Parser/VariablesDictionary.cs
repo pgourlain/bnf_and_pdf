@@ -7,11 +7,18 @@ using System.Text;
 
 namespace PdfSharpDslCore.Parser
 {
-    internal class VariablesDictionary : IDictionary<string, object>
+    internal interface IVariablesDictionary
+    {
+        void SaveVariables();
+        void RestoreVariables();
+    }
+
+    internal class VariablesDictionary : IDictionary<string, object>, IVariablesDictionary
     {
 
         IPdfDocumentDrawer _pdfDocumentDrawer;
         ConcurrentDictionary<string, object> _inner = new ConcurrentDictionary<string, object>();
+        Stack<ConcurrentDictionary<string, object>> _savedVariables = new Stack<ConcurrentDictionary<string, object>>();
 
         public VariablesDictionary(IPdfDocumentDrawer pdfDocumentDrawer)
         {
@@ -99,6 +106,17 @@ namespace PdfSharpDslCore.Parser
         IEnumerator IEnumerable.GetEnumerator()
         {
             throw new NotImplementedException();
+        }
+
+        public void SaveVariables()
+        {
+            _savedVariables.Push(_inner);
+            _inner = new ConcurrentDictionary<string, object>(_inner);
+        }
+
+        public void RestoreVariables()
+        {
+            _inner = _savedVariables.Pop();
         }
     }
 }

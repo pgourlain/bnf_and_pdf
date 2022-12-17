@@ -9,6 +9,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Xml.Linq;
 
 namespace PdfSharpDslCore.Parser
 {
@@ -18,6 +19,7 @@ namespace PdfSharpDslCore.Parser
     public class PdfDrawerVisitor
     {
         protected IDictionary<string, object> _variables = new Dictionary<string, object>();
+        protected IDictionary<string, ParseTreeNode> _udfs = new Dictionary<string, ParseTreeNode>();
         public PdfDrawerVisitor() { }
 
         public void Draw(IPdfDocumentDrawer drawer, ParseTree tree)
@@ -25,12 +27,20 @@ namespace PdfSharpDslCore.Parser
             if (tree == null) return;
             if (drawer == null) throw new ArgumentNullException(nameof(drawer));
             _variables = new VariablesDictionary(drawer);
-            foreach (var node in tree.Root.ChildNodes)
+
+            //define each udf before visiting in order to accept call before definition
+            tree.Root.ChildNodes.Where(x => x.Term?.Name == "UdfSmt").ToList().ForEach(ExecuteUdfStatement);
+            Visit(drawer, tree.Root.ChildNodes);
+        }
+
+        private void Visit(IPdfDocumentDrawer drawer, ParseTreeNodeList nodes)
+        {
+            foreach (var node in nodes)
             {
                 Visit(drawer, node);
             }
-        }
 
+        }
         private void Visit(IPdfDocumentDrawer drawer, ParseTreeNode node)
         {
             switch (node.Term.Name)
@@ -80,7 +90,7 @@ namespace PdfSharpDslCore.Parser
                 case "ImageSmt":
                     ExecuteImage(drawer, node);
                     break;
-                case "PdfLine":
+                case "PdfInstruction":
                     Visit(drawer, node.ChildNodes[0]);
                     break;
                 case "PieSmt":
@@ -98,9 +108,69 @@ namespace PdfSharpDslCore.Parser
                 case "ForSmt":
                     ExecuteForStatement(drawer, node);
                     break;
+                case "UdfSmt":
+                    //nothing to do, it's already done before
+                    break;
+                case "UdfInvokeSmt":
+                    ExecuteUdfInvokeStatement(drawer, node);
+                    break;
                 default:
                     throw new NotImplementedException($"{node.Term.Name} is not yet implemented");
             }
+        }
+
+        private void ExecuteUdfInvokeStatement(IPdfDocumentDrawer drawer, ParseTreeNode node)
+        {
+            var fnName = node.ChildNodes[1].Token.ValueString;
+            var arguments = node.ChildNode("UdfInvokeArgumentslist");
+            var evaluatedArgs = arguments.ChildNodes.Select(x => EvaluateForObject(x, _variables)).ToArray();
+
+            if (_udfs.TryGetValue(fnName, out var defNode))
+            {
+                var defArgs = defNode.ChildNode("UdfArgumentslist");
+                var defBody = defNode.ChildNode("UdfBlock").ChildNode("EmbbededSmtList");
+                if (defArgs.ChildNodes.Count != evaluatedArgs.Length) 
+                {
+                    throw new PdfParserException($"UDF '{fnName}' arguments count not match, provided ${evaluatedArgs.Length}, expected ${defArgs.ChildNodes.Count}.");
+                }
+                var vars = _variables;
+                if (vars is IVariablesDictionary savable) savable.SaveVariables();
+                try
+                {
+                    for (int i=0; i < defArgs.ChildNodes.Count;i++)
+                    {
+                        var defVar = defArgs.ChildNodes[i];
+                        _variables.Add(defVar.Token.ValueString, evaluatedArgs[i]);
+                    }
+
+                    Visit(drawer, defBody.ChildNodes);
+                }
+                finally
+                {
+                    //replace IT
+                    if (vars is IVariablesDictionary restorable) restorable.RestoreVariables();
+                }
+            }
+            else if (!UdfCustomCall(drawer, fnName, evaluatedArgs))
+            {
+                throw new PdfParserException($"UDF {fnName} is not found.");
+            }
+
+        }
+
+        protected virtual bool UdfCustomCall(IPdfDocumentDrawer drawer, string udfName, object?[] arguments)
+        {
+            return false;
+        }
+
+        private void ExecuteUdfStatement(ParseTreeNode node)
+        {
+            var fnName = node.ChildNodes[0].Token.ValueString;
+            if (_udfs.ContainsKey(fnName))
+            {
+                throw new PdfParserException($"An another UDF '{fnName}' is already defined.");
+            }
+            _udfs.Add(fnName, node);
         }
 
         private void ExecuteForStatement(IPdfDocumentDrawer drawer, ParseTreeNode node)
@@ -108,16 +178,13 @@ namespace PdfSharpDslCore.Parser
             var varName = InternalSetVar(node);
             var from = Convert.ToInt32(_variables[varName]);
             var to = Convert.ToInt32(EvaluateForObject(node.ChildNodes[5], _variables));
-            var forbody = node.ChildNode("BlockFor").ChildNode("EmbbededSmtList");
+            var forbody = node.ChildNode("ForBlock").ChildNode("EmbbededSmtList");
             if (forbody != null)
             {
                 for (int i = from; i <= to; i++)
                 {
                     _variables.Add(varName, i);
-                    foreach (var subNode in forbody.ChildNodes)
-                    {
-                        Visit(drawer, subNode);
-                    }
+                    Visit(drawer, forbody.ChildNodes);
                 }
             }
         }
@@ -573,7 +640,7 @@ namespace PdfSharpDslCore.Parser
             {
                 index++;
             }
-            var fontSize = EvaluateForDouble(node.ChildNodes[2+index], _variables) ?? 0;
+            var fontSize = EvaluateForDouble(node.ChildNodes[2 + index], _variables) ?? 0;
             var style = ParseStyle(node.ChildNodes.Count > (3 + index) ? node.ChildNodes[3 + index] : null);
             return new XFont(fontName, fontSize, style, XPdfFontOptions.UnicodeDefault);
         }
