@@ -65,6 +65,17 @@ Formula can be used in :
 - each number in [PointLocation, RectLocation, Width, FontSize, startAngle, sweepAngle]
 - in UserDefineFunction (UDF)
 
+Formula support also customFunction
+1)
+```CSharp
+var visitor = ew PdfDrawerVisitor();
+visitor.RegisterFormulaFunction("SUM", (args) => args.Sum(x => Convert.ToDouble(x)));
+```
+
+2) then use it in formulas
+```text
+SET VAR CSquare=Sum($A*$A, $B*$B+Sum(1,2,3))
+```
 
 ## Color and Brush
 
