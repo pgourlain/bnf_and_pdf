@@ -1,7 +1,8 @@
 ﻿# sample
-SET PEN black 1
-SET BRUSH black
-SET FONT "Arial" 20 bold
+NEWPAGE A4 portrait;
+SET PEN black 1;
+SET BRUSH black;
+SET FONT "Arial" 20 bold;
 
 MOVETO 300, 200;
 LINETO 400, 200;

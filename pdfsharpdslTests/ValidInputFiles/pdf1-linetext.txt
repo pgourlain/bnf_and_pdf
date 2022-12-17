@@ -9,4 +9,9 @@ LINETEXT 10,10 Orientation=10 Text="coucou";
 LINETEXT 10,10 HAlign=left VAlign=top Orientation=vertical Text="coucou";
 # Location as rectangle
 LINETEXT 10,10,50,50 HAlign=left VAlign=top Orientation=vertical Text="coucou";
+LINETEXT 10,10,50,50 HAlign=left VAlign=top Orientation=80 Text="coucou";
+
+# highlight
+SET HBRUSH 0x50ffe9b2; 
+LINETEXT 10,10,50,50 HAlign=left VAlign=top Orientation=80 Text="coucou";
 

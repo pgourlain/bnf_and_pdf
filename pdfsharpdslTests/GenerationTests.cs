@@ -7,11 +7,27 @@ using PdfSharpCore.Pdf.Content;
 using PdfSharpCore.Pdf.Content.Objects;
 using System.Diagnostics;
 using System.Text;
+using System.Diagnostics.CodeAnalysis;
 
 namespace pdfsharpdslTests
 {
+    [ExcludeFromCodeCoverage]
     public class GenerationTests : BaseTests
     {
+        [Theory]
+        [InlineData("pdf1-linetext.txt")]
+        [InlineData("pdf1-all-instructions.txt")]
+        public void TestDrawingNotFailed(string file)
+        {
+            var input = File.ReadAllText($"./ValidInputFiles/{file}");
+            using var memStm = GeneratePdf(input);
+            memStm.Position = 0;
+            using PdfDocument pdfDocument = PdfReader.Open(memStm, PdfDocumentOpenMode.Import);
+            //generation and import not failed
+            Assert.True(true);
+        }
+
+
         [Theory()]
         [InlineData("pdf1-lines.txt")]
         public void TestdrawingLinesOutPut(string file)
@@ -37,13 +53,18 @@ namespace pdfsharpdslTests
         {
             var input = File.ReadAllText($"./ValidInputFiles/{file}");
             using var memStm = GeneratePdf(input);
-            //generation note failed
+            memStm.Position = 0;
+            //reopen pdf to check if "print" works
+            using PdfDocument pdfDocument = PdfReader.Open(memStm, PdfDocumentOpenMode.Import);
+            Assert.Equal(1+10, pdfDocument.PageCount);
+
             Assert.True(true);
         }
 
         [Theory()]
         [InlineData("invalid-udf1.txt")]
         [InlineData("invalid-udf2.txt")]
+        [InlineData("invalid-udf3.txt")]
         public void TestdrawinginvalidUdfsOutPut(string file)
         {
             var input = File.ReadAllText($"./InvalidInputFiles/{file}");

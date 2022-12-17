@@ -13,36 +13,36 @@ namespace PdfSharpDslCore.Parser
         void RestoreVariables();
     }
 
-    internal class VariablesDictionary : IDictionary<string, object>, IVariablesDictionary
+    internal class VariablesDictionary : IDictionary<string, object?>, IVariablesDictionary
     {
 
         IPdfDocumentDrawer _pdfDocumentDrawer;
-        ConcurrentDictionary<string, object> _inner = new ConcurrentDictionary<string, object>();
-        Stack<ConcurrentDictionary<string, object>> _savedVariables = new Stack<ConcurrentDictionary<string, object>>();
+        ConcurrentDictionary<string, object?> _inner = new ConcurrentDictionary<string, object?>();
+        Stack<ConcurrentDictionary<string, object?>> _savedVariables = new Stack<ConcurrentDictionary<string, object?>>();
 
         public VariablesDictionary(IPdfDocumentDrawer pdfDocumentDrawer)
         {
             _pdfDocumentDrawer = pdfDocumentDrawer;
         }
 
-        public ICollection<string> Keys => throw new NotImplementedException();
+        public ICollection<string> Keys => _inner.Keys;
 
-        public ICollection<object> Values => throw new NotImplementedException();
+        public ICollection<object?> Values => _inner.Values;
 
         public int Count => _inner.Count;
 
         public bool IsReadOnly => false;
 
-        public object this[string key] { get {
+        public object? this[string key] { get {
             if (this.TryGetValue(key, out var value))
             {
-                return value;
+                return value!;
             }
             return null;
         } 
         set => throw new NotImplementedException(); }
 
-        public void Add(string key, object value)
+        public void Add(string key, object? value)
         {
             _inner.AddOrUpdate(key, value, (_, __) => value);
         }
@@ -57,7 +57,7 @@ namespace PdfSharpDslCore.Parser
             return _inner.TryRemove(key, out var _);
         }
 
-        public bool TryGetValue(string key, out object value)
+        public bool TryGetValue(string key, out object? value)
         {
             //system variables are intercepted
             switch(key)
@@ -73,9 +73,9 @@ namespace PdfSharpDslCore.Parser
             }
         }
 
-        public void Add(KeyValuePair<string, object> item)
+        public void Add(KeyValuePair<string, object?> item)
         {
-            throw new NotImplementedException();
+            _inner.AddOrUpdate(item.Key, item.Value, (_, __) => item.Value);
         }
 
         public void Clear()
@@ -83,22 +83,22 @@ namespace PdfSharpDslCore.Parser
             _inner.Clear();
         }
 
-        public bool Contains(KeyValuePair<string, object> item)
+        public bool Contains(KeyValuePair<string, object?> item)
         {
             throw new NotImplementedException();
         }
 
-        public void CopyTo(KeyValuePair<string, object>[] array, int arrayIndex)
+        public void CopyTo(KeyValuePair<string, object?>[] array, int arrayIndex)
         {
             throw new NotImplementedException();
         }
 
-        public bool Remove(KeyValuePair<string, object> item)
+        public bool Remove(KeyValuePair<string, object?> item)
         {
             throw new NotImplementedException();
         }
 
-        public IEnumerator<KeyValuePair<string, object>> GetEnumerator()
+        public IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
         {
             throw new NotImplementedException();
         }
@@ -111,7 +111,7 @@ namespace PdfSharpDslCore.Parser
         public void SaveVariables()
         {
             _savedVariables.Push(_inner);
-            _inner = new ConcurrentDictionary<string, object>(_inner);
+            _inner = new ConcurrentDictionary<string, object?>(_inner);
         }
 
         public void RestoreVariables()

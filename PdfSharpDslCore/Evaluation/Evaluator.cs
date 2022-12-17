@@ -16,7 +16,7 @@ namespace PdfSharpDslCore.Evaluation
             _rootNode = rootNode;
         }
 
-        public double? EvaluateForDouble(IDictionary<string, object> variables)
+        public double? EvaluateForDouble(IDictionary<string, object?> variables)
         {
             var result = Evaluate(variables);
             if (result is null) return null;
@@ -24,7 +24,7 @@ namespace PdfSharpDslCore.Evaluation
         }
 
 
-        public object? Evaluate(IDictionary<string, object> variables)
+        public object? Evaluate(IDictionary<string, object?> variables)
         {
 
             var result = PerformEvaluate(_rootNode, variables).Value;
@@ -32,7 +32,7 @@ namespace PdfSharpDslCore.Evaluation
         }
  
 
-        private Evaluation PerformEvaluate(ParseTreeNode node, IDictionary<string, object> variables)
+        private Evaluation PerformEvaluate(ParseTreeNode node, IDictionary<string, object?> variables)
         {
             ParseTreeNode? opNode;
             ParseTreeNode? rightNode;
@@ -90,10 +90,11 @@ namespace PdfSharpDslCore.Evaluation
                 case "VarRef":
                     return new VariableEvaluation((string)node.ChildNodes[1].Token.Value, variables);
                 case "string":
+                case "textstring":
                     return new ConstantEvaluation(node.Token.Value);
 
                 case "auto":
-                    return new ConstantEvaluation(null);
+                    return new ConstantEvaluation(null!);
             }
 
             throw new InvalidOperationException($"Unrecognizable term {node.Term.Name}.");

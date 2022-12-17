@@ -9,15 +9,15 @@ namespace PdfSharpDslCore.Evaluation
     internal class VariableEvaluation : Evaluation
     {
         private readonly string _varName;
-        private readonly IDictionary<string, object> _variables;
+        private readonly IDictionary<string, object?> _variables;
 
-        public VariableEvaluation(string varName, IDictionary<string, object> variables)
+        public VariableEvaluation(string varName, IDictionary<string, object?> variables)
         {
             this._varName = varName;
             this._variables = variables;
         }
 
-        public override object Value
+        public override object? Value
         {
             get{
                 if (_variables == null) throw new NotSupportedException("Any variables store was provided.");

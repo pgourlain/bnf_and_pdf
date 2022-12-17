@@ -608,31 +608,13 @@ namespace PdfSharpDslCore.Drawing
         public void MoveTo(double x, double y)
         {
             _currentPoint = new XPoint(x, y);
-            //var sqrt3 = Math.Sqrt(3);
-            //var T = 100;
-            //_MoveTo(x - T / 2, y - T * sqrt3 / 2);
-            //LineTo(x + T / 2, y - T * sqrt3 / 2);
-            //LineTo(x + T, y + 0);
-            //LineTo(x + T / 2, y + T * sqrt3 / 2);
-            //LineTo(x - T / 2, y + T * sqrt3 / 2);
-            //LineTo(x + -T, y + 0);
-            //LineTo(x - T / 2, y - T * sqrt3 / 2);
         }
 
-        private void _MoveTo(double x, double y)
-        {
-            _currentPoint = new XPoint(x, y);
-        }
         public void LineTo(double x, double y)
         {
             var endPoint = new XPoint(x, y);
             Gfx.DrawLine(CurrentPen, _currentPoint, endPoint);
             _currentPoint = endPoint;
-        }
-
-        public void DrawImage(XImage image, double x, double y, double? w, double? h)
-        {
-            DrawImage(image, x, y, w, h, false, false);
         }
 
         public void DrawImage(XImage image, double x, double y, double? w, double? h, bool sizeInPixel, bool cropImage)

@@ -5,4 +5,4 @@ SET FONT "Arial" 20 bold
 
 TITLE Text="coucou";
 
-NEWPAGE A4 portrait
+NEWPAGE A4 portrait;

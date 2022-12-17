@@ -6,9 +6,13 @@ using PdfSharpDslCore.Evaluation;
 using PdfSharpDslCore.Extensions;
 using SixLabors.ImageSharp;
 using System;
+using System.Buffers.Text;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices.ComTypes;
+using System.Text;
 using System.Xml.Linq;
 
 namespace PdfSharpDslCore.Parser
@@ -18,7 +22,7 @@ namespace PdfSharpDslCore.Parser
     /// </summary>
     public class PdfDrawerVisitor
     {
-        protected IDictionary<string, object> _variables = new Dictionary<string, object>();
+        protected IDictionary<string, object?> _variables = new Dictionary<string, object?>();
         protected IDictionary<string, ParseTreeNode> _udfs = new Dictionary<string, ParseTreeNode>();
         public PdfDrawerVisitor() { }
 
@@ -129,7 +133,7 @@ namespace PdfSharpDslCore.Parser
             {
                 var defArgs = defNode.ChildNode("UdfArgumentslist");
                 var defBody = defNode.ChildNode("UdfBlock").ChildNode("EmbbededSmtList");
-                if (defArgs.ChildNodes.Count != evaluatedArgs.Length) 
+                if (defArgs.ChildNodes.Count != evaluatedArgs.Length)
                 {
                     throw new PdfParserException($"UDF '{fnName}' arguments count not match, provided ${evaluatedArgs.Length}, expected ${defArgs.ChildNodes.Count}.");
                 }
@@ -137,10 +141,10 @@ namespace PdfSharpDslCore.Parser
                 if (vars is IVariablesDictionary savable) savable.SaveVariables();
                 try
                 {
-                    for (int i=0; i < defArgs.ChildNodes.Count;i++)
+                    for (int i = 0; i < defArgs.ChildNodes.Count; i++)
                     {
                         var defVar = defArgs.ChildNodes[i];
-                        _variables.Add(defVar.Token.ValueString, evaluatedArgs[i]);
+                        _variables.Add(defVar.Token.ValueString, evaluatedArgs[i] ?? null!);
                     }
 
                     Visit(drawer, defBody.ChildNodes);
@@ -221,7 +225,8 @@ namespace PdfSharpDslCore.Parser
             string unit = "point";
             bool crop = false;
             var imageLocation = node.ChildNode("ImageLocation");
-            var imagePath = (string?)node.ChildNodes[3].Token?.Value;
+            var isEmbedded = node.ChildNode("ImageRawOrSource").ChildNodes[0].Token.ValueString == "Data";
+            var imagePath = ((string?)node.ChildNodes[3].Token?.Value) ?? string.Empty;
             var (x, y, w, h) = ParseTextLocation(imageLocation.ChildNodes[0]);
             if (w is not null && imageLocation.ChildNodes.Count > 1)
             {
@@ -229,8 +234,24 @@ namespace PdfSharpDslCore.Parser
                 unit = imageLocation.ChildNodes[1].Term.Name;
                 crop = imageLocation.ChildNodes[2].ChildNodes.Count > 0;
             }
-            using XImage image = XImage.FromFile(imagePath);
-            drawer.DrawImage(image, x, y, w, h, unit == "pixel", crop);
+            XImage image;
+            if (isEmbedded && !string.IsNullOrWhiteSpace(imagePath))
+            {
+                if (imagePath.StartsWith("data:image"))
+                {
+                    imagePath = imagePath.Split(',')[1];
+                }
+                using var stream = new MemoryStream(System.Convert.FromBase64String(imagePath));
+                image = XImage.FromStream(() => stream);
+            }
+            else
+            {
+                image = XImage.FromFile(imagePath);
+            }
+            using (image)
+            {
+                drawer.DrawImage(image, x, y, w, h, unit == "pixel", crop);
+            }
         }
 
         private void ExecuteLineTo(IPdfDocumentDrawer drawer, ParseTreeNode node)
@@ -432,14 +453,6 @@ namespace PdfSharpDslCore.Parser
         {
             ParseTreeNode? hNode = alignNode.Term.Name == "HAlign" ? alignNode : null;
             ParseTreeNode? vNode = alignNode.Term.Name == "VAlign" ? alignNode : null;
-            //if (hNode != null && alignNode.ChildNodes.Count > 2)
-            //{
-            //    hNode = alignNode.ChildNodes[2];
-            //}
-            //if (vNode != null && alignNode.ChildNodes.Count > 1)
-            //{
-            //    vNode = alignNode.ChildNodes[2];
-            //}
             return ParseTextAlignment(hNode, vNode);
         }
         private static (XStringAlignment, XLineAlignment) ParseTextAlignment(ParseTreeNode? hNode, ParseTreeNode? vNode)
@@ -518,12 +531,12 @@ namespace PdfSharpDslCore.Parser
         {
             return EvaluateForDouble(node, _variables);
         }
-        private static double? EvaluateForDouble(ParseTreeNode node, IDictionary<string, object> variables)
+        private static double? EvaluateForDouble(ParseTreeNode node, IDictionary<string, object?> variables)
         {
             return new Evaluator(node).EvaluateForDouble(variables);
         }
 
-        private static object? EvaluateForObject(ParseTreeNode node, IDictionary<string, object> variables)
+        private static object? EvaluateForObject(ParseTreeNode node, IDictionary<string, object?> variables)
         {
             return new Evaluator(node).Evaluate(variables);
         }

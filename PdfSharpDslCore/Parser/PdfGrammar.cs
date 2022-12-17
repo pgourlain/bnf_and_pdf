@@ -155,7 +155,8 @@ namespace PdfSharpDslCore.Parser
             UnOp.Rule = ToTerm("+") | "-";
             VarRef.Rule = "$" + variable_literal;
             BinOp.Rule = ToTerm("+") | "-" | "*" | "/";
-            MarkTransient(FormulaExpression, LiteralExpression, BinOp, FormulaPrimary, Parenthesized_Expression);
+            MarkTransient(FormulaExpression, LiteralExpression, BinOp, FormulaPrimary, 
+                Parenthesized_Expression, UnOp);
             #endregion
 
             // set the PROGRAM to be the root node of PDF lines.
@@ -313,7 +314,9 @@ namespace PdfSharpDslCore.Parser
             CropExp.Rule = Empty | "crop" | "fit";
             ImageLocation.Rule = PointLocation | RectLocation + PixelOrPoint + CropExp;
             //PreferShift because
-            ImageSmt.Rule = ToTerm("IMAGE") + ImageLocation + Arg("Source") + FormulaExpression;
+            var ImageRawOrSource = new NonTerminal("ImageRawOrSource");
+            ImageSmt.Rule = ToTerm("IMAGE") + ImageLocation + ImageRawOrSource + FormulaExpression;
+            ImageRawOrSource.Rule = Arg("Source") | Arg("Data");
 
             PieSmt.Rule = ToTerm("PIE") + RectLocation + Arg("Start") + FormulaExpression + Arg("Angle") + FormulaExpression;
             PolygonSmt.Rule = ToTerm("POLYGON") + PointLocation + comma + PointLocation + comma + PolygonPoint;

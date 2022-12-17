@@ -1,4 +1,5 @@
 
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using Irony.Parsing;
 using Moq;
@@ -8,6 +9,8 @@ using PdfSharpDslCore.Parser;
 
 namespace pdfsharpdslTests
 {
+    [ExcludeFromCodeCoverage]
+
     public class ParserTests : BaseTests
     {
 
@@ -37,15 +40,6 @@ namespace pdfsharpdslTests
 
             var parsingResult = p.Parse(input);
             Assert.True(parsingResult.HasErrors());
-        }
-
-        class PdfDrawerForTestsVisitor : PdfDrawerVisitor
-        {
-            public IDictionary<string, object> Vars => _variables;
-            public PdfDrawerForTestsVisitor()
-            {
-
-            }
         }
 
         [Theory()]
