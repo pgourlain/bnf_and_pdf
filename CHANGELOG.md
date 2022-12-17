@@ -1,7 +1,7 @@
 
 # Change log
 
-## Version 0.9.8 (xxx 2022)
+## Version 0.9.8 (December 17, 2022)
 * Add pen style (solid, dot, dashdot, dashdotdot)
 * Add support callback function in formula (custom function)
 
