@@ -129,6 +129,9 @@ namespace PdfSharpDslCore.Parser
             var ForSmt = new NonTerminal("ForSmt");
             var UdfSmt = new NonTerminal("UdfSmt");
             var UdfInvokeSmt = new NonTerminal("UdfInvokeSmt");
+            var IfSmt = new NonTerminal("IfSmt");
+            var Else_clause_opt = new NonTerminal("Else_clause_opt");
+            var then_clause = new NonTerminal("then_clause");
 
             var FormulaExpression = new NonTerminal("FormulaExpression");
             var LiteralExpression = new NonTerminal("LiteralExpression");
@@ -139,8 +142,11 @@ namespace PdfSharpDslCore.Parser
             #endregion
 
             #region Formula rules
-            RegisterOperators(9, "+", "-");
-            RegisterOperators(10, "*", "/", "%");
+            RegisterOperators(20, "and", "or");
+            RegisterOperators(30, "==", "<=", ">=", "<", ">", "<>");
+            RegisterOperators(40, "+", "-");
+            RegisterOperators(50, "*", "/", "%");
+            RegisterOperators(60, "^");
 
             FormulaRoot = FormulaExpression;
             var CustomFunctionExpression = new NonTerminal("CustomFunctionExpression");
@@ -163,8 +169,8 @@ namespace PdfSharpDslCore.Parser
 
             UnOp.Rule = ToTerm("+") | "-";
             VarRef.Rule = "$" + variable_literal;
-            BinOp.Rule = ToTerm("+") | "-" | "*" | "/";
-            MarkTransient(FormulaExpression, LiteralExpression, BinOp, FormulaPrimary, 
+            BinOp.Rule = ToTerm("+") | "-" | "*" | "/" | "%" | "==" | "<=" | ">=" | "<" | ">" | "<>" | "and" | "or";
+            MarkTransient(FormulaExpression, LiteralExpression, BinOp, FormulaPrimary,
                 Parenthesized_Expression, UnOp);
             #endregion
 
@@ -206,6 +212,7 @@ namespace PdfSharpDslCore.Parser
                 | FillPieSmt
                 | ForSmt
                 | UdfInvokeSmt
+                | IfSmt
             ;
 
             #region basics rules
@@ -361,14 +368,18 @@ namespace PdfSharpDslCore.Parser
             UdfInvokeSmt.Rule = ToTerm("CALL") + variable_literal + PreferShiftHere() + UdfInvokeArguments;
             UdfInvokeArguments.Rule = lpar + UdfInvokeArgumentslistOpt + rpar;
             UdfInvokeArgumentslistOpt.Rule = Empty | CallInvokeArgumentslist;
-            
+
+            IfSmt.Rule = "IF" + FormulaExpression + then_clause + Else_clause_opt + "ENDIF";
+            then_clause.Rule = "THEN" + EmbbededSmtListOpt;
+            Else_clause_opt.Rule = Empty | PreferShiftHere() + "ELSE" + EmbbededSmtListOpt;
+
 
             RegisterBracePair("(", ")");
 
-            MarkPunctuation(";", ",", "(", ")", "TABLE", "ENDTABLE", "HEAD", "ENDHEAD", "ROW", "ENDROW", "ENDFOR", "UDF", "ENDUDF");
+            MarkPunctuation(";", ",", "(", ")", "TABLE", "ENDTABLE", "HEAD", "ENDHEAD", "ROW", "ENDROW", "ENDFOR", "UDF", "ENDUDF", "IF", "THEN", "ELSE", "ENDIF");
             RegisterBracePair("(", ")");
             MarkTransient(PdfLine, PdfPrimaryInstruction, SetContent, NumberOrAuto,
-                 styleExpr, semiOpt, PixelOrPoint, HAlignValue, TextOrientationValue, VAlignValue, 
+                 styleExpr, semiOpt, PixelOrPoint, HAlignValue, TextOrientationValue, VAlignValue,
                  EmbbededSmtListOpt,
                  UdfArguments, UdfArgumentslistOpt,
                  UdfInvokeArguments, UdfInvokeArgumentslistOpt, stylePenOpt,

@@ -1,4 +1,5 @@
-﻿using Irony.Parsing;
+﻿using Castle.Components.DictionaryAdapter.Xml;
+using Irony.Parsing;
 using Moq;
 using PdfSharpCore.Drawing;
 using PdfSharpDslCore.Drawing;
@@ -62,6 +63,22 @@ namespace pdfsharpdslTests
                 //check that number arguments is equal
                 Assert.Equal(n, udFs.Value.Length);
 
+            }
+        }
+
+        [Theory]
+        [InlineData("pdf1-conditions.txt")]
+        public void TestConditionEvaluator(string file)
+        {
+            var input = File.ReadAllText($"./ValidInputFiles/{file}");
+            var res = ParseText(input);
+            var mock = new Mock<IPdfDocumentDrawer>();
+            var visitor = new PdfDrawerForTestsVisitor();
+
+            visitor.Draw(mock.Object, res);
+            foreach ( var udF in visitor.UDFs )
+            {
+                Assert.Equal("OK", udF.Value[0]);
             }
         }
     }

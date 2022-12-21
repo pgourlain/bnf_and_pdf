@@ -137,8 +137,33 @@ namespace PdfSharpDslCore.Parser
                 case "UdfInvokeSmt":
                     ExecuteUdfInvokeStatement(drawer, node);
                     break;
+                case "IfSmt":
+                    ExecuteIfStatement(drawer, node);
+                    break;
                 default:
                     throw new NotImplementedException($"{node.Term.Name} is not yet implemented");
+            }
+        }
+
+        private void ExecuteIfStatement(IPdfDocumentDrawer drawer, ParseTreeNode node)
+        {
+            var condition = Convert.ToBoolean(EvaluateForObject(node.ChildNodes[0], _variables, _customFunctions));
+            ParseTreeNode nodeToVisit = null;
+            if (condition)
+            {
+                nodeToVisit = node.ChildNode("then_clause");
+            }
+            else
+            {
+                nodeToVisit = node.ChildNode("Else_clause_opt");
+            }
+            if (nodeToVisit != null)
+            {
+                nodeToVisit = nodeToVisit.ChildNode("EmbbededSmtList");
+                if (nodeToVisit != null)
+                {
+                    Visit(drawer, nodeToVisit.ChildNodes);
+                }
             }
         }
 

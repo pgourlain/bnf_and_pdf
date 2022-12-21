@@ -50,8 +50,11 @@ namespace PdfSharpDslCore.Evaluation
                 {
                     rightIsNan = true;
                 }
-
-                //TODO: check if operation can be done when type are differents             
+                
+                if (BooleanOperator(oper))
+                {
+                    return BooleanOperation(leftValue, rightValue, oper);
+                }
 
                 if (leftIsNan && rightIsNan)
                 {
@@ -71,6 +74,25 @@ namespace PdfSharpDslCore.Evaluation
             }
         }
 
+        private bool BooleanOperator(BinaryOperation oper)
+        {
+            switch (oper)
+            {
+                case BinaryOperation.Equals:
+                case BinaryOperation.NotEquals:
+                case BinaryOperation.InferiorOrEquals:
+                case BinaryOperation.Inferior:
+                case BinaryOperation.Superior:
+                case BinaryOperation.SuperiorOrEquals:
+                case BinaryOperation.And:
+                case BinaryOperation.Or:
+                    return true;
+                default:
+                    return false;
+
+            }
+        }
+
         private double DoubleOperation(object leftValue, object rightValue, BinaryOperation oper)
         {
             var l = (double)leftValue;
@@ -85,6 +107,8 @@ namespace PdfSharpDslCore.Evaluation
                     return l * r;
                 case BinaryOperation.Div:
                     return l / r;
+                case BinaryOperation.Mod:
+                    return l % r;
                 default:
                     throw new NotSupportedException("Operation not supported on double");
             }
@@ -98,6 +122,41 @@ namespace PdfSharpDslCore.Evaluation
                     return leftValue.ToString() + rightValue.ToString();
                 default:
                     throw new NotSupportedException("Operation not supported on string");
+            }
+        }
+
+        private object BooleanOperation(object leftValue, object rightValue, BinaryOperation oper)
+        {
+            try
+            {
+
+
+                switch (oper)
+                {
+                    case BinaryOperation.And:
+                        return Convert.ToBoolean(leftValue) && Convert.ToBoolean(rightValue);
+                    case BinaryOperation.Or:
+                        return Convert.ToBoolean(leftValue) || Convert.ToBoolean(rightValue);
+
+                    case BinaryOperation.Superior:
+                        return Convert.ToDouble(leftValue) > Convert.ToDouble(rightValue);
+                    case BinaryOperation.SuperiorOrEquals:
+                        return Convert.ToDouble(leftValue) >= Convert.ToDouble(rightValue);
+                    case BinaryOperation.Inferior:
+                        return Convert.ToDouble(leftValue) < Convert.ToDouble(rightValue);
+                    case BinaryOperation.InferiorOrEquals:
+                        return Convert.ToDouble(leftValue) <= Convert.ToDouble(rightValue);
+                    case BinaryOperation.Equals:
+                        return leftValue.ToString() == rightValue.ToString();
+                    case BinaryOperation.NotEquals:
+                        return leftValue.ToString() != rightValue.ToString();
+                    default:
+                        throw new NotSupportedException("Operation not supported on boolean");
+                }
+            }
+            catch(FormatException)
+            {
+                throw new NotSupportedException($"'{oper}' is only supported on number expression.");
             }
         }
 

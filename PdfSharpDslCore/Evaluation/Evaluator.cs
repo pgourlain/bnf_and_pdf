@@ -79,6 +79,30 @@ namespace PdfSharpDslCore.Evaluation
                         case "/":
                             op = BinaryOperation.Div;
                             break;
+                        case ">":
+                            op = BinaryOperation.Superior;
+                            break;
+                        case "<":
+                            op = BinaryOperation.Inferior;
+                            break;
+                        case ">=":
+                            op = BinaryOperation.SuperiorOrEquals;
+                            break;
+                        case "<=":
+                            op = BinaryOperation.InferiorOrEquals;
+                            break;
+                        case "<>":
+                            op = BinaryOperation.NotEquals;
+                            break;
+                        case "==":
+                            op = BinaryOperation.Equals;
+                            break;
+                        case "and":
+                            op = BinaryOperation.And;
+                            break;
+                        case "or":
+                            op = BinaryOperation.Or;
+                            break;
                     }
                     return new BinaryEvaluation(left, right, op);
                 case "number":
