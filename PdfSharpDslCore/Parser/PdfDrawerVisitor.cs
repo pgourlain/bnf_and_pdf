@@ -46,9 +46,6 @@ namespace PdfSharpDslCore.Parser
                 case "TableSmt":
                     ExecuteTable(drawer, node);
                     break;
-                case "ImageSmt":
-                    ExecuteImage(drawer, node);
-                    break;
                 case "UdfSmt":
                     //nothing to do, it's already done before
                     break;
@@ -211,9 +208,8 @@ namespace PdfSharpDslCore.Parser
             var text = Convert.ToString(EvaluateForObject(contentNode, _variables, _customFunctions));
             TextOrientation textOrientation = new TextOrientation { Orientation = TextOrientationEnum.Horizontal, Angle = null };
 
-            if (nodeOrientation != null && nodeOrientation.ChildNodes.Count > 2)
+            if (nodeOrientation != null)
             {
-                nodeOrientation = nodeOrientation.ChildNodes[2];
                 if (nodeOrientation.Term.Name == "number" || nodeOrientation.Token is null)
                 {
                     textOrientation = textOrientation with { Angle = EvaluateForDouble(nodeOrientation) };
@@ -257,6 +253,55 @@ namespace PdfSharpDslCore.Parser
             }
         }
 
+        protected override void ExecuteImage(IPdfDocumentDrawer drawer, ParseTreeNode locationNode,
+            bool isEmbedded,
+            ParseTreeNode imagePathNode,
+            ParseTreeNode? unitNode,
+            ParseTreeNode? cropNode)
+        {
+            string unit = "point";
+            bool crop = false;
+            var imagePath = ((string?)imagePathNode.Token?.Value) ?? string.Empty;
+            var (x, y, w, h) = ParseTextLocation(locationNode);
+            if (w is not null && unitNode != null)
+            {
+                //try to parse unit and cropping
+                unit = unitNode.Term.Name;
+                crop = cropNode?.ChildNodes.Count > 0;
+            }
+            //var imageLocation = node.ChildNode("ImageLocation");
+            //var isEmbedded = node.ChildNode("ImageRawOrSource").ChildNodes[0].Token.ValueString == "Data";
+            //var imagePath = ((string?)node.ChildNodes[3].Token?.Value) ?? string.Empty;
+            //var (x, y, w, h) = ParseTextLocation(imageLocation.ChildNodes[0]);
+            //if (w is not null && imageLocation.ChildNodes.Count > 1)
+            //{
+            //    //try to parse unit and cropping
+            //    unit = imageLocation.ChildNodes[1].Term.Name;
+            //    crop = imageLocation.ChildNodes[2].ChildNodes.Count > 0;
+            //}
+            XImage image;
+            if (isEmbedded && !string.IsNullOrWhiteSpace(imagePath))
+            {
+                if (imagePath.StartsWith("data:image"))
+                {
+                    imagePath = imagePath.Split(',')[1];
+                }
+                using var stream = new MemoryStream(System.Convert.FromBase64String(imagePath));
+                image = XImage.FromStream(() => stream);
+            }
+            else
+            {
+                if (Directory.Exists(this.BaseDirectory) && !Path.IsPathRooted(imagePath))
+                {
+                    imagePath = Path.Combine(this.BaseDirectory, imagePath);
+                }
+                image = XImage.FromFile(imagePath);
+            }
+            using (image)
+            {
+                drawer.DrawImage(image, x, y, w, h, unit == "pixel", crop);
+            }
+        }
 
 
 
@@ -313,45 +358,6 @@ namespace PdfSharpDslCore.Parser
             }
             _udfs.Add(fnName, node);
         }
-
-        private void ExecuteImage(IPdfDocumentDrawer drawer, ParseTreeNode node)
-        {
-            string unit = "point";
-            bool crop = false;
-            var imageLocation = node.ChildNode("ImageLocation");
-            var isEmbedded = node.ChildNode("ImageRawOrSource").ChildNodes[0].Token.ValueString == "Data";
-            var imagePath = ((string?)node.ChildNodes[3].Token?.Value) ?? string.Empty;
-            var (x, y, w, h) = ParseTextLocation(imageLocation.ChildNodes[0]);
-            if (w is not null && imageLocation.ChildNodes.Count > 1)
-            {
-                //try to parse unit and cropping
-                unit = imageLocation.ChildNodes[1].Term.Name;
-                crop = imageLocation.ChildNodes[2].ChildNodes.Count > 0;
-            }
-            XImage image;
-            if (isEmbedded && !string.IsNullOrWhiteSpace(imagePath))
-            {
-                if (imagePath.StartsWith("data:image"))
-                {
-                    imagePath = imagePath.Split(',')[1];
-                }
-                using var stream = new MemoryStream(System.Convert.FromBase64String(imagePath));
-                image = XImage.FromStream(() => stream);
-            }
-            else
-            {
-                if (Directory.Exists(this.BaseDirectory) && !Path.IsPathRooted(imagePath))
-                {
-                    imagePath = Path.Combine(this.BaseDirectory, imagePath);
-                }
-                image = XImage.FromFile(imagePath);
-            }
-            using (image)
-            {
-                drawer.DrawImage(image, x, y, w, h, unit == "pixel", crop);
-            }
-        }
-
 
         private double? ParseMargin(ParseTreeNode node)
         {

@@ -54,8 +54,8 @@ else
     new PdfDrawerVisitor().Draw(drawer, parsingResult);
     document.Save("helloworld.pdf");
 
-    var a = new PDfDsl.pdfsharp();
-    a.WritePdf(drawer);
+    //var a = new PDfDsl.pdfsharp();
+    //a.WritePdf(drawer);
 }
 
 

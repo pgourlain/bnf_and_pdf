@@ -123,6 +123,25 @@ LINETEXT 250, 286.6025 HAlign=left VAlign=bottom Orientation=300 Text="LINETO";
 LINETO 250, 286.6025;
 LINETO 300, 200;
 
+UDF HEXAGONE(X, Y, T)
+	SET VAR SQRT3=1.7320;
+	LINETEXT $X-$T/2, $Y-$T*$SQRT3/2 HAlign=left VAlign=bottom Text="MOVETO/LINETO";
+	MOVETO $X-$T/2, $Y-$T*$SQRT3/2;
+	LINETO $X+$T/2, $Y-$T*$SQRT3/2;
+	LINETEXT $X+$T/2,$Y-$T*$SQRT3/2 HAlign=left VAlign=bottom Orientation=60 Text="LINETO";
+	LINETO $X+$T, $Y+0;
+	LINETEXT $X+$T, $Y+0 HAlign=left VAlign=bottom Orientation=120 Text="LINETO";
+	LINETO $X+$T/2, $Y+$T*$SQRT3/2;
+	LINETEXT $X+$T/2, $Y+$T*$SQRT3/2 HAlign=left VAlign=bottom Orientation=$PI Text="LINETO";
+
+	LINETO $X-$T/2, $Y+$T*$SQRT3/2;
+	LINETEXT $X-$T/2, $Y+$T*$SQRT3/2 HAlign=left VAlign=bottom Orientation=240 Text="LINETO";
+	LINETO $X-$T, $Y+0;
+	LINETEXT $X-$T, $Y+0 HAlign=left VAlign=bottom Orientation=300 Text="LINETO";
+	LINETO $X-$T/2, $Y-$T*$SQRT3/2;
+ENDUDF
+
+CALL HEXAGONE(300,550, 100);
 
 
 NEWPAGE;
@@ -229,6 +248,10 @@ IMAGE 320,100,34,34 point Source="./imageTest.jpg";
 
 # IMAGE 100,320,50,50 pixel crop Source="K:\\projets\\github\\bnf_and_pdf\\PdfSharpDslConsole\\imageTest.jpg";
 # IMAGE 320,320,200,100 pixel crop Source="K:/projets/github/bnf_and_pdf/PdfSharpDslConsole/imageTest.jpg";
+
+IMAGE 100,320,50,50 pixel crop Source="./imageTest.jpg";
+IMAGE 320,320,200,100 pixel crop Source="./imageTest.jpg";
+
 
 SET FONT "Consolas" 8;
 SET BRUSH black;

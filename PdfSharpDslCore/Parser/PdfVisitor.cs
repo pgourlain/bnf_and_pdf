@@ -5,6 +5,7 @@ using System.Text;
 using System.Xml.Linq;
 using Irony.Parsing;
 using PdfSharpCore.Drawing;
+using PdfSharpDslCore.Drawing;
 using PdfSharpDslCore.Extensions;
 
 namespace PdfSharpDslCore.Parser
@@ -114,7 +115,9 @@ namespace PdfSharpDslCore.Parser
                 case "ForSmt":
                     VisitFOR(state, node);
                     break;
-
+                case "ImageSmt":
+                    VisitIMAGE(state, node);
+                    break;
                 default:
                     CustomVisit(state, node);
                     break;
@@ -223,7 +226,25 @@ namespace PdfSharpDslCore.Parser
             ParseTreeNode forbody)
         { }
 
+        protected virtual void ExecuteImage(TState state, ParseTreeNode locationNode, 
+            bool isEmbedded, 
+            ParseTreeNode imagePathNode, 
+            ParseTreeNode? unitNode, 
+            ParseTreeNode? cropNode)
+        { }
+
         #region private visit methods
+        private void VisitIMAGE(TState state, ParseTreeNode node)
+        {
+            var locationNode = node.ChildNode("ImageLocation");
+            var isEmbedded = node.ChildNode("ImageRawOrSource").ChildNodes[0].Token.ValueString == "Data";
+            var imagePathNode = node.ChildNodes[3];
+            var unitNode = locationNode.ChildNodes.Count > 1 ? locationNode.ChildNodes[1] : null;
+            var cropNode = locationNode.ChildNodes.Count > 1 ? locationNode.ChildNodes[2] : null;
+            locationNode = locationNode.ChildNodes[0];
+            ExecuteImage(state, locationNode, isEmbedded, imagePathNode,unitNode,cropNode);
+        }
+
 
         private void VisitFOR(TState state, ParseTreeNode node)
         {
@@ -324,6 +345,10 @@ namespace PdfSharpDslCore.Parser
             if (nodeOrientation != null && nodeOrientation.ChildNodes.Count > 2)
             {
                 nodeOrientation = nodeOrientation.ChildNodes[2];
+            }
+            else
+            {
+                nodeOrientation = null;
             }
             ExecuteLineText(state, nodeLocation, nodeAlignment, nodeOrientation, contentNode);
         }
