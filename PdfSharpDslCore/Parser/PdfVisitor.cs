@@ -25,6 +25,16 @@ namespace PdfSharpDslCore.Parser
             this._baseDirectory = baseDirectory;
         }
 
+        public virtual void Draw(TState state, ParseTree tree)
+        {
+            if (tree == null) return;
+            if (state == null) throw new ArgumentNullException(nameof(state));
+
+            //define each udf before visiting in order to accept call before definition
+            tree.Root.ChildNodes.Where(x => x.Term?.Name == "UdfSmt").ToList().ForEach(ExecuteUdfStatement);
+            Visit(state, tree.Root.ChildNodes);
+        }
+
         /// <summary>
         /// register a custom function 
         /// </summary>
@@ -117,6 +127,12 @@ namespace PdfSharpDslCore.Parser
                     break;
                 case "ImageSmt":
                     VisitIMAGE(state, node);
+                    break;
+                case "UdfSmt":
+                    //nothing to do, it's already done before
+                    break;
+                case "UdfInvokeSmt":
+                    VisitCALLUDF(state, node);
                     break;
                 default:
                     CustomVisit(state, node);
@@ -226,14 +242,51 @@ namespace PdfSharpDslCore.Parser
             ParseTreeNode forbody)
         { }
 
-        protected virtual void ExecuteImage(TState state, ParseTreeNode locationNode, 
-            bool isEmbedded, 
-            ParseTreeNode imagePathNode, 
-            ParseTreeNode? unitNode, 
+        protected virtual void ExecuteImage(TState state, ParseTreeNode locationNode,
+            bool isEmbedded,
+            ParseTreeNode imagePathNode,
+            ParseTreeNode? unitNode,
             ParseTreeNode? cropNode)
         { }
 
+        protected virtual void ExecuteUdfInvokeStatement(TState drawer, 
+            string fnName,
+            ParseTreeNode args,
+            ParseTreeNode defArgs,
+            ParseTreeNode defBody)
+        {
+        }
+
+        private void ExecuteUdfStatement(ParseTreeNode node)
+        {
+            var fnName = node.ChildNodes[0].Token.ValueString;
+            if (_udfs.ContainsKey(fnName))
+            {
+                throw new PdfParserException($"An another UDF '{fnName}' is already defined.");
+            }
+            _udfs.Add(fnName, node);
+        }
+
         #region private visit methods
+        private void VisitCALLUDF(TState state, ParseTreeNode node)
+        {
+            var fnName = node.ChildNodes[1].Token.ValueString;
+            var arguments = node.ChildNode("CallInvokeArgumentslist");
+            ParseTreeNode defArgs = null!;
+            ParseTreeNode defBody = null!;
+            
+            if (_udfs.TryGetValue(fnName, out var defNode))
+            {
+                defArgs = defNode.ChildNode("UdfArgumentslist");
+                defBody = defNode.ChildNode("UdfBlock").ChildNode("EmbbededSmtList");
+                if (defArgs.ChildNodes.Count != arguments.ChildNodes.Count)
+                {
+                    throw new PdfParserException($"UDF '{fnName}' arguments count not match, provided ${arguments.ChildNodes.Count}, expected ${defArgs.ChildNodes.Count}.");
+                }
+            }
+            ExecuteUdfInvokeStatement(state, fnName, arguments, defArgs, defBody);
+        }
+
         private void VisitIMAGE(TState state, ParseTreeNode node)
         {
             var locationNode = node.ChildNode("ImageLocation");
@@ -242,7 +295,7 @@ namespace PdfSharpDslCore.Parser
             var unitNode = locationNode.ChildNodes.Count > 1 ? locationNode.ChildNodes[1] : null;
             var cropNode = locationNode.ChildNodes.Count > 1 ? locationNode.ChildNodes[2] : null;
             locationNode = locationNode.ChildNodes[0];
-            ExecuteImage(state, locationNode, isEmbedded, imagePathNode,unitNode,cropNode);
+            ExecuteImage(state, locationNode, isEmbedded, imagePathNode, unitNode, cropNode);
         }
 
 

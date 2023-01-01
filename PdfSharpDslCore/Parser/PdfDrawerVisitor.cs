@@ -27,16 +27,10 @@ namespace PdfSharpDslCore.Parser
         public PdfDrawerVisitor(string baseDirectory) : base(baseDirectory)
         {
         }
-
-        public void Draw(IPdfDocumentDrawer drawer, ParseTree tree)
+        public override void Draw(IPdfDocumentDrawer state, ParseTree tree)
         {
-            if (tree == null) return;
-            if (drawer == null) throw new ArgumentNullException(nameof(drawer));
-            _variables = new VariablesDictionary(drawer);
-
-            //define each udf before visiting in order to accept call before definition
-            tree.Root.ChildNodes.Where(x => x.Term?.Name == "UdfSmt").ToList().ForEach(ExecuteUdfStatement);
-            Visit(drawer, tree.Root.ChildNodes);
+            _variables = new VariablesDictionary(k => SystemVariableGet(state, k));
+            base.Draw(state, tree);
         }
 
         protected override void CustomVisit(IPdfDocumentDrawer drawer, ParseTreeNode node)
@@ -45,12 +39,6 @@ namespace PdfSharpDslCore.Parser
             {
                 case "TableSmt":
                     ExecuteTable(drawer, node);
-                    break;
-                case "UdfSmt":
-                    //nothing to do, it's already done before
-                    break;
-                case "UdfInvokeSmt":
-                    ExecuteUdfInvokeStatement(drawer, node);
                     break;
                 // case "IfSmt":
                 //     ExecuteIfStatement(drawer, node);
@@ -269,16 +257,6 @@ namespace PdfSharpDslCore.Parser
                 unit = unitNode.Term.Name;
                 crop = cropNode?.ChildNodes.Count > 0;
             }
-            //var imageLocation = node.ChildNode("ImageLocation");
-            //var isEmbedded = node.ChildNode("ImageRawOrSource").ChildNodes[0].Token.ValueString == "Data";
-            //var imagePath = ((string?)node.ChildNodes[3].Token?.Value) ?? string.Empty;
-            //var (x, y, w, h) = ParseTextLocation(imageLocation.ChildNodes[0]);
-            //if (w is not null && imageLocation.ChildNodes.Count > 1)
-            //{
-            //    //try to parse unit and cropping
-            //    unit = imageLocation.ChildNodes[1].Term.Name;
-            //    crop = imageLocation.ChildNodes[2].ChildNodes.Count > 0;
-            //}
             XImage image;
             if (isEmbedded && !string.IsNullOrWhiteSpace(imagePath))
             {
@@ -303,22 +281,15 @@ namespace PdfSharpDslCore.Parser
             }
         }
 
-
-
-        private void ExecuteUdfInvokeStatement(IPdfDocumentDrawer drawer, ParseTreeNode node)
-        {
-            var fnName = node.ChildNodes[1].Token.ValueString;
-            var arguments = node.ChildNode("CallInvokeArgumentslist");
-            var evaluatedArgs = arguments.ChildNodes.Select(x => EvaluateForObject(x, _variables, _customFunctions)).ToArray();
-
-            if (_udfs.TryGetValue(fnName, out var defNode))
+        protected override void ExecuteUdfInvokeStatement(IPdfDocumentDrawer state, string fnName,
+            ParseTreeNode args,
+            ParseTreeNode defArgs,
+            ParseTreeNode defBody)
             {
-                var defArgs = defNode.ChildNode("UdfArgumentslist");
-                var defBody = defNode.ChildNode("UdfBlock").ChildNode("EmbbededSmtList");
-                if (defArgs.ChildNodes.Count != evaluatedArgs.Length)
-                {
-                    throw new PdfParserException($"UDF '{fnName}' arguments count not match, provided ${evaluatedArgs.Length}, expected ${defArgs.ChildNodes.Count}.");
-                }
+            var evaluatedArgs = args.ChildNodes.Select(x => EvaluateForObject(x, _variables, _customFunctions)).ToArray();
+
+            if (defArgs != null)
+            {
                 var vars = _variables;
                 if (vars is IVariablesDictionary savable) savable.SaveVariables();
                 try
@@ -329,19 +300,18 @@ namespace PdfSharpDslCore.Parser
                         _variables.Add(defVar.Token.ValueString, evaluatedArgs[i] ?? null!);
                     }
 
-                    Visit(drawer, defBody.ChildNodes);
+                    Visit(state, defBody.ChildNodes);
                 }
                 finally
                 {
-                    //replace IT
+                    //restore variables before call
                     if (vars is IVariablesDictionary restorable) restorable.RestoreVariables();
                 }
             }
-            else if (!UdfCustomCall(drawer, fnName, evaluatedArgs))
+            else if (!UdfCustomCall(state, fnName, evaluatedArgs))
             {
                 throw new PdfParserException($"UDF {fnName} is not found.");
             }
-
         }
 
         protected virtual bool UdfCustomCall(IPdfDocumentDrawer drawer, string udfName, object?[] arguments)
@@ -349,14 +319,16 @@ namespace PdfSharpDslCore.Parser
             return false;
         }
 
-        private void ExecuteUdfStatement(ParseTreeNode node)
+        private object SystemVariableGet(IPdfDocumentDrawer state, string key)
         {
-            var fnName = node.ChildNodes[0].Token.ValueString;
-            if (_udfs.ContainsKey(fnName))
+            switch (key)
             {
-                throw new PdfParserException($"An another UDF '{fnName}' is already defined.");
+                case "PAGEHEIGHT":
+                    return state.PageHeight;
+                case "PAGEWIDTH":
+                    return state.PageWidth;
             }
-            _udfs.Add(fnName, node);
+            return null!;
         }
 
         private double? ParseMargin(ParseTreeNode node)
@@ -556,7 +528,7 @@ namespace PdfSharpDslCore.Parser
 
         private string InternalSetVar(ParseTreeNode node)
         {
-            return InternalSetVar(node.ChildNodes[1],node.ChildNodes[3]);
+            return InternalSetVar(node.ChildNodes[1], node.ChildNodes[3]);
         }
 
         private XColor ParseColor(ParseTreeNode node)
