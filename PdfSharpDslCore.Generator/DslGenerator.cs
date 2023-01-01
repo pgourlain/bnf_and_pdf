@@ -16,34 +16,14 @@ using System.Text;
 
 namespace PdfSharpDslCore.Generator
 {
+    //entry point of generator
     [Generator]
     public class DslGenerator : ISourceGenerator
     {
         static DslGenerator()
         {
-            AppDomain.CurrentDomain.AssemblyResolve += (_, args) =>
-            {
-                AssemblyName name = new AssemblyName(args.Name);
-                Assembly loadedAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.GetName().FullName == name.FullName);
-                if (loadedAssembly != null)
-                {
-                    return loadedAssembly;
-                }
-
-                string resourceName = $"Namespace.{name.Name}.dll";
-
-                using Stream resourceStream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
-                if (resourceStream == null)
-                {
-                    return null;
-                }
-
-                using MemoryStream memoryStream = new MemoryStream();
-                resourceStream.CopyTo(memoryStream);
-
-                return Assembly.Load(memoryStream.ToArray());
-            };
         }
+
         public void Execute(GeneratorExecutionContext context)
         {
             IEnumerable<AdditionalText> taggedFiles = GetTaggedTextFile(context);
@@ -70,7 +50,7 @@ namespace PdfSharpDslCore.Generator
         {
             string className = Path.GetFileNameWithoutExtension(file.Path);
             string pdfText = file.GetText()?.ToString()!;
-            return new (string, string)[] { (className, GenerateClassFile(className, pdfText)) };
+            return new (string, string)[] { (className, GenerateClassFile(className, pdfText, Path.GetDirectoryName(file.Path))) };
         }
         static IEnumerable<(string, string)> SourceFilesFromAdditionalFiles(IEnumerable<AdditionalText> pathsData)
             => pathsData.SelectMany(f => SourceFilesFromAdditionalFile(f));
@@ -93,7 +73,7 @@ namespace PdfSharpDslCore.Generator
             }
         }
 
-        public static string GenerateClassFile(string className, string pdfText)
+        public static string GenerateClassFile(string className, string pdfText, string directory)
         {
             StringBuilder sb = new StringBuilder();
 
@@ -102,10 +82,14 @@ namespace PdfSharpDslCore.Generator
 #nullable enable
 namespace PDfDsl {
     using System.Collections.Generic;
+    using PdfSharpCore.Drawing;
+    using PdfSharpDslCore.Drawing;
     //another comments
 ");
             // Class Definition
-            sb.Append($"    public class {className} {{\n");
+            sb.AppendLine(@$"    
+    internal class {className} 
+    {{");
 
             var parser = new Irony.Parsing.Parser(new PdfGrammar());
             var parsingResult = parser.Parse(pdfText);
@@ -115,13 +99,18 @@ namespace PDfDsl {
             }
             StringBuilder methodBuilder = new StringBuilder();
             var drawer = new CSharpDrawer(methodBuilder, "drawer.");
-            new PdfDrawerVisitor().Draw(drawer, parsingResult);
+            new CSharpVisitor(directory).Draw(drawer, parsingResult);
 
-            sb.AppendLine("     public void WritePdf() {");
+            sb.AppendLine(@"     
+        public void WritePdf(IPdfDocumentDrawer drawer) 
+        {");
             sb.Append(methodBuilder.ToString());
-            sb.AppendLine("         }");
-            sb.AppendLine("     }");
-            sb.AppendLine("}");
+            sb.AppendLine(@"
+        }");
+            sb.AppendLine(@"
+    }");
+            sb.AppendLine(@"
+}");
             return sb.ToString();
         }
     }

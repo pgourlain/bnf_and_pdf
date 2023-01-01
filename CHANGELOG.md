@@ -1,5 +1,8 @@
 
 # Change log
+## Version 0.9.9 (December 27, 2022)
+* Add If and conditonnal expressions
+* source generator preview
 
 ## Version 0.9.8 (December 17, 2022)
 * Add pen style (solid, dot, dashdot, dashdotdot)

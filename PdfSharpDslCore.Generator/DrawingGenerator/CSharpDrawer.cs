@@ -17,18 +17,52 @@ namespace PdfSharpDslCore.Generator.DrawingGenerator
             _code = code;
             _drawerPrefix = drawerPrefix;
         }
-        public XPen CurrentPen { get => throw new NotImplementedException();
+        public XPen CurrentPen
+        {
+            get => throw new NotImplementedException("CurrentPen");
             set
             {
                 var penvName = $"pen{vNameIndex++}";
-                _code.AppendLine($"var {penvName} = new XPen({value.Color}, {value.Width});");
-                _code.AppendLine($"pen.DashStyle = XDashStyle.{value.DashStyle};");
-                _code.AppendLine($"{_drawerPrefix}.CurrentPen = {penvName};");
+                _code.AppendLine($"var {penvName} = new XPen({ColorToString(value.Color)}, {value.Width});");
+                _code.AppendLine($"{penvName}.DashStyle = XDashStyle.{value.DashStyle};");
+                _code.AppendLine($"{_drawerPrefix}CurrentPen = {penvName};");
             }
         }
-        public XBrush CurrentBrush { get => throw new NotImplementedException(); set { } }
-        public XBrush HighlightBrush { get => throw new NotImplementedException(); set { } }
-        public XFont CurrentFont { get => throw new NotImplementedException(); set { } }
+
+        uint Argb(XColor color)
+        {
+            var _a = color.A;
+            var _r = color.R;
+            var _g = color.G;
+            var _b = color.B;
+            return ((uint)(_a * 255) << 24) | ((uint)_r << 16) | ((uint)_g << 8) | _b;
+        }
+        private string ColorToString(XColor color)
+        {
+            if (color.IsKnownColor)
+            {
+                return $"XColors.{XColorResourceManager.GetKnownColor(Argb(color))}";
+            }
+            else
+            {
+                return $"XColor.FromArgb({color.A},{color.R},{color.G},{color.B})";
+            }
+        }
+        public XBrush CurrentBrush
+        {
+            get => throw new NotImplementedException("CurrentBrush");
+            set { }
+        }
+        public XBrush HighlightBrush
+        {
+            get => throw new NotImplementedException();
+            set { }
+        }
+        public XFont CurrentFont
+        {
+            get => throw new NotImplementedException("CurrentFont");
+            set { }
+        }
 
         public double PageWidth => 100;//throw new NotImplementedException();
 
@@ -51,7 +85,7 @@ namespace PdfSharpDslCore.Generator.DrawingGenerator
 
         public void DrawLineText(string text, double x, double y, double? w, double? h, XStringAlignment hAlign, XLineAlignment vAlign, TextOrientation textOrientation)
         {
-            throw new NotImplementedException();
+            //throw new NotImplementedException("DrawLineText");
         }
 
         public void DrawPie(double x, double y, double? w, double? h, double startAngle, double sweepAngle, bool isFilled)
