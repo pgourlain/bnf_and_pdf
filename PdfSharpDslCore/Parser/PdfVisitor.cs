@@ -90,6 +90,31 @@ namespace PdfSharpDslCore.Parser
                 case "FillEllipseSmt":
                     VisitELLIPSE(state, node, true);
                     break;
+                case "TitleSmt":
+                    VisitTITLE(state, node);
+                    break;
+                case "PolygonSmt":
+                    VisitPOLYGON(state, node, false);
+                    break;
+                case "FillPolygonSmt":
+                    VisitPOLYGON(state, node, true);
+                    break;
+                case "MoveToSmt":
+                    VisitMOVETO(state, node);
+                    break;
+                case "LineToSmt":
+                    VisitLINETO(state, node);
+                    break;
+                case "TextSmt":
+                    VisitTEXT(state, node);
+                    break;
+                case "LineSmt":
+                    VisitLINE(state, node);
+                    break;
+                case "ForSmt":
+                    VisitFOR(state, node);
+                    break;
+
                 default:
                     CustomVisit(state, node);
                     break;
@@ -169,7 +194,87 @@ namespace PdfSharpDslCore.Parser
         {
         }
 
+        protected virtual void ExecuteTitle(TState state, ParseTreeNode marginNode,
+           ParseTreeNode alignmentsNode,
+           ParseTreeNode contentNode)
+        { }
+
+        protected virtual void ExecutePolygon(TState state,
+            IEnumerable<ParseTreeNode> pointNodes, bool isFilled)
+        { }
+
+        protected virtual void ExecuteLineTo(TState state, ParseTreeNode nodeLocation)
+        { }
+
+        protected virtual void ExecuteMoveTo(TState state, ParseTreeNode nodeLocation)
+        { }
+        protected virtual void ExecuteText(TState drawer,
+           ParseTreeNode nodeLocation,
+           ParseTreeNode contentNode)
+        { }
+
+        protected virtual void ExecuteLine(TState drawer, ParseTreeNode nodeLocation)
+        { }
+
+        protected virtual void ExecuteForStatement(TState state,
+            ParseTreeNode varNameNode,
+            ParseTreeNode fromNode,
+            ParseTreeNode toNode,
+            ParseTreeNode forbody)
+        { }
+
         #region private visit methods
+
+        private void VisitFOR(TState state, ParseTreeNode node)
+        {
+            var varNameNode = node.ChildNodes[1];
+            var fromNode = node.ChildNodes[3];
+            var toNode = node.ChildNodes[5];
+            var forbody = node.ChildNode("ForBlock").ChildNode("EmbbededSmtList");
+
+            ExecuteForStatement(state, varNameNode, fromNode, toNode, forbody);
+        }
+
+        private void VisitLINE(TState state, ParseTreeNode node)
+        {
+            ExecuteLine(state, node.ChildNodes[1]);
+        }
+
+        private void VisitTEXT(TState state, ParseTreeNode node)
+        {
+            var nodeLocation = node.ChildNodes[1];
+            var contentNode = node.ChildNodes[2];
+            ExecuteText(state, nodeLocation, contentNode);
+        }
+
+        private void VisitLINETO(TState state, ParseTreeNode node)
+        {
+            ExecuteLineTo(state, node.ChildNodes[1]);
+        }
+
+        private void VisitMOVETO(TState state, ParseTreeNode node)
+        {
+            ExecuteMoveTo(state, node.ChildNodes[1]);
+        }
+
+        private void VisitPOLYGON(TState state, ParseTreeNode node, bool isFilled)
+        {
+            List<ParseTreeNode> pointNodes = new List<ParseTreeNode>();
+
+            pointNodes.Add(node.ChildNodes[1]);
+            pointNodes.Add(node.ChildNodes[2]);
+            var polygonPoint = node.ChildNode("PolygonPoint");
+            pointNodes.AddRange(polygonPoint.ChildNodes);
+            ExecutePolygon(state, pointNodes, isFilled);
+        }
+
+        private void VisitTITLE(TState state, ParseTreeNode node)
+        {
+            var marginNode = node.ChildNodes[1];
+            var alignmentsNode = node.ChildNodes[2];
+            var contentNode = node.ChildNodes[4];
+            ExecuteTitle(state, marginNode, alignmentsNode, contentNode);
+        }
         private void VisitELLIPSE(TState state, ParseTreeNode node, bool isFilled)
         {
             ExecuteEllipse(state, node, isFilled);

@@ -43,35 +43,11 @@ namespace PdfSharpDslCore.Parser
         {
             switch (node.Term.Name)
             {
-                case "TextSmt":
-                    ExecuteText(drawer, node);
-                    break;
-                case "LineSmt":
-                    ExecuteLine(drawer, node);
-                    break;
                 case "TableSmt":
                     ExecuteTable(drawer, node);
                     break;
-                case "TitleSmt":
-                    ExecuteTitle(drawer, node);
-                    break;
-                case "MoveToSmt":
-                    ExecuteMoveTo(drawer, node);
-                    break;
-                case "LineToSmt":
-                    ExecuteLineTo(drawer, node);
-                    break;
                 case "ImageSmt":
                     ExecuteImage(drawer, node);
-                    break;
-                case "PolygonSmt":
-                    ExecutePolygon(drawer, node, false);
-                    break;
-                case "FillPolygonSmt":
-                    ExecutePolygon(drawer, node, true);
-                    break;
-                case "ForSmt":
-                    ExecuteForStatement(drawer, node);
                     break;
                 case "UdfSmt":
                     //nothing to do, it's already done before
@@ -176,6 +152,111 @@ namespace PdfSharpDslCore.Parser
             state.DrawEllipse(x, y, x1 ?? 0, y1 ?? 0, filled);
         }
 
+        protected override void ExecuteTitle(IPdfDocumentDrawer drawer, ParseTreeNode marginNode,
+           ParseTreeNode alignmentsNode,
+           ParseTreeNode contentNode)
+        {
+            var text = Convert.ToString(EvaluateForObject(contentNode, _variables, _customFunctions));
+            var margin = ParseMargin(marginNode);
+            var (hAlign, vAlign) = ParseTextAlignment(contentNode);
+
+            drawer.DrawTitle(text, margin ?? 0, hAlign, vAlign);
+        }
+
+        protected override void ExecutePolygon(IPdfDocumentDrawer state,
+                IEnumerable<ParseTreeNode> pointNodes, bool isFilled)
+        {
+            List<XPoint> points = new List<XPoint>();
+            foreach (var ptNode in pointNodes)
+            {
+                var (x, y) = ParsePointLocation(ptNode);
+                points.Add(new XPoint(x, y));
+            }
+            state.DrawPolygon(points, isFilled);
+
+        }
+
+        protected override void ExecuteLineTo(IPdfDocumentDrawer state, ParseTreeNode node)
+        {
+            (double x, double y) = ParsePointLocation(node);
+            state.LineTo(x, y);
+        }
+
+        protected override void ExecuteMoveTo(IPdfDocumentDrawer state, ParseTreeNode node)
+        {
+            (double x, double y) = ParsePointLocation(node);
+            state.MoveTo(x, y);
+        }
+
+        protected override void ExecuteText(IPdfDocumentDrawer drawer,
+            ParseTreeNode nodeLocation,
+            ParseTreeNode contentNode)
+        {
+            var text = Convert.ToString(EvaluateForObject(contentNode, _variables, _customFunctions));
+
+            if (text is not null)
+            {
+                (double x, double y, double? w, double? h) = ParseTextLocation(nodeLocation.ChildNodes[0]);
+
+                drawer.DrawText(text, x, y, w, h);
+            }
+        }
+
+        protected override void ExecuteLineText(IPdfDocumentDrawer state,
+            ParseTreeNode nodeLocation,
+            ParseTreeNode nodeAlignment,
+            ParseTreeNode? nodeOrientation,
+            ParseTreeNode contentNode)
+        {
+            var text = Convert.ToString(EvaluateForObject(contentNode, _variables, _customFunctions));
+            TextOrientation textOrientation = new TextOrientation { Orientation = TextOrientationEnum.Horizontal, Angle = null };
+
+            if (nodeOrientation != null && nodeOrientation.ChildNodes.Count > 2)
+            {
+                nodeOrientation = nodeOrientation.ChildNodes[2];
+                if (nodeOrientation.Term.Name == "number" || nodeOrientation.Token is null)
+                {
+                    textOrientation = textOrientation with { Angle = EvaluateForDouble(nodeOrientation) };
+                }
+                else if (Enum.TryParse<TextOrientationEnum>((string)nodeOrientation.Token.Value, true, out var specifiedOrientation))
+                {
+                    textOrientation = textOrientation with { Orientation = specifiedOrientation };
+                }
+            }
+            if (text is not null)
+            {
+                (double x, double y, double? w, double? h) = ParseTextLocation(nodeLocation.ChildNodes[0]);
+                var (hAlign, vAlign) = ParseTextAlignment(nodeAlignment.ChildNodes[0], nodeAlignment.ChildNodes[1]);
+                state.DrawLineText(text, x, y, w, h, hAlign, vAlign, textOrientation);
+            }
+
+        }
+
+        protected override void ExecuteLine(IPdfDocumentDrawer drawer, ParseTreeNode nodeLocation)
+        {
+            (double x, double y, double? x1, double? y1) = ParseRectLocation(nodeLocation);
+            drawer.DrawLine(x, y, x1 ?? x, y1 ?? y);
+        }
+
+        protected override void ExecuteForStatement(IPdfDocumentDrawer state,
+            ParseTreeNode varNameNode,
+            ParseTreeNode fromNode,
+            ParseTreeNode toNode,
+            ParseTreeNode forbody)
+        {
+            var varName = InternalSetVar(varNameNode, fromNode);
+            var from = Convert.ToInt32(_variables[varName]);
+            var to = Convert.ToInt32(EvaluateForObject(toNode, _variables, _customFunctions));
+            if (forbody != null)
+            {
+                for (int i = from; i <= to; i++)
+                {
+                    _variables.Add(varName, i);
+                    Visit(state, forbody.ChildNodes);
+                }
+            }
+        }
+
 
 
 
@@ -233,40 +314,6 @@ namespace PdfSharpDslCore.Parser
             _udfs.Add(fnName, node);
         }
 
-        private void ExecuteForStatement(IPdfDocumentDrawer drawer, ParseTreeNode node)
-        {
-            var varName = InternalSetVar(node);
-            var from = Convert.ToInt32(_variables[varName]);
-            var to = Convert.ToInt32(EvaluateForObject(node.ChildNodes[5], _variables, _customFunctions));
-            var forbody = node.ChildNode("ForBlock").ChildNode("EmbbededSmtList");
-            if (forbody != null)
-            {
-                for (int i = from; i <= to; i++)
-                {
-                    _variables.Add(varName, i);
-                    Visit(drawer, forbody.ChildNodes);
-                }
-            }
-        }
-
-        private void ExecutePolygon(IPdfDocumentDrawer drawer, ParseTreeNode node, bool isFilled)
-        {
-            List<XPoint> points = new List<XPoint>();
-
-            var (x, y) = ParsePointLocation(node.ChildNodes[1]);
-            points.Add(new XPoint(x, y));
-            (x, y) = ParsePointLocation(node.ChildNodes[2]);
-            points.Add(new XPoint(x, y));
-            var polygonPoint = node.ChildNode("PolygonPoint");
-            foreach (var ptNode in polygonPoint.ChildNodes)
-            {
-                (x, y) = ParsePointLocation(ptNode);
-                points.Add(new XPoint(x, y));
-            }
-            drawer.DrawPolygon(points, isFilled);
-
-        }
-
         private void ExecuteImage(IPdfDocumentDrawer drawer, ParseTreeNode node)
         {
             string unit = "point";
@@ -305,26 +352,6 @@ namespace PdfSharpDslCore.Parser
             }
         }
 
-        private void ExecuteLineTo(IPdfDocumentDrawer drawer, ParseTreeNode node)
-        {
-            (double x, double y) = ParsePointLocation(node.ChildNodes[1]);
-            drawer.LineTo(x, y);
-        }
-
-        private void ExecuteMoveTo(IPdfDocumentDrawer drawer, ParseTreeNode node)
-        {
-            (double x, double y) = ParsePointLocation(node.ChildNodes[1]);
-            drawer.MoveTo(x, y);
-        }
-
-        private void ExecuteTitle(IPdfDocumentDrawer drawer, ParseTreeNode node)
-        {
-            var text = Convert.ToString(EvaluateForObject(node.ChildNodes[4], _variables, _customFunctions));
-            var margin = ParseMargin(node.ChildNodes[1]);
-            var (hAlign, vAlign) = ParseTextAlignment(node.ChildNodes[2]);
-
-            drawer.DrawTitle(text, margin ?? 0, hAlign, vAlign);
-        }
 
         private double? ParseMargin(ParseTreeNode node)
         {
@@ -416,57 +443,6 @@ namespace PdfSharpDslCore.Parser
                 colDef.ColumnHeaderName = col.ChildNodes.Last().Token.ValueString;
 
                 tbl.Columns.Add(colDef);
-            }
-        }
-
-        private void ExecuteLine(IPdfDocumentDrawer drawer, ParseTreeNode node)
-        {
-            (double x, double y, double? x1, double? y1) = ParseRectLocation(node.ChildNodes[1]);
-            drawer.DrawLine(x, y, x1 ?? x, y1 ?? y);
-        }
-
-
-        protected override void ExecuteLineText(IPdfDocumentDrawer state,
-            ParseTreeNode nodeLocation,
-            ParseTreeNode nodeAlignment,
-            ParseTreeNode? nodeOrientation,
-            ParseTreeNode contentNode)
-        {
-            var text = Convert.ToString(EvaluateForObject(contentNode, _variables, _customFunctions));
-            TextOrientation textOrientation = new TextOrientation { Orientation = TextOrientationEnum.Horizontal, Angle = null };
-
-            if (nodeOrientation != null && nodeOrientation.ChildNodes.Count > 2)
-            {
-                nodeOrientation = nodeOrientation.ChildNodes[2];
-                if (nodeOrientation.Term.Name == "number" || nodeOrientation.Token is null)
-                {
-                    textOrientation = textOrientation with { Angle = EvaluateForDouble(nodeOrientation) };
-                }
-                else if (Enum.TryParse<TextOrientationEnum>((string)nodeOrientation.Token.Value, true, out var specifiedOrientation))
-                {
-                    textOrientation = textOrientation with { Orientation = specifiedOrientation };
-                }
-            }
-            if (text is not null)
-            {
-                (double x, double y, double? w, double? h) = ParseTextLocation(nodeLocation.ChildNodes[0]);
-                var (hAlign, vAlign) = ParseTextAlignment(nodeAlignment.ChildNodes[0], nodeAlignment.ChildNodes[1]);
-                state.DrawLineText(text, x, y, w, h, hAlign, vAlign, textOrientation);
-            }
-
-        }
-
-        private void ExecuteText(IPdfDocumentDrawer drawer, ParseTreeNode node)
-        {
-            var nodeLocation = node.ChildNodes[1];
-            var contentNode = node.ChildNodes[2];
-            var text = Convert.ToString(EvaluateForObject(contentNode, _variables, _customFunctions));
-
-            if (text is not null)
-            {
-                (double x, double y, double? w, double? h) = ParseTextLocation(nodeLocation.ChildNodes[0]);
-
-                drawer.DrawText(text, x, y, w, h);
             }
         }
 
@@ -563,12 +539,18 @@ namespace PdfSharpDslCore.Parser
             InternalSetVar(node);
         }
 
-        private string InternalSetVar(ParseTreeNode node)
+        private string InternalSetVar(ParseTreeNode varNameNode,
+                    ParseTreeNode fromNode)
         {
-            var v = EvaluateForObject(node.ChildNodes[3], _variables, _customFunctions);
-            var varName = node.ChildNodes[1].Token.ValueString;
+            var v = EvaluateForObject(fromNode, _variables, _customFunctions);
+            var varName = varNameNode.Token.ValueString;
             _variables.Add(varName, v);
             return varName;
+        }
+
+        private string InternalSetVar(ParseTreeNode node)
+        {
+            return InternalSetVar(node.ChildNodes[1],node.ChildNodes[3]);
         }
 
         private XColor ParseColor(ParseTreeNode node)
