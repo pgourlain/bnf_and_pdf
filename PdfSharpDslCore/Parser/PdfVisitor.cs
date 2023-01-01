@@ -171,8 +171,8 @@ namespace PdfSharpDslCore.Parser
         }
 
         protected virtual void ExecuteNewPage(TState state,
-            ParseTreeNode sizeNode,
-            ParseTreeNode orientationNode)
+            ParseTreeNode? sizeNode,
+            ParseTreeNode? orientationNode)
         {
 
         }
@@ -334,6 +334,8 @@ namespace PdfSharpDslCore.Parser
         {
             var sizeNode = node.ChildNode("PageSize");
             var orientationNode = node.ChildNode("PageOrientation");
+            sizeNode = sizeNode.ChildNodes.Count > 0 ? sizeNode.ChildNodes[0] : null;
+            orientationNode = orientationNode.ChildNodes.Count > 0 ? orientationNode.ChildNodes[0] : null;
             ExecuteNewPage(state, sizeNode, orientationNode);
         }
         private void VisitLINETEXT(TState state, ParseTreeNode node)

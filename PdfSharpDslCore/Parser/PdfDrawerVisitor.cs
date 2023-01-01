@@ -97,18 +97,18 @@ namespace PdfSharpDslCore.Parser
         }
 
         protected override void ExecuteNewPage(IPdfDocumentDrawer drawer,
-            ParseTreeNode sizeNode,
-            ParseTreeNode orientationNode)
+            ParseTreeNode? sizeNode,
+            ParseTreeNode? orientationNode)
         {
             var nSize = sizeNode;
             var nOrientation = orientationNode;
             PageSize? pageSize = null;
-            if (nSize.ChildNodes.Count > 0 && Enum.TryParse<PageSize>(nSize.ChildNodes[0].Token.Text, out var size))
+            if (nSize != null && Enum.TryParse<PageSize>(nSize.Token.Text, out var size))
             {
                 pageSize = size;
             }
             PageOrientation? pageOrientation = null;
-            if (nOrientation.ChildNodes.Count > 0 && Enum.TryParse<PageOrientation>(nOrientation.ChildNodes[0].Token.Text, true, out var orientation))
+            if (nOrientation != null && Enum.TryParse<PageOrientation>(nOrientation.Token.Text, true, out var orientation))
             {
                 pageOrientation = orientation;
             }
