@@ -59,7 +59,7 @@ namespace pdfsharpdslTests
             {
                 var splittedLine = l.Split('=');
                 var varName = splittedLine[0];
-                object varValue = null;
+                object varValue = null!;
                 if (double.TryParse(splittedLine[1], out var dblValue))
                 {
                     varValue = dblValue;

@@ -10,7 +10,7 @@
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <NoPackageAnalysis>true</NoPackageAnalysis>
-    <IncludeBuildOutput>false</IncludeBuildOutput> 
+    <IsRoslynComponent>true</IsRoslynComponent>
   </PropertyGroup>
 
   <ItemGroup>
@@ -50,7 +50,7 @@
       <TargetPathWithTargetPlatformMoniker Include="$(PKGPdfSharpCore)\lib\netstandard2.0\*.dll" IncludeRuntimeDependency="true" />
       <TargetPathWithTargetPlatformMoniker Include="$(PKGSixLabors_Fonts)\lib\netstandard2.0\*.dll" IncludeRuntimeDependency="false" />
       <TargetPathWithTargetPlatformMoniker Include="$(PKGSixLabors_ImageSharp)\lib\netstandard2.0\*.dll" IncludeRuntimeDependency="false" />
-      <TargetPathWithTargetPlatformMoniker Include="$(PKGSharpZipLib)\lib\netstandard2.0\*.dll" IncludeRuntimeDependency="false" />    
+      <TargetPathWithTargetPlatformMoniker Include="$(PKGSharpZipLib)\lib\netstandard2.0\*.dll" IncludeRuntimeDependency="false" />
     </ItemGroup>
-  </Target>  
+  </Target>
 </Project>

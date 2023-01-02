@@ -8,9 +8,20 @@
     <Version>0.1.0</Version>
     <Company></Company>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-    <GeneratedFolder>PdfDslGenerated</GeneratedFolder>
-    <CompilerGeneratedFilesOutputPath>$(GeneratedFolder)\$(TargetFramework)</CompilerGeneratedFilesOutputPath>
+    <!--<GeneratedFolder>PdfDslGenerated</GeneratedFolder>-->
+    <CompilerGeneratedFilesOutputPath>$(MSBuildThisFileDirectory)\Generated</CompilerGeneratedFilesOutputPath>
+    <!-- <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)Generated</CompilerGeneratedFilesOutputPath> -->
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="pdfsharp.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="pdfsharp.txt" IsPdfSharpDsl="true">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </AdditionalFiles>
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="irony" Version="1.1.0" />
@@ -25,18 +36,12 @@
     <None Update="imageTest.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="pdfsharp.txt" IsPdfSharpDsl="true">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
     <None Update="sample1.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <!-- <None Update="pdfsharp.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None> -->
-  </ItemGroup>  
-  <ItemGroup>
-    <Folder Include="PdfDslGenerated\net6.0\PdfSharpDslCore.Generator\PdfSharpDslCore.Generator.DslGenerator\" />
   </ItemGroup>  
   <ItemGroup>
     <Compile Update="Program.cs">

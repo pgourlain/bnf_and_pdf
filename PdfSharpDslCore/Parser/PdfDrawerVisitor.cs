@@ -4,16 +4,10 @@ using PdfSharpCore.Drawing;
 using PdfSharpDslCore.Drawing;
 using PdfSharpDslCore.Evaluation;
 using PdfSharpDslCore.Extensions;
-using SixLabors.ImageSharp;
 using System;
-using System.Buffers.Text;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices.ComTypes;
-using System.Text;
-using System.Xml.Linq;
 
 namespace PdfSharpDslCore.Parser
 {
@@ -40,13 +34,12 @@ namespace PdfSharpDslCore.Parser
                 case "TableSmt":
                     ExecuteTable(drawer, node);
                     break;
-                // case "IfSmt":
-                //     ExecuteIfStatement(drawer, node);
-                //     break;
                 default:
                     throw new NotImplementedException($"{node.Term.Name} is not yet implemented");
             }
         }
+
+        #region overrides
 
         protected override void ExecuteRect(IPdfDocumentDrawer state, ParseTreeNode rectNode, bool isFilled)
         {
@@ -56,7 +49,7 @@ namespace PdfSharpDslCore.Parser
         protected override void ExecutePen(IPdfDocumentDrawer state, ParseTreeNode widthNode, ParseTreeNode colorNode, ParseTreeNode styleNode)
         {
             var width = EvaluateForDouble(widthNode) ?? 0;
-            var color = ParseColor(colorNode);
+            var color = colorNode.ParseColor();
             XDashStyle style = XDashStyle.Solid;
             if (styleNode != null)
             {
@@ -68,7 +61,7 @@ namespace PdfSharpDslCore.Parser
         }
         protected override void ExecuteHBrush(IPdfDocumentDrawer drawer, ParseTreeNode colorNode)
         {
-            var color = ParseColor(colorNode);
+            var color = colorNode.ParseColor();
             if (color.A == 0)
             {
                 drawer.HighlightBrush = null;
@@ -314,6 +307,17 @@ namespace PdfSharpDslCore.Parser
             }
         }
 
+        protected override void ExecuteBrush(IPdfDocumentDrawer state, ParseTreeNode colorNode)
+        {
+
+            var color = colorNode.ParseColor();
+
+            state.CurrentBrush = new XSolidBrush(color);
+        }
+
+        #endregion
+
+
         protected virtual bool UdfCustomCall(IPdfDocumentDrawer drawer, string udfName, object?[] arguments)
         {
             return false;
@@ -357,7 +361,7 @@ namespace PdfSharpDslCore.Parser
             var headStyle = node.ChildNodes("TableHeadStyle").FirstOrDefault();
             if (headStyle != null && headStyle.ChildNodes.Count > 0)
             {
-                var color = ParseColor(headStyle.ChildNodes[0]);
+                var color = headStyle.ChildNodes[0].ParseColor();
                 result.HeaderBackColor = new XSolidBrush(color);
             }
             GenerateTableHead(node.ChildNodes("TableHeadCol"), result);
@@ -414,8 +418,8 @@ namespace PdfSharpDslCore.Parser
                 var colors = col.ChildNode("TableColColors");
                 if (colors?.ChildNodes.Count > 0)
                 {
-                    colDef.Brush = new XSolidBrush(ParseColor(colors.ChildNodes[0]));
-                    colDef.BackColor = new XSolidBrush(ParseColor(colors.ChildNodes[1]));
+                    colDef.Brush = new XSolidBrush(colors.ChildNodes[0].ParseColor());
+                    colDef.BackColor = new XSolidBrush(colors.ChildNodes[1].ParseColor());
                 }
                 //name
                 colDef.ColumnHeaderName = col.ChildNodes.Last().Token.ValueString;
@@ -531,55 +535,6 @@ namespace PdfSharpDslCore.Parser
             return InternalSetVar(node.ChildNodes[1], node.ChildNodes[3]);
         }
 
-        private XColor ParseColor(ParseTreeNode node)
-        {
-            var executor = (Func<ParseTreeNode, XColor>)(node.ChildNodes[0].Term.Name switch
-            {
-                "NamedColor" => ParseNamedColor,
-                _ => ParseHexColor,
-            });
-
-            return executor(node.ChildNodes[0]);
-        }
-        private XColor ParseNamedColor(ParseTreeNode node)
-        {
-            var color = (string)node.ChildNodes[0].Token.Value;
-
-            var staticColor = typeof(XColors).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
-                .Where(x => string.Compare(x.Name, color, StringComparison.OrdinalIgnoreCase) == 0).FirstOrDefault();
-            return ((XColor?)staticColor?.GetValue(null)) ?? XColors.Black;
-        }
-        private XColor ParseHexColor(ParseTreeNode node)
-        {
-            var colorValue = node.ChildNodes[0].Token.Value;
-            if (colorValue is double)
-            {
-                return XColor.FromGrayScale(Convert.ToDouble(colorValue));
-            }
-            else
-            {
-                if (node.ChildNodes[0].Token.Length == 8)
-                {
-                    uint argb = ((uint)0xff000000) | Convert.ToUInt32(colorValue);
-                    return XColor.FromArgb(argb);
-                }
-                else if (node.ChildNodes[0].Token.Length == 10)
-                {
-                    int argb = Convert.ToInt32(colorValue);
-                    return XColor.FromArgb(argb);
-                }
-                return XColor.FromArgb(Convert.ToInt32(colorValue));
-            }
-        }
-        protected override void ExecuteBrush(IPdfDocumentDrawer drawer, ParseTreeNode colorNode)
-        {
-
-            var color = ParseColor(colorNode);
-
-            drawer.CurrentBrush = new XSolidBrush(color);
-        }
-
-
         private XFont ExtractFont(ParseTreeNode node)
         {
             int index = 0;
@@ -589,21 +544,11 @@ namespace PdfSharpDslCore.Parser
                 index++;
             }
             var fontSize = EvaluateForDouble(node.ChildNodes[2 + index], _variables, _customFunctions) ?? 0;
-            var style = ParseStyle(node.ChildNodes.Count > (3 + index) ? node.ChildNodes[3 + index] : null);
+            var n = node.ChildNodes.Count > (3 + index) ? node.ChildNodes[3 + index] : null;
+            var style = n.ParseFontStyle();
             return new XFont(fontName, fontSize, style, XPdfFontOptions.UnicodeDefault);
         }
 
-        private static XFontStyle ParseStyle(ParseTreeNode? node)
-        {
-            if (node != null && node.Token != null)
-            {
-                var styleName = (string?)node.Token.Value;
-                if (Enum.TryParse<XFontStyle>(styleName, true, out var fontStyle))
-                {
-                    return fontStyle;
-                }
-            }
-            return XFontStyle.Regular;
-        }
+        
     }
 }

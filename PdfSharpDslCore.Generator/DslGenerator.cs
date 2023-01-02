@@ -26,12 +26,16 @@ namespace PdfSharpDslCore.Generator
 
         public void Execute(GeneratorExecutionContext context)
         {
-            IEnumerable<AdditionalText> taggedFiles = GetTaggedTextFile(context);
+            IEnumerable<AdditionalText> taggedFiles = GetTaggedTextFile(context).ToArray();
+
             var nameCodeSequence = SourceFilesFromAdditionalFiles(taggedFiles);
             if (nameCodeSequence != null)
             {
                 foreach ((string name, string code) in nameCodeSequence)
-                    context.AddSource($"Pdf_{name}.g.cs", SourceText.From(code, Encoding.UTF8));
+                {
+                    var sourceText = SourceText.From(code, Encoding.UTF8);
+                    context.AddSource($"{name}.g.cs", sourceText);
+                }
             }
 
         }
@@ -43,15 +47,17 @@ namespace PdfSharpDslCore.Generator
             {
                 Debugger.Launch();
             }
-#endif 
+#endif
         }
 
         static IEnumerable<(string, string)> SourceFilesFromAdditionalFile(AdditionalText file)
         {
             string className = Path.GetFileNameWithoutExtension(file.Path);
+            className = className.Replace(' ', '_');
             string pdfText = file.GetText()?.ToString()!;
             return new (string, string)[] { (className, GenerateClassFile(className, pdfText, Path.GetDirectoryName(file.Path))) };
         }
+
         static IEnumerable<(string, string)> SourceFilesFromAdditionalFiles(IEnumerable<AdditionalText> pathsData)
             => pathsData.SelectMany(f => SourceFilesFromAdditionalFile(f));
 
@@ -98,8 +104,10 @@ namespace PDfDsl {
 
             }
             StringBuilder methodBuilder = new StringBuilder();
-            var drawer = new CSharpDrawer(methodBuilder, "drawer.");
-            new CSharpVisitor(directory).Draw(drawer, parsingResult);
+            var state = new CSharpGeneratorState(methodBuilder);
+            state.Indentation = 3;
+            //var drawer = new CSharpDrawer(methodBuilder, "drawer.");
+            new CSharpVisitor(directory, "drawer.").Draw(state, parsingResult);
 
             sb.AppendLine(@"     
         public void WritePdf(IPdfDocumentDrawer drawer) 

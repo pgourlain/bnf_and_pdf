@@ -1,9 +1,13 @@
 ﻿using Irony.Parsing;
+using PdfSharpCore.Drawing;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+
+[assembly:InternalsVisibleTo("PdfSharpDslCore.Generator")]
 
 namespace PdfSharpDslCore.Extensions
 {
@@ -35,5 +39,61 @@ namespace PdfSharpDslCore.Extensions
         {
             return node.ChildNodes.Where(n => n.Term != null && n.Term.Name == termName).FirstOrDefault();
         }
+
+        public static XFontStyle ParseFontStyle(this ParseTreeNode? node)
+        {
+            if (node != null && node.Token != null)
+            {
+                var styleName = (string?)node.Token.Value;
+                if (Enum.TryParse<XFontStyle>(styleName, true, out var fontStyle))
+                {
+                    return fontStyle;
+                }
+            }
+            return XFontStyle.Regular;
+        }
+
+        public static XColor ParseColor(this ParseTreeNode node)
+        {
+            var executor = (Func<ParseTreeNode, XColor>)(node.ChildNodes[0].Term.Name switch
+            {
+                "NamedColor" => ParseNamedColor,
+                _ => ParseHexColor,
+            });
+
+            return executor(node.ChildNodes[0]);
+        }
+        private static XColor ParseNamedColor(ParseTreeNode node)
+        {
+            var color = (string)node.ChildNodes[0].Token.Value;
+
+            var staticColor = typeof(XColors).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+                .Where(x => string.Compare(x.Name, color, StringComparison.OrdinalIgnoreCase) == 0).FirstOrDefault();
+            return ((XColor?)staticColor?.GetValue(null)) ?? XColors.Black;
+        }
+
+        private static XColor ParseHexColor(ParseTreeNode node)
+        {
+            var colorValue = node.ChildNodes[0].Token.Value;
+            if (colorValue is double)
+            {
+                return XColor.FromGrayScale(Convert.ToDouble(colorValue));
+            }
+            else
+            {
+                if (node.ChildNodes[0].Token.Length == 8)
+                {
+                    uint argb = ((uint)0xff000000) | Convert.ToUInt32(colorValue);
+                    return XColor.FromArgb(argb);
+                }
+                else if (node.ChildNodes[0].Token.Length == 10)
+                {
+                    int argb = Convert.ToInt32(colorValue);
+                    return XColor.FromArgb(argb);
+                }
+                return XColor.FromArgb(Convert.ToInt32(colorValue));
+            }
+        }
+
     }
 }

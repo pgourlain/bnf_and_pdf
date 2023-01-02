@@ -140,6 +140,7 @@ namespace PdfSharpDslCore.Parser
             }
         }
 
+        #region to be override 
         protected virtual void CustomVisit(TState state, ParseTreeNode node)
         {
             throw new NotImplementedException($"{node.Term.Name} is not yet implemented");
@@ -157,61 +158,44 @@ namespace PdfSharpDslCore.Parser
         }
 
         protected virtual void ExecuteSetVar(TState state, ParseTreeNode node)
-        {
-        }
+        { }
 
         protected virtual void ExecuteBrush(TState state, ParseTreeNode colorNode)
-        {
-        }
+        { }
 
         protected virtual void ExecuteHBrush(TState state, ParseTreeNode colorNode)
-        {
-        }
+        { }
 
         protected virtual void ExecuteFont(TState state, ParseTreeNode fontNode)
-        {
-
-        }
+        { }
         protected virtual void ExecuteRect(TState state, ParseTreeNode rectNode, bool isFilled)
-        {
-
-        }
+        { }
 
         protected virtual void ExecuteLineText(TState state,
             ParseTreeNode nodeLocation,
             ParseTreeNode nodeAlignment,
             ParseTreeNode? nodeOrientation,
             ParseTreeNode contentNode)
-        {
-
-        }
+        { }
 
         protected virtual void ExecuteNewPage(TState state,
             ParseTreeNode? sizeNode,
             ParseTreeNode? orientationNode)
-        {
-
-        }
+        { }
 
         protected virtual void ExecuteIfStatement(TState state, ParseTreeNode condNode,
             ParseTreeNode? ifNode, ParseTreeNode? elseNode)
-        {
-        }
+        { }
         protected virtual void ExecutePie(TState state, ParseTreeNode locationNode,
             ParseTreeNode startAngleNode,
             ParseTreeNode sweepAngleNode,
             bool isFilled)
-        {
-
-        }
+        { }
         protected virtual void ExecuteViewSize(TState drawer, ParseTreeNode sizeNode)
-        {
-
-        }
+        { }
 
         protected virtual void ExecuteEllipse(TState state, ParseTreeNode rectNode, bool filled)
-        {
-        }
+        { }
 
         protected virtual void ExecuteTitle(TState state, ParseTreeNode marginNode,
            ParseTreeNode alignmentsNode,
@@ -254,8 +238,8 @@ namespace PdfSharpDslCore.Parser
             ParseTreeNode args,
             ParseTreeNode defArgs,
             ParseTreeNode defBody)
-        {
-        }
+        { }
+        #endregion
 
         private void ExecuteUdfStatement(ParseTreeNode node)
         {
@@ -437,7 +421,7 @@ namespace PdfSharpDslCore.Parser
             {
                 n = n.ChildNodes[0];
             }
-            ExecutePen(state, width, color, n);
+            ExecutePen(state, width, color, n!);
         }
 
         private void VisitSETBrush(TState state, ParseTreeNode node)
