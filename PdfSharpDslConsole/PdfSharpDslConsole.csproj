@@ -47,6 +47,9 @@
     <Compile Update="Program.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Compile>
+  </ItemGroup>  
+  <ItemGroup>
+    <Folder Include="Generated\PdfSharpDslCore.Generator\PdfSharpDslCore.Generator.DslGenerator\" />
   </ItemGroup>
   
 <!-- Manually reference the generator props because we locally reference the generator. When added via NuGet this happens automatically -->

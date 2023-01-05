@@ -49,7 +49,7 @@ namespace PdfSharpDslCore.Parser
             }
             else
             {
-                _customFunctions.Add(name.ToUpperInvariant(), func);
+                _customFunctions.Add(fnName, func);
             }
         }
 

@@ -6,15 +6,15 @@ using System.Threading.Tasks;
 
 namespace PdfSharpDslCore.Evaluation
 {
-    internal class ConstantEvaluation : Evaluation
+    internal class ConstantEvaluation<T> : Evaluation<T>
     {
-        private readonly object value;
+        private readonly T value;
 
-        public ConstantEvaluation(object value)
+        public ConstantEvaluation(T value)
         {
             this.value = value;
         }
 
-        public override object Value => value;
+        public override T? Value => value;
     }
 }

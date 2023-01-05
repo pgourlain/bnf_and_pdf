@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace PdfSharpDslCore.Evaluation
 {
-    internal class VariableEvaluation : Evaluation
+    internal class VariableEvaluation : Evaluation<object>
     {
         private readonly string _varName;
         private readonly IDictionary<string, object?> _variables;

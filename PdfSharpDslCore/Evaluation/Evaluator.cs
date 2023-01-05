@@ -35,11 +35,11 @@ namespace PdfSharpDslCore.Evaluation
         }
  
 
-        private Evaluation PerformEvaluate(ParseTreeNode node, IDictionary<string, object?> variables)
+        private IEvaluation<object> PerformEvaluate(ParseTreeNode node, IDictionary<string, object?> variables)
         {
             ParseTreeNode? opNode;
             ParseTreeNode? rightNode;
-            Evaluation right ;
+            IEvaluation<object> right ;
             BinaryOperation op;
             switch (node.Term.Name)
             {
@@ -62,7 +62,7 @@ namespace PdfSharpDslCore.Evaluation
                     var leftNode = node.ChildNodes[0];
                     opNode = node.ChildNodes[1];
                     rightNode = node.ChildNodes[2];
-                    Evaluation left = PerformEvaluate(leftNode, variables);
+                    IEvaluation<object> left = PerformEvaluate(leftNode, variables);
                     right = PerformEvaluate(rightNode, variables);
                     op = BinaryOperation.Add;
                     switch (opNode.Term.Name)
@@ -107,7 +107,7 @@ namespace PdfSharpDslCore.Evaluation
                     return new BinaryEvaluation(left, right, op);
                 case "number":
                     var value = Convert.ToDouble(node.Token.Value);
-                    return new ConstantEvaluation(value);
+                    return new ConstantEvaluation<object>(value);
                 case "FormulaExpression":
                     if (node.ChildNodes.Count == 1) return PerformEvaluate(node.ChildNodes[0], variables);
                     else
@@ -118,10 +118,10 @@ namespace PdfSharpDslCore.Evaluation
                     return new VariableEvaluation((string)node.ChildNodes[1].Token.Value, variables);
                 case "string":
                 case "textstring":
-                    return new ConstantEvaluation(node.Token.Value);
+                    return new ConstantEvaluation<object>(node.Token.Value);
 
                 case "auto":
-                    return new ConstantEvaluation(null!);
+                    return new ConstantEvaluation<object>(null!);
                 case "CustomFunctionExpression":
                     var fnName = (string)node.ChildNodes[0].Token.Value;
                     var args = node.ChildNode("CallInvokeArgumentslist");

@@ -7,19 +7,19 @@ using System.Threading.Tasks;
 
 namespace PdfSharpDslCore.Evaluation
 {
-    internal class UnaryEvaluation : Evaluation
+    internal class UnaryEvaluation : Evaluation<object>
     {
-        private readonly Evaluation right;
+        private readonly IEvaluation<object> right;
 
         private readonly BinaryOperation oper;
 
-        public UnaryEvaluation(Evaluation right, BinaryOperation oper)
+        public UnaryEvaluation(IEvaluation<object> right, BinaryOperation oper)
         {
             this.right = right;
             this.oper = oper;
         }
 
-        public override object Value
+        public override object? Value
         {
             get
             {

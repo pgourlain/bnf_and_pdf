@@ -81,21 +81,6 @@ namespace PdfSharpDslCore.Generator
 
         public static string GenerateClassFile(string className, string pdfText, string directory)
         {
-            StringBuilder sb = new StringBuilder();
-
-            //// Usings
-            sb.Append(@"
-#nullable enable
-namespace PDfDsl {
-    using System.Collections.Generic;
-    using PdfSharpCore.Drawing;
-    using PdfSharpDslCore.Drawing;
-    //another comments
-");
-            // Class Definition
-            sb.AppendLine(@$"    
-    internal class {className} 
-    {{");
 
             var parser = new Irony.Parsing.Parser(new PdfGrammar());
             var parsingResult = parser.Parse(pdfText);
@@ -104,22 +89,11 @@ namespace PDfDsl {
 
             }
             StringBuilder methodBuilder = new StringBuilder();
-            var state = new CSharpGeneratorState(methodBuilder);
-            state.Indentation = 3;
+            var state = new CSharpGeneratorState(className);            
             //var drawer = new CSharpDrawer(methodBuilder, "drawer.");
             new CSharpVisitor(directory, "drawer.").Draw(state, parsingResult);
 
-            sb.AppendLine(@"     
-        public void WritePdf(IPdfDocumentDrawer drawer) 
-        {");
-            sb.Append(methodBuilder.ToString());
-            sb.AppendLine(@"
-        }");
-            sb.AppendLine(@"
-    }");
-            sb.AppendLine(@"
-}");
-            return sb.ToString();
+            return state.Code.ToString();
         }
     }
 }

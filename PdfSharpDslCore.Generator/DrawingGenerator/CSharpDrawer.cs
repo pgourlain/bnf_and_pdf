@@ -37,6 +37,7 @@ namespace PdfSharpDslCore.Generator.DrawingGenerator
             var _b = color.B;
             return ((uint)(_a * 255) << 24) | ((uint)_r << 16) | ((uint)_g << 8) | _b;
         }
+
         private string ColorToString(XColor color)
         {
             if (color.IsKnownColor)
@@ -48,11 +49,13 @@ namespace PdfSharpDslCore.Generator.DrawingGenerator
                 return $"XColor.FromArgb({color.A},{color.R},{color.G},{color.B})";
             }
         }
+
         public XBrush CurrentBrush
         {
             get => throw new NotImplementedException("CurrentBrush");
             set { }
         }
+
         public XBrush HighlightBrush
         {
             get => throw new NotImplementedException();
