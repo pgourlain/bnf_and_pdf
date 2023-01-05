@@ -48,6 +48,12 @@ namespace PdfSharpDslCore.Generator.DrawingGenerator
             {
                 state.AppendMembersLine("//coucou");
             }
+            
+            foreach (var udf in _udfs)
+            {
+                state.AppendMembersLine($"//udf {udf.Key}");
+                state.AppendMembersLine($"partial void {udf.Key}();");
+            }
         }
 
         protected override void CustomVisit(IGeneratorState state, ParseTreeNode node)
@@ -61,7 +67,10 @@ namespace PdfSharpDslCore.Generator.DrawingGenerator
             var penvName = $"pen{vNameIndex++}";
             state.AppendLine($"var {penvName} = new XPen({ColorToString(colorNode.ParseColor())}, (double){EvaluateForString(widthNode).StringValue});");
             //_code.AppendLine($"var {penvName} = new XPen({ColorToString(value.Color)}, {value.Width});");
-            //_code.AppendLine($"{penvName}.DashStyle = XDashStyle.{value.DashStyle};");
+            if (styleNode != null && Enum.TryParse< XDashStyle>(styleNode.Token.ValueString, true, out var penStyle))
+            {
+                state.AppendLine($"{penvName}.DashStyle = XDashStyle.{penStyle.ToString()};");
+            }
             state.AppendLine($"{_prefix}CurrentPen = {penvName};");
         }
 
