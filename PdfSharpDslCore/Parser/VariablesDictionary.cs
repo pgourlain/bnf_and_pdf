@@ -16,13 +16,13 @@ namespace PdfSharpDslCore.Parser
     internal class VariablesDictionary : IDictionary<string, object?>, IVariablesDictionary
     {
 
-        IPdfDocumentDrawer _pdfDocumentDrawer;
+        Func<string, object> _systemVariablesGet ;
         ConcurrentDictionary<string, object?> _inner = new ConcurrentDictionary<string, object?>();
         Stack<ConcurrentDictionary<string, object?>> _savedVariables = new Stack<ConcurrentDictionary<string, object?>>();
 
-        public VariablesDictionary(IPdfDocumentDrawer pdfDocumentDrawer)
+        public VariablesDictionary(Func<string, object> systemVariablesGet)
         {
-            _pdfDocumentDrawer = pdfDocumentDrawer;
+            _systemVariablesGet = systemVariablesGet;
         }
 
         public ICollection<string> Keys => _inner.Keys;
@@ -33,14 +33,18 @@ namespace PdfSharpDslCore.Parser
 
         public bool IsReadOnly => false;
 
-        public object? this[string key] { get {
-            if (this.TryGetValue(key, out var value))
+        public object? this[string key]
+        {
+            get
             {
-                return value!;
+                if (this.TryGetValue(key, out var value))
+                {
+                    return value!;
+                }
+                return null;
             }
-            return null;
-        } 
-        set => throw new NotImplementedException(); }
+            set => throw new NotImplementedException();
+        }
 
         public void Add(string key, object? value)
         {
@@ -60,13 +64,11 @@ namespace PdfSharpDslCore.Parser
         public bool TryGetValue(string key, out object? value)
         {
             //system variables are intercepted
-            switch(key)
+            switch (key)
             {
-                case "PAGEWIDTH":
-                    value = _pdfDocumentDrawer.PageWidth;
-                    return true;
                 case "PAGEHEIGHT":
-                    value = _pdfDocumentDrawer.PageHeight;
+                case "PAGEWIDTH":
+                    value = _systemVariablesGet(key);
                     return true;
                 default:
                     return _inner.TryGetValue(key, out value);

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -7,6 +7,10 @@
     <Nullable>enable</Nullable>
     <Version>0.1.0</Version>
     <Company></Company>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <!--<GeneratedFolder>PdfDslGenerated</GeneratedFolder>-->
+    <CompilerGeneratedFilesOutputPath>$(MSBuildThisFileDirectory)\Generated</CompilerGeneratedFilesOutputPath>
+    <!-- <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)Generated</CompilerGeneratedFilesOutputPath> -->
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,23 +18,31 @@
     <PackageReference Include="PdfSharpCore" Version="1.3.40" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup>    
+    <ProjectReference Include="..\PdfSharpDslCore.Generator\PdfSharpDslCore.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\PdfSharpDslCore\PdfSharpDslCore.csproj" />
-  </ItemGroup>
-
+  </ItemGroup>  
   <ItemGroup>
-    <None Update="ExpaceoCra.txt">
+    <None Update="imageTest.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="imageTest.jpg">
+    <None Update="pdfsharp.txt" IsPdfSharpDsl="true">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="sample1.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="pdfsharp.txt">
+    <!-- <None Update="pdfsharp.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    </None> -->
+  </ItemGroup>  
+  <ItemGroup>
+    <Compile Update="Program.cs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Compile>
   </ItemGroup>
+  
+<!-- Manually reference the generator props because we locally reference the generator. When added via NuGet this happens automatically -->
+  <Import Project="..\PdfSharpDslCore.Generator\PdfDslGenerator.props" />
 
 </Project>

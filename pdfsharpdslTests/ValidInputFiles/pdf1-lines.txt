@@ -2,7 +2,7 @@
 NEWPAGE A4 portrait;
 SET PEN black 1;
 SET BRUSH black;
-SET FONT "Arial" 20 bold;
+SET FONT Name="Arial" Size=20 bold;
 
 MOVETO 300, 200;
 LINETO 400, 200;

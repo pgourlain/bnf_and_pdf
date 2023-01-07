@@ -1,5 +1,9 @@
 
 # Change log
+## Version 0.9.9 (January 7, 2022)
+* Add If and conditonnal expressions
+* Breaking changes: SET FONT name size style=> SET FONT Name=name Size=size style
+* refactoring for future C# source generator feature
 
 ## Version 0.9.8 (December 17, 2022)
 * Add pen style (solid, dot, dashdot, dashdotdot)

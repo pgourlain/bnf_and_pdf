@@ -1,4 +1,4 @@
-# sample
+﻿# sample
 NEWPAGE A4 portrait;
 
 SET PEN black 1;
@@ -23,6 +23,8 @@ SET HBRUSH 0x00000000;
 
 SET PEN red 1;
 RECT 0,100,-0.1,($FSize+5);
+
+
 
 
 SET VAR NormalPen=1;

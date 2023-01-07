@@ -6,9 +6,14 @@ using System.Threading.Tasks;
 
 namespace PdfSharpDslCore.Evaluation
 {
-    internal abstract class Evaluation
+    internal interface IEvaluation<T>
+    {
+        T? Value { get; }
+    }
+
+    internal abstract class Evaluation<T> : IEvaluation<T>
     { 
-        public abstract object? Value { get; }
+        public abstract T? Value { get; }
 
         public override string ToString() => Value?.ToString() ?? "(null)";
     }

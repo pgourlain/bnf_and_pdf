@@ -11,6 +11,15 @@ namespace PdfSharpDslCore.Evaluation
         Add,
         Sub,
         Mul,
-        Div
+        Div,
+        Mod,
+        Equals,
+        InferiorOrEquals,
+        SuperiorOrEquals,
+        Inferior,
+        Superior,
+        NotEquals,
+        And,
+        Or
     }
 }

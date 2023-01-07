@@ -38,6 +38,27 @@ or download source code, then goto PdfSharpDslConsole and run it
 ```shell
 dotnet run 
 ```
+# Architecture
+
+
+```mermaid
+sequenceDiagram
+    participant yourprogram
+    participant PdfSharpDslCore
+    participant Irony
+    participant PdfSharp
+    yourprogram->>Irony: Parse file or text.
+    Irony -->> PdfSharpDslCore: use PdfGrammar.
+    Irony-->>yourprogram: Parsing result.
+    
+    yourprogram->>PdfSharpDslCore: Define callback for Formula functions.
+    yourprogram->>PdfSharpDslCore: Draw()
+    PdfSharpDslCore -->>PdfSharp: use Document to draw.
+    PdfSharpDslCore->>yourprogram: call registered formula functions.
+    yourprogram-->>PdfSharpDslCore: function result.
+    PdfSharpDslCore->>PdfSharpDslCore: execute all instructions from source file.
+    PdfSharpDslCore-->>yourprogram: end of draw
+```
 
 # Language specification
 
@@ -52,8 +73,11 @@ All coordinates are specified in 'points'
 ## Formula feature
 
 - a formula result can be string or double
-- aritmetic operation are : + - / *
+- aritmetic/boolean operations are : +, -, /, *, %, >, <, >=, <=,==, <>, and, or
 - variable reference : $VarName, and must be declared before with SET VAR VarName=Formula
+- a formula is a string or a boudle value
+- Boolean comparison are resolved using double, 0.0 => false, other value => true
+- string comparison accept only <>, == operators
 
 ```text
 SET VAR A=2
@@ -64,6 +88,7 @@ SET VAR CSquare=$A*$A+$B*$B
 Formula can be used in :
 - each number in [PointLocation, RectLocation, Width, FontSize, startAngle, sweepAngle]
 - in UserDefineFunction (UDF)
+- in IF condition
 
 Formula support also customFunction
 1)
@@ -101,12 +126,12 @@ SET BRUSH black;
     - sample: 0xFFEEBB
 
 # SET FONT FontName FontSize [FontStyle]
-SET FONT "Arial" 20 bold;
+SET FONT Name="Arial" Size=20 bold;
 ```
 
 **FontName**  is one of 
 - string
-- Variable reference
+- Formula
 
 **[FontStyle]** is one of
 - **regular** (if not specified)
@@ -421,3 +446,18 @@ white
 whitesmoke
 yellow
 yellowgreen
+
+## Dependencies :
+
+this package is build on top of 
+
+- PDF :
+	- pdfSharpCore : https://github.com/ststeiger/PdfSharpCore
+	
+- Parsers : 
+	- Irony : https://github.com/IronyProject/Irony
+
+## Source Generator
+
+You can generate C# from PDF DSL, in order to have "hard coded" PDF.
+You can generate C# code of UDF (user define function)
