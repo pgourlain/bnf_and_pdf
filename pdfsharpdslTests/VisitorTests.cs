@@ -60,7 +60,10 @@ namespace pdfsharpdslTests
             visitor.RegisterFormulaFunction("getFontName", (_) => expected);
             var drawer = mock.Object;
             visitor.Draw(drawer, res);
-            Assert.StartsWith((string)expected, drawer.CurrentFont.Name);
+            var f = drawer.CurrentFont;
+            //because font names change on different OS
+            var pi = typeof(XFont).GetProperty("FamilyName", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Assert.StartsWith((string)expected, (string)pi.GetValue(drawer.CurrentFont)!);
             Assert.Equal(size, drawer.CurrentFont.Size);
         }
 
