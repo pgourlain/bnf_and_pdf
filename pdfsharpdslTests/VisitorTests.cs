@@ -48,15 +48,15 @@ namespace pdfsharpdslTests
 
 
         [Theory]
-        [InlineData("SET FONT Name=getFontName() Size=12;", "Arial", 12)]
-        public void TestFormulaEvaluatorWithFontNAme(string input, string expected, int size)
+        [InlineData("SET FONT Name=getFontName() Size=12;", "Consolas", 12)]
+        public void TestFormulaEvaluatorWithFontName(string input, object expected, int size)
         {
             var res = ParseText(input);
             var mock = new Mock<IPdfDocumentDrawer>();
-            mock.SetupProperty(x => x.CurrentFont, new XFont("Consolas", 8));
+            mock.SetupProperty(x => x.CurrentFont, new XFont("Arial", 8));
 
             var visitor = new PdfDrawerForTestsVisitor();
-            visitor.RegisterFormulaFunction("getFontName", (_) => expected);
+            visitor.RegisterFormulaFunction("getFontName", (_) => "Consolas");
             var drawer = mock.Object;
             visitor.Draw(drawer, res);
             Assert.Equal(expected, drawer.CurrentFont.Name);
