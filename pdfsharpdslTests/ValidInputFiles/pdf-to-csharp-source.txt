@@ -4,7 +4,7 @@ NEWPAGE A4 portrait;
 SET PEN black 1;
 SET BRUSH black;
 SET VAR FSize=21;
-SET FONT "Arial" $FSize bold;
+SET FONT Name="Arial" Size=$FSize bold;
 
 # draw text on top of the page
 TITLE HAlign=hcenter Text="TITLE TEST";
@@ -50,7 +50,7 @@ SET HBRUSH 0x50ffe9b2;
 TITLE HAlign=hcenter Text="Text TEST";
 SET HBRUSH 0x00000000; 
 
-SET FONT "Consolas" 8 ;
+SET FONT Name="Consolas" Size=8 ;
 
 SET VAR Y = $PAGEHEIGHT/2;
 SET VAR X=$PAGEWIDTH/2;
@@ -59,7 +59,7 @@ LINE 0,$Y, $PAGEWIDTH,$Y ;
 
 
 LINETEXT 42,100 HAlign=left VAlign=vcenter Orientation=vertical Text=("Vertical text to "+ 90 +"°");
-SET FONT "Consolas" 12 bold ;
+SET FONT Name="Consolas" Size=12 bold ;
 SET BRUSH g1.4;
 SET VAR T="color grayscale 1.4";
 LINETEXT 100,100 HAlign=left VAlign=vcenter Text=$T;
@@ -84,10 +84,10 @@ SET HBRUSH 0x00000000;
 
 
 NEWPAGE;
-SET FONT "Arial" 20 bold; 
+SET FONT Name="Arial" Size=20 bold; 
 TITLE HAlign=hcenter Text="Line TEST";
 
-SET FONT "Consolas" 12 bold ;
+SET FONT Name="Consolas" Size=12 bold ;
 LINETEXT 100,100 HAlign=left VAlign=bottom Text="LINE";
 LINE 100,100, 200, 100;
 LINE 100,120, 200, 120;
@@ -146,10 +146,10 @@ CALL HEXAGONE(300,550, 100);
 
 NEWPAGE;
 
-SET FONT "Arial" 20 bold ;
+SET FONT Name="Arial" Size=20 bold ;
 TITLE HAlign=hcenter Text="Table TEST";
 
-SET FONT "Arial" 8 regular;
+SET FONT Name="Arial" Size=8 regular;
 SET PEN black 0.5;
 
 # TABLE X, Y
@@ -238,7 +238,7 @@ ENDTABLE
 
 NEWPAGE;
 
-SET FONT "Arial" 20 bold ;
+SET FONT Name="Arial" Size=20 bold ;
 TITLE HAlign=hcenter Text="Image TEST";
 
 
@@ -253,7 +253,7 @@ IMAGE 100,320,50,50 pixel crop Source="./imageTest.jpg";
 IMAGE 320,320,200,100 pixel crop Source="./imageTest.jpg";
 
 
-SET FONT "Consolas" 8;
+SET FONT Name="Consolas" Size=8;
 SET BRUSH black;
 SET VAR IMGFILE="IMAGE 100,100 \"./imageTest.jpg\"";
 LINETEXT 100,100 HAlign=left VAlign=bottom Text=$IMGFILE;
@@ -293,12 +293,12 @@ POLYGON 300,300, 350,320, 330,350, 240,240;
 
 NEWPAGE landscape;
 
-SET FONT "Arial" 20 bold ;
+SET FONT Name="Arial" Size=20 bold ;
 TITLE HAlign=hcenter Text="System variables";
 
 SET VAR Y = $PAGEHEIGHT/2;
 SET VAR X=$PAGEWIDTH/2;
-SET FONT "Consolas" 20;
+SET FONT Name="Consolas" Size=20;
 LINETEXT $X,$Y HAlign=hcenter VAlign=vcenter Text="center text on page based on PAGEWIDTH/PAGEHEIGHT";
 LINE $X,0, $X, $PAGEHEIGHT;
 LINE 0,$Y, $PAGEWIDTH,$Y ;
@@ -306,9 +306,9 @@ LINE 0,$Y, $PAGEWIDTH,$Y ;
 
 NEWPAGE portrait;
 
-SET FONT "Arial" 20 bold ;
+SET FONT Name="Arial" Size=20 bold ;
 TITLE HAlign=hcenter Text="ViewSize to 100x140";
-SET FONT "Consolas" 3;
+SET FONT Name="Consolas" Size=3;
 SET PEN red 0.1;
 VIEWSIZE 100,140;
 LINETEXT 50,70 HAlign=hcenter VAlign=vcenter Text="center text on page based on viewSize";
@@ -322,7 +322,7 @@ NEWPAGE portrait;
 SET PEN black 1 dashdot;
 
 UDF ARROW(X,Y,R)
-	SET FONT "Consolas" 12 bold ;
+	SET FONT Name="Consolas" Size=12 bold ;
 	LINETEXT $X,$Y HAlign=left VAlign=bottom Text="LINE";
 	LINE $X,$Y, $X+100, $Y;
 	LINE $X,$Y+20, $X+100, $Y+20;

@@ -2,7 +2,7 @@
 
 
 UDF ARROW(X,Y,R)
-	SET FONT "Consolas" 12 bold ;
+	SET FONT Name="Consolas" Size=12 bold ;
 	LINETEXT $X,$Y HAlign=left VAlign=bottom Text="LINE";
 	LINE $X,$Y, $X+100, $Y;
 	LINE $X,$Y+20, $X+100, $Y+20;

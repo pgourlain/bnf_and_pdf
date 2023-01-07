@@ -242,7 +242,7 @@ namespace PdfSharpDslCore.Parser
             BrushSmt.Rule = ToTerm("BRUSH") + ColorExp + BrushType;
             //TODO: how to deactivate HBRUSH...
             HBrushSmt.Rule = ToTerm("HBRUSH") + ColorExp + BrushType;
-            FontSmt.Rule = ToTerm("FONT") + sstring + FormulaExpression + styleExpr;
+            FontSmt.Rule = ToTerm("FONT") + Arg("Name") + FormulaExpression + Arg("Size") + FormulaExpression + styleExpr;
 
             VarSmt.Rule = ToTerm("VAR") + variable_literal + "=" + FormulaExpression + semi;
 

@@ -126,12 +126,12 @@ SET BRUSH black;
     - sample: 0xFFEEBB
 
 # SET FONT FontName FontSize [FontStyle]
-SET FONT "Arial" 20 bold;
+SET FONT Name="Arial" Size=20 bold;
 ```
 
 **FontName**  is one of 
 - string
-- Variable reference
+- Formula
 
 **[FontStyle]** is one of
 - **regular** (if not specified)

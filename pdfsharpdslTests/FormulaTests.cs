@@ -34,6 +34,7 @@ namespace pdfsharpdslTests
 
         [Theory()]
         [InlineData("SET VAR X=180+80+80+80+Random();")]
+        [InlineData("SET FONT Name=GetSignatureFont() Size=GetSignatureFontSize();")]
         public void FormulasWithCustomFunctionCheck(string formula)
         {
             var parsingResult = ParseText(formula);

@@ -278,7 +278,7 @@ namespace PdfSharpDslCore.Parser
             ParseTreeNode args,
             ParseTreeNode defArgs,
             ParseTreeNode defBody)
-            {
+        {
             var evaluatedArgs = args.ChildNodes.Select(x => EvaluateForObject(x, _variables, _customFunctions)).ToArray();
 
             if (defArgs != null)
@@ -537,18 +537,26 @@ namespace PdfSharpDslCore.Parser
 
         private XFont ExtractFont(ParseTreeNode node)
         {
-            int index = 0;
-            var fontName = (string)node.ChildNodes[1].Token.Value;
-            if (node.Term.Name != "FontSmt")
+            ParseTreeNode styleNode = null!;
+            string fontName = string.Empty;
+            double fontSize = 0;
+            if (node.Term.Name == "FontSmt")
             {
-                index++;
+                fontName = (string)EvaluateForObject(node.ChildNodes[2], _variables, _customFunctions)!;
+                fontSize = EvaluateForDouble(node.ChildNodes[4], _variables, _customFunctions) ?? 0;
+                styleNode = node.ChildNodes.Count > 5 ? node.ChildNodes[5] : null!;
             }
-            var fontSize = EvaluateForDouble(node.ChildNodes[2 + index], _variables, _customFunctions) ?? 0;
-            var n = node.ChildNodes.Count > (3 + index) ? node.ChildNodes[3 + index] : null;
-            var style = n.ParseFontStyle();
+            else
+            {
+                fontName = (string)node.ChildNodes[2].Token.Value;
+                fontSize = EvaluateForDouble(node.ChildNodes[3], _variables, _customFunctions) ?? 0;
+                styleNode = node.ChildNodes.Count > 4 ? node.ChildNodes[4] : null!;
+
+            }
+            var style = styleNode.ParseFontStyle();
             return new XFont(fontName, fontSize, style, XPdfFontOptions.UnicodeDefault);
         }
 
-        
+
     }
 }
