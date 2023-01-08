@@ -1,5 +1,8 @@
 
 # Change log
+## Version 1.0.0 (January 8, 2022)
+* fix TITLE alignment
+
 ## Version 0.9.9 (January 7, 2022)
 * Add If and conditonnal expressions
 * Breaking changes: SET FONT name size style=> SET FONT Name=name Size=size style
