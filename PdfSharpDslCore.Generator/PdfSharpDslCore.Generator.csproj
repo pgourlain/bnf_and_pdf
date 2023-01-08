@@ -7,7 +7,7 @@
 		<Description>
 			Pdf Generation using source generation
 		</Description>
-		<Version>0.9.9</Version>
+		<Version>1.0.0</Version>
 		<Authors>Pierrick Gourlain</Authors>
 		<Company></Company>
 		<RepositoryUrl>https://github.com/pgourlain/bnf_and_pdf</RepositoryUrl>

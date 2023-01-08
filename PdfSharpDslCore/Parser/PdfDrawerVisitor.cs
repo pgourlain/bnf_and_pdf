@@ -136,7 +136,7 @@ namespace PdfSharpDslCore.Parser
         {
             var text = Convert.ToString(EvaluateForObject(contentNode, _variables, _customFunctions));
             var margin = ParseMargin(marginNode);
-            var (hAlign, vAlign) = ParseTextAlignment(contentNode);
+            var (hAlign, vAlign) = ParseTextAlignment(alignmentsNode);
 
             drawer.DrawTitle(text, margin ?? 0, hAlign, vAlign);
         }

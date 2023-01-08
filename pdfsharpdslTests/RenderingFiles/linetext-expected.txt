@@ -1,0 +1,3 @@
+﻿LINETEXT 10,10 HAlign=left VAlign=top Text="coucou";
+LINETEXT 10,10,5,5.1 HAlign=left VAlign=top Text="coucou";
+LINETEXT 10,10 HAlign=right VAlign=top Text="coucou";
