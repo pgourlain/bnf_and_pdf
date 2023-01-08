@@ -16,9 +16,9 @@ TITLE Margin=100 HAlign=right Text="My title with margin 100";
 TITLE Margin=-0.1 HAlign=left Text="My title with margin -0.1";
 
 SET HBRUSH 0x50ffe9b2; 
-TITLE Margin=150 HAlign=hcenter Text="Highlighting section";
-TITLE Margin=200 HAlign=left Text="My TITLE with margin 100";
-TITLE Margin=200 HAlign=right Text="My TITLE with margin 100";
+TITLE Margin=150 HAlign=hcenter Text="Highlighting section(center)";
+TITLE Margin=200 HAlign=left Text="My TITLE with margin 100(left)";
+TITLE Margin=250 HAlign=right Text="My TITLE with margin 100(right)";
 SET HBRUSH 0x00000000; 
 
 SET PEN red 1;

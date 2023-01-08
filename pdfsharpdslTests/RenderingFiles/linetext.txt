@@ -1,0 +1,4 @@
+﻿# sample
+LINETEXT 10,10 Text="coucou";
+LINETEXT 10,10,5,5.1 Text="coucou";
+LINETEXT 10,10 HAlign=right Text="coucou";
