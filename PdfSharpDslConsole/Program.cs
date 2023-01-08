@@ -1,5 +1,6 @@
 ﻿using PdfSharpCore.Fonts;
 using PdfSharpCore.Pdf;
+using PdfSharpDslConsole.Fonts;
 using PdfSharpDslCore.Drawing;
 using PdfSharpDslCore.Parser;
 
@@ -47,16 +48,46 @@ if (parsingResult.HasErrors())
 }
 else
 {
+    GlobalFontSettings.FontResolver = new MyFontResolver(LocalFontFiles());
     //PdfSharpCore cclasses
     var document = new PdfDocument();
     //draw parsing result
     using var drawer = new PdfDocumentDrawer(document);
-    new PdfDrawerVisitor().Draw(drawer, parsingResult);
+    var visitor = new PdfDrawerVisitor();
+
+    visitor.RegisterFormulaFunction("GetFontCount", (_) => LocalFontNames().Count());
+    visitor.RegisterFormulaFunction("GetFont", (arguments) => GetFontNameByIndex(arguments));
+    visitor.Draw(drawer, parsingResult);
     document.Save("helloworld.pdf");
 
     //var a = new PDfDsl.pdfsharp();
     //a.WritePdf(drawer);
 }
 
+IEnumerable<string> LocalFontFiles()
+{
+    yield return @"Fonts\AlexBrush-Regular.ttf";
+    yield return @"Fonts\Just-Signature.ttf";
+    yield return @"Fonts\Inspiration-Regular.ttf";
+    yield return @"Fonts\Quirlycues.ttf";
+    yield return @"Fonts\Rabiohead.ttf";
+    yield return @"Fonts\SCRIPTIN.ttf";
+}
+
+IEnumerable<string> LocalFontNames()
+{
+    yield return "Alex Brush";
+    yield return "Just Signature";
+    yield return "Inspiration";
+    yield return "Quirlycues";
+    yield return "Rabiohead";
+    yield return "Scriptina";
+}
+
+object GetFontNameByIndex(object[] arguments)
+{
+    var index = (int)arguments[0];
+    return LocalFontNames().Skip(index).First();
+}
 
 
