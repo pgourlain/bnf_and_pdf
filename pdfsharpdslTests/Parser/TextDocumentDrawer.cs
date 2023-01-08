@@ -19,11 +19,17 @@ namespace pdfsharpdslTests
         public XPen CurrentPen { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public XBrush CurrentBrush { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public XBrush? HighlightBrush { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public XFont CurrentFont { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public XFont CurrentFont
+        {
+            get => throw new NotImplementedException();
+            set
+            {
+            }
+        }
 
-        public double PageWidth => 21* 28.34;
+        public double PageWidth => 21 * 28.34;
 
-        public double PageHeight => 29.7*28.34;
+        public double PageHeight => 29.7 * 28.34;
 
         public void DrawEllipse(double x, double y, double w, double h, bool isFilled)
         {
