@@ -129,7 +129,7 @@ namespace PdfSharpDslCore.Generator.Evaluation
         {
             get
             {
-                return EvaluationResult.Null;
+                return new EvaluationResult {  StringValue = _fnName+"()", ValueType = typeof(object) };
             }
         }
     }

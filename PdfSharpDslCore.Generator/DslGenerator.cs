@@ -1,10 +1,12 @@
 ﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Text;
 using PdfSharpDslCore.Drawing;
 using PdfSharpDslCore.Generator.DrawingGenerator;
 using PdfSharpDslCore.Parser;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -18,17 +20,72 @@ namespace PdfSharpDslCore.Generator
 {
     //entry point of generator
     [Generator]
-    public class DslGenerator : ISourceGenerator
+    public class DslGenerator : IIncrementalGenerator
     {
         static DslGenerator()
         {
         }
 
-        public void Execute(GeneratorExecutionContext context)
-        {
-            IEnumerable<AdditionalText> taggedFiles = GetTaggedTextFile(context).ToArray();
+//        public void Execute(GeneratorExecutionContext context)
+//        {
+//            IEnumerable<AdditionalText> taggedFiles = GetTaggedTextFile(context).ToArray();
 
-            var nameCodeSequence = SourceFilesFromAdditionalFiles(taggedFiles);
+//            var nameCodeSequence = SourceFilesFromAdditionalFiles(taggedFiles);
+//            if (nameCodeSequence != null)
+//            {
+//                foreach ((string name, string code) in nameCodeSequence)
+//                {
+//                    var sourceText = SourceText.From(code, Encoding.UTF8);
+//                    context.AddSource($"{name}.g.cs", sourceText);
+//                }
+//            }
+
+//        }
+
+//        public void Initialize(GeneratorInitializationContext context)
+//        {
+//#if DEBUG1
+//            if (!Debugger.IsAttached)
+//            {
+//                Debugger.Launch();
+//            }
+//#endif
+//        }
+
+        public void Initialize(IncrementalGeneratorInitializationContext context)
+        {
+            var firsts = context.AdditionalTextsProvider
+                    .Combine(context.AnalyzerConfigOptionsProvider)
+                    .Where(file => IsTaggedTextFile(context, file))
+                    .Select((f,_) => f.Left);
+            var nexts = firsts.Collect();
+            var finals =context.CompilationProvider.Combine(nexts);
+            context.RegisterSourceOutput(finals, (spc, source) =>
+            {
+                Execute(source.Left, spc, source.Right);
+            });
+        }
+
+
+
+        private bool IsTaggedTextFile(IncrementalGeneratorInitializationContext context, (AdditionalText file, AnalyzerConfigOptionsProvider options) file)
+        {
+            if (Path.GetExtension(file.file.Path).Equals(".txt", StringComparison.OrdinalIgnoreCase))
+            {
+                //
+                var options = file.options.GetOptions(file.file);
+                if (options.TryGetValue("build_metadata.additionalfiles.IsPdfSharpDsl", out string loadTimeString))
+                {
+                    return true;
+                }
+
+            }
+            return false;
+        }
+
+        private void Execute(Compilation left, SourceProductionContext context, ImmutableArray<AdditionalText> right)
+        {
+            var nameCodeSequence = SourceFilesFromAdditionalFiles(right);
             if (nameCodeSequence != null)
             {
                 foreach ((string name, string code) in nameCodeSequence)
@@ -37,18 +94,10 @@ namespace PdfSharpDslCore.Generator
                     context.AddSource($"{name}.g.cs", sourceText);
                 }
             }
-
         }
 
-        public void Initialize(GeneratorInitializationContext context)
-        {
-#if DEBUG1
-            if (!Debugger.IsAttached)
-            {
-                Debugger.Launch();
-            }
-#endif
-        }
+
+        #region static methods
 
         static IEnumerable<(string, string)> SourceFilesFromAdditionalFile(AdditionalText file)
         {
@@ -95,5 +144,8 @@ namespace PdfSharpDslCore.Generator
 
             return state.Code.ToString();
         }
+
+
+        #endregion
     }
 }
