@@ -57,6 +57,8 @@ else
 
     visitor.RegisterFormulaFunction("GetFontCount", (_) => LocalFontNames().Count());
     visitor.RegisterFormulaFunction("GetFont", (arguments) => GetFontNameByIndex(arguments));
+    visitor.RegisterFormulaFunction("GetCommentDate", (arguments) => GetCommentDate(arguments));
+    visitor.RegisterFormulaFunction("GetComment", (arguments) => GetCommentString(arguments));
     visitor.Draw(drawer, parsingResult);
     document.Save("helloworld.pdf");
 
@@ -88,6 +90,20 @@ object GetFontNameByIndex(object[] arguments)
 {
     var index = (int)arguments[0];
     return LocalFontNames().Skip(index).First();
+}
+
+
+object GetCommentDate(object[] arguments)
+{
+    var index = (int)arguments[0];
+    return DateTime.Now.AddDays(index).ToShortDateString();
+}
+
+object GetCommentString(object[] arguments)
+{
+    var index = (int)arguments[0];
+    var dt = DateTime.Now.AddDays(index).ToShortDateString();
+    return $"la date est '{dt}' pour l'index '{index}'";
 }
 
 

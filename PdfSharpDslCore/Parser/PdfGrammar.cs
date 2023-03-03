@@ -108,6 +108,10 @@ namespace PdfSharpDslCore.Parser
             var TableColFont = new NonTerminal("TableColFont");
             var TableColColors = new NonTerminal("TableColColors");
             var TableRowStyle = new NonTerminal("TableRowStyle");
+            var TableRowListOrRowTemplate = new NonTerminal("TableRowListOrRowTemplate");
+            var TableRowTemplate = new NonTerminal("TableRowTemplate");
+            var TableRowTemplateCount = new NonTerminal("TableRowTemplateCount");
+
             var PointAutoLocation = new NonTerminal("PointAutoLocation");
             var NumberOrAuto = new NonTerminal("NumberOrAuto");
             var ViewSizeSmt = new NonTerminal("ViewSizeSmt");
@@ -309,17 +313,20 @@ namespace PdfSharpDslCore.Parser
 
             TableSmt.Rule = ToTerm("TABLE") + TableLocation + TableContent + ToTerm("ENDTABLE");
 
-            TableContent.Rule = TableHead + TableRowList;
+            TableContent.Rule = TableHead + TableRowListOrRowTemplate;
 
             TableHead.Rule = ToTerm("HEAD") + TableHeadStyle + TableColHeadList + ToTerm("ENDHEAD");
             TableRowList.Rule = MakeStarRule(TableRowList, TableRow);
+            TableRowListOrRowTemplate.Rule = TableRowList | TableRowTemplate;
+            TableRowTemplateCount.Rule = FormulaExpression;
+            TableRowTemplate.Rule = ToTerm("ROWTEMPLATE") + TableRowTemplateCount + TableColList + ToTerm("ENDROW");
             TableColHeadList.Rule = MakeStarRule(TableColHeadList, TableHeadCol);
             TableHeadCol.Rule = ToTerm("COL") + TableColWidth + TableColFont + TableColColors + sstring + semi;
             //desiredWidth and maxWidth
             TableColWidth.Rule = Arg("Width") + NumberOrAuto + Arg("MaxWidth") + NumberOrAuto;
             TableColList.Rule = MakeStarRule(TableColList, TableCol);
             TableRow.Rule = ToTerm("ROW") + TableRowStyle + TableColList + ToTerm("ENDROW");
-            TableCol.Rule = ToTerm("COL") + sstring + semi;
+            TableCol.Rule = ToTerm("COL") + FormulaExpression + semi;
             TableLocation.Rule = PointLocation /*+ "," + PointAutoLocation*/;
             PointAutoLocation.Rule = NumberOrAuto + "," + NumberOrAuto;
             NumberOrAuto.Rule = FormulaExpression | "auto";
@@ -376,14 +383,14 @@ namespace PdfSharpDslCore.Parser
 
             RegisterBracePair("(", ")");
 
-            MarkPunctuation(";", ",", "(", ")", "TABLE", "ENDTABLE", "HEAD", "ENDHEAD", "ROW", "ENDROW", "ENDFOR", "UDF", "ENDUDF", "IF", "THEN", "ELSE", "ENDIF");
+            MarkPunctuation(";", ",", "(", ")", "TABLE", "ENDTABLE", "HEAD", "ENDHEAD", "ROW", "ROWTEMPLATE ", "ENDROW", "ENDFOR", "UDF", "ENDUDF", "IF", "THEN", "ELSE", "ENDIF");
             RegisterBracePair("(", ")");
             MarkTransient(PdfLine, PdfPrimaryInstruction, SetContent, NumberOrAuto,
                  styleExpr, semiOpt, PixelOrPoint, HAlignValue, TextOrientationValue, VAlignValue,
                  EmbbededSmtListOpt,
                  UdfArguments, UdfArgumentslistOpt,
                  UdfInvokeArguments, UdfInvokeArgumentslistOpt, stylePenOpt,
-                 CustomFunctionArgs, CustomFunctionArgsOpt);
+                 CustomFunctionArgs, CustomFunctionArgsOpt, TableRowTemplateCount);
 
             this.AddTermsReportGroup("punctuation", comma);
             this.AddToNoReportGroup("(", "++", "--");
@@ -418,8 +425,7 @@ namespace PdfSharpDslCore.Parser
             var l = new List<string>();
             foreach (var item in expectedTerminals)
             {
-                l.Add(item switch
-                {
+                l.Add(item switch {
                     KeyTerm k => k.Text,
                     _ => item.ToString(),
                 });

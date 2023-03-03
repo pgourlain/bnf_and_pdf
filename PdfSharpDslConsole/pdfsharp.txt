@@ -237,6 +237,29 @@ ENDTABLE
 NEWPAGE;
 
 SET FONT Name="Arial" Size=20 bold ;
+TITLE HAlign=hcenter Text="Table TEST Suite";
+
+SET FONT Name="Arial" Size=10 regular;
+
+# table without lines
+SET PEN white 0.5;
+
+TABLE 20, 20
+HEAD
+COL Width=40 MaxWidth=40 "Date";
+COL Width=20 MaxWidth=20 "";
+COL Width=auto MaxWidth=600 "Remarques";
+ENDHEAD
+ROWTEMPLATE 10 
+COL getCommentDate($ROWINDEX);
+COL "    ";
+COL getComment($ROWINDEX);
+ENDROW
+ENDTABLE
+
+NEWPAGE
+
+SET FONT Name="Arial" Size=20 bold ;
 TITLE HAlign=hcenter Text="Image TEST";
 
 
