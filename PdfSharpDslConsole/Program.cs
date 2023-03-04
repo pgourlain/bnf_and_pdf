@@ -62,6 +62,25 @@ var globalComments = new[]
             }
         }
     },
+    new
+    {
+        Date = new DateTime(2023, 3, 6),
+        Comments = new[]
+        {
+            new
+            {
+                Author = "John DoeDoe",
+                Date = new DateTime(2023, 3, 2),
+                Comment = "c1qsmdlkjqsdlkmjfqsmlkdjflmkqsdklmfqslkmd fkljmlksdflmjzmoi jlqsdkjlfqlmsdlfqlksmdaz ioeurpozerpoazueopruiaoze"
+            },
+            new
+            {
+                Author = "John DoeDoe",
+                Date = new DateTime(2023, 3, 2),
+                Comment = "other comment"
+            }
+        }
+    },
 };
 
 #endregion
@@ -104,7 +123,7 @@ else
     visitor.RegisterFormulaFunction("getCommentDate", getCommentDate);
     visitor.RegisterFormulaFunction("getComment", getComment);
     visitor.RegisterFormulaFunction("GETCOMMENTAUTHOR", getCommentAuthor);
-    
+
     visitor.Draw(drawer, parsingResult);
     document.Save("helloworld.pdf");
 

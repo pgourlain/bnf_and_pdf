@@ -1,9 +1,12 @@
 
 # Change log
-## Version 1.0.0 (January 8, 2022)
+## Version 1.0.1 (January 8, 2023)
+* Add ROWTEMPLATE and TEXT statements
+
+## Version 1.0.0 (January 8, 2023)
 * fix TITLE alignment
 
-## Version 0.9.9 (January 7, 2022)
+## Version 0.9.9 (January 7, 2023)
 * Add If and conditonnal expressions
 * Breaking changes: SET FONT name size style=> SET FONT Name=name Size=size style
 * refactoring for future C# source generator feature

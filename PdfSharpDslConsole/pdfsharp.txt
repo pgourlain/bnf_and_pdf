@@ -253,13 +253,13 @@ ROWTEMPLATE Count=getGlobalCommentsCount() Y=100 BorderSize=15
     SET VAR GINDEX=$ROWINDEX;
     ROWTEMPLATE Count=getCommentsCount($GINDEX) Y=0 BorderSize=3
 		LINETEXT 130, 0 HAlign=left VAlign=top Text=getCommentAuthor($GINDEX,$ROWINDEX) + "   " + getCommentDate($GINDEX,$ROWINDEX)+":";   
-        LINETEXT 130, 12 HAlign=left VAlign=top Text="- "+getComment($GINDEX,$ROWINDEX);         
+        TEXT 130, 12 MaxWidth=$PAGEWIDTH-20-130 Text="- "+getComment($GINDEX,$ROWINDEX);         
     ENDROWTEMPLATE
 	RECT 125,0, $PAGEWIDTH-20-145, $LASTTEMPLATEHEIGHT 
 ENDROWTEMPLATE
 
 
-ROWTEMPLATE Count=3 Y=250 BorderSize=5
+ROWTEMPLATE Count=3 Y=300 BorderSize=5
     # top line under border
 	LINE 0,0,$PAGEWIDTH-20, 0;
 
@@ -268,7 +268,7 @@ ROWTEMPLATE Count=3 Y=250 BorderSize=5
 	LINE 0,50,$PAGEWIDTH-20, 50;
 ENDROWTEMPLATE
 # rect include borders
-RECT 0,250, $PAGEWIDTH-20, $LASTTEMPLATEHEIGHT 
+RECT 0,300, $PAGEWIDTH-20, $LASTTEMPLATEHEIGHT 
 
 NEWPAGE
 

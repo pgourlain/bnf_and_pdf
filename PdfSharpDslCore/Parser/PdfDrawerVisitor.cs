@@ -168,6 +168,7 @@ namespace PdfSharpDslCore.Parser
 
         protected override void ExecuteText(IPdfDocumentDrawer drawer,
             ParseTreeNode nodeLocation,
+            ParseTreeNode? optMaxWidth,
             ParseTreeNode contentNode)
         {
             var text = Convert.ToString(EvaluateForObject(contentNode, _variables, _customFunctions));
@@ -175,6 +176,14 @@ namespace PdfSharpDslCore.Parser
             if (text is not null)
             {
                 (double x, double y, double? w, double? h) = ParseTextLocation(nodeLocation.ChildNodes[0]);
+                if (optMaxWidth != null)
+                {
+                    var maxWidth = EvaluateForDouble(optMaxWidth);
+                    if (maxWidth is not null)
+                    {
+                        w = maxWidth;
+                    }
+                }
 
                 drawer.DrawText(text, x, y, w, h);
             }
@@ -362,23 +371,17 @@ namespace PdfSharpDslCore.Parser
 
         private object SystemVariableGet(IPdfDocumentDrawer state, string key)
         {
-            switch (key)
+            return key switch
             {
-                case "PAGEHEIGHT":
-                    return state.PageHeight;
-                case "PAGEWIDTH":
-                    return state.PageWidth;
-            }
-            return null!;
+                "PAGEHEIGHT" => state.PageHeight,
+                "PAGEWIDTH" => state.PageWidth,
+                _ => null!
+            };
         }
 
         private double? ParseMargin(ParseTreeNode node)
         {
-            if (node.ChildNodes.Count > 0)
-            {
-                return EvaluateForDouble(node.ChildNodes[2]);
-            }
-            return null;
+            return node.ChildNodes.Count > 0 ? EvaluateForDouble(node.ChildNodes[2]) : null;
         }
 
         private void ExecuteTable(IPdfDocumentDrawer drawer, ParseTreeNode node)
@@ -423,7 +426,7 @@ namespace PdfSharpDslCore.Parser
                 if (vars is IVariablesDictionary savable) savable.SaveVariables();
                 try
                 {
-                    for (int i = 0; i < rowCount; i++)
+                    for (var i = 0; i < rowCount; i++)
                     {
                         var rowDef = new RowDefinition();
                         var cols = row.ChildNodes("TableCol").SelectMany(x => x.ChildNodes).Where(x => x.Term?.Name != "COL").ToArray();
@@ -508,8 +511,8 @@ namespace PdfSharpDslCore.Parser
 
         private static (XStringAlignment, XLineAlignment) ParseTextAlignment(ParseTreeNode alignNode)
         {
-            ParseTreeNode? hNode = alignNode.Term.Name == "HAlign" ? alignNode : null;
-            ParseTreeNode? vNode = alignNode.Term.Name == "VAlign" ? alignNode : null;
+            var hNode = alignNode.Term.Name == "HAlign" ? alignNode : null;
+            var vNode = alignNode.Term.Name == "VAlign" ? alignNode : null;
             return ParseTextAlignment(hNode, vNode);
         }
         private static (XStringAlignment, XLineAlignment) ParseTextAlignment(ParseTreeNode? hNode, ParseTreeNode? vNode)
@@ -530,19 +533,18 @@ namespace PdfSharpDslCore.Parser
                         break;
                 }
             }
-            if (vNode != null && vNode.ChildNodes.Count > 2)
+
+            if (vNode == null || vNode.ChildNodes.Count <= 2) return (hAlign, vAlign);
+            switch (vNode.ChildNodes[2].Token.Value)
             {
-                switch (vNode.ChildNodes[2].Token.Value)
-                {
-                    case "top":
-                        break;
-                    case "vcenter":
-                        vAlign = XLineAlignment.Center;
-                        break;
-                    case "bottom":
-                        vAlign = XLineAlignment.Far;
-                        break;
-                }
+                case "top":
+                    break;
+                case "vcenter":
+                    vAlign = XLineAlignment.Center;
+                    break;
+                case "bottom":
+                    vAlign = XLineAlignment.Far;
+                    break;
             }
             return (hAlign, vAlign);
         }

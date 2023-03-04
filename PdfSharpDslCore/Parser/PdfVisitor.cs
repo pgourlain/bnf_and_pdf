@@ -16,13 +16,12 @@ namespace PdfSharpDslCore.Parser
         protected IDictionary<string, object?> _variables = new Dictionary<string, object?>();
         protected IDictionary<string, ParseTreeNode> _udfs = new Dictionary<string, ParseTreeNode>();
         protected IDictionary<string, Func<object[], object>> _customFunctions = new Dictionary<string, Func<object[], object>>();
-        private readonly string _baseDirectory;
-        protected string BaseDirectory => _baseDirectory;
+        protected string BaseDirectory { get; }
 
         public PdfVisitor() : this(Environment.CurrentDirectory) { }
         public PdfVisitor(string baseDirectory)
         {
-            this._baseDirectory = baseDirectory;
+            this.BaseDirectory = baseDirectory;
         }
 
         public virtual void Draw(TState state, ParseTree tree)
@@ -216,6 +215,7 @@ namespace PdfSharpDslCore.Parser
         { }
         protected virtual void ExecuteText(TState drawer,
            ParseTreeNode nodeLocation,
+           ParseTreeNode? optMaxWidth,
            ParseTreeNode contentNode)
         { }
 
@@ -329,8 +329,17 @@ namespace PdfSharpDslCore.Parser
         private void VisitTEXT(TState state, ParseTreeNode node)
         {
             var nodeLocation = node.ChildNodes[1];
-            var contentNode = node.ChildNodes[2];
-            ExecuteText(state, nodeLocation, contentNode);
+            var optMaxWidth = node.ChildNode("Opt-MaxWidth");
+            if (optMaxWidth != null && optMaxWidth.ChildNodes.Count > 0)
+            {
+                optMaxWidth = optMaxWidth.ChildNodes[2];
+            }
+            else
+            {
+                optMaxWidth = null;
+            }
+            var contentNode = node.ChildNodes[5];
+            ExecuteText(state, nodeLocation, optMaxWidth, contentNode);
         }
 
         private void VisitLINETO(TState state, ParseTreeNode node)

@@ -7,7 +7,7 @@ namespace PdfSharpDslCore.Drawing
     public class DrawingContext
     {
         Stack<XRect?> history = new Stack<XRect?>();
-        public XRect? DrawingRect { get; set; }
+        private XRect? DrawingRect { get; set; }
         public int Level => history.Count;
 
         internal XRect PopDrawingRect(bool updateRestored)

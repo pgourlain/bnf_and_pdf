@@ -286,7 +286,7 @@ namespace PdfSharpDslCore.Parser
 
             //TextAlignment is not yet supported on multiline text (only top left is provided by pdfsharpcore)
             //multiline
-            TextSmt.Rule = ToTerm("TEXT") + RectOrPointLocation /*+ TextAlignment */+ textString;
+            TextSmt.Rule = ToTerm("TEXT") + RectOrPointLocation + OptArg("MaxWidth", FormulaExpression) + Arg("Text") + FormulaExpression;
 
             TextAlignment.Rule = HAlign + VAlign;
             HAlign.Rule = Empty | Arg("HAlign") + HAlignValue;

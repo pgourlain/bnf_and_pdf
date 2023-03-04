@@ -241,10 +241,14 @@ namespace PdfSharpDslCore.Drawing
                 var sizeFormatter = new XTextSegmentFormatter(Gfx) {
                     Alignment = XParagraphAlignment.Left
                 };
-                var size = sizeFormatter.CalculateTextSize(text, CurrentFont, CurrentBrush, page.Width - x);
+                w = w ?? page.Width - x;
+                var size = sizeFormatter.CalculateTextSize(text, CurrentFont, CurrentBrush, w.Value);
                 var r = new XRect(x, y, size.Width, size.Height);
-                var formatter = new XTextFormatter(Gfx);
-                formatter.DrawString(text, CurrentFont, CurrentBrush, r);
+
+                sizeFormatter.DrawString(text, CurrentFont, CurrentBrush, r);
+                //var formatter = new XTextFormatter(Gfx);
+                //formatter.DrawString(text, CurrentFont, CurrentBrush, r);
+                this.drawingContext.UpdateDrawingRect(r);
 #if DEBUG1
                 Gfx.DrawRectangle(XPens.Red, r);
 #endif
@@ -255,6 +259,7 @@ namespace PdfSharpDslCore.Drawing
                 var r = new XRect(x, y, w.Value, h.Value);
                 var formatter = new XTextFormatter(Gfx);
                 formatter.DrawString(text, CurrentFont, CurrentBrush, r);
+                this.drawingContext.UpdateDrawingRect(r);
 #if DEBUG1
                 Gfx.DrawRectangle(XPens.Red, r);
 #endif

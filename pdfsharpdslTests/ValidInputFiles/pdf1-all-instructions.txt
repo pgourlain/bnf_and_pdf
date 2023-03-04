@@ -97,11 +97,5 @@ IMAGE 100,100, -100,-100 pixel crop Data="data:image/png;base64,iVBORw0KGgoAAAAN
 
 # multiline text
 
-TEXT 100,100 "
-coucou
-tagada
-"
-TEXT 100,100,100,100 "
-coucou
-tagada
-"
+TEXT 100,100 Text="coucou tagada"
+TEXT 100,100,100,100 Text="coucou\r\ntagada"

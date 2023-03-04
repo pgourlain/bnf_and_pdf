@@ -15,10 +15,9 @@ namespace PdfSharpDslCore.Parser
 
     internal class VariablesDictionary : IDictionary<string, object?>, IVariablesDictionary
     {
-
-        Func<string, object> _systemVariablesGet ;
-        ConcurrentDictionary<string, object?> _inner = new ConcurrentDictionary<string, object?>();
-        Stack<ConcurrentDictionary<string, object?>> _savedVariables = new Stack<ConcurrentDictionary<string, object?>>();
+        private readonly Func<string, object> _systemVariablesGet ;
+        private ConcurrentDictionary<string, object?> _inner = new ConcurrentDictionary<string, object?>();
+        private readonly Stack<ConcurrentDictionary<string, object?>> _savedVariables = new Stack<ConcurrentDictionary<string, object?>>();
 
         public VariablesDictionary(Func<string, object> systemVariablesGet)
         {
@@ -35,14 +34,7 @@ namespace PdfSharpDslCore.Parser
 
         public object? this[string key]
         {
-            get
-            {
-                if (this.TryGetValue(key, out var value))
-                {
-                    return value!;
-                }
-                return null;
-            }
+            get => this.TryGetValue(key, out var value) ? value! : null;
             set => throw new NotImplementedException();
         }
 
