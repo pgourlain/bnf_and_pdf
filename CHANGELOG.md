@@ -1,6 +1,6 @@
 
 # Change log
-## Version 1.0.1 (January 8, 2023)
+## Version 1.0.1 (March 4, 2023)
 * Add ROWTEMPLATE and TEXT statements
 
 ## Version 1.0.0 (January 8, 2023)
