@@ -27,6 +27,46 @@ GlobalFontSettings.DefaultFontEncoding = PdfFontEncoding.Unicode;
 //    Console.WriteLine($"{pk.Item1.PadRight(max)} {pk.Item2}");
 //}
 
+#region global variables
+var globalComments = new[]
+{
+    new
+    {
+        Date = new DateTime(2023, 3, 6),
+        Comments = new[]
+        {
+            new
+            {
+                Author = "John Smith",
+                Date = new DateTime(2023, 3, 2),
+                Comment = "c1"
+            },
+            new
+            {
+                Author = "John Smith",
+                Date = new DateTime(2023, 3, 2),
+                Comment = "c2"
+            }
+        }
+    },
+    new
+    {
+        Date = new DateTime(2023, 3, 6),
+        Comments = new[]
+        {
+            new
+            {
+                Author = "John Doe",
+                Date = new DateTime(2023, 3, 2),
+                Comment = "c1"
+            }
+        }
+    },
+};
+
+#endregion
+
+
 
 var parser = new Irony.Parsing.Parser(new PdfGrammar());
 var fileName = "pdfsharp.txt";
@@ -34,6 +74,7 @@ if (args.Length > 0)
 {
     fileName = args[0];
 }
+
 var parsingResult = parser.Parse(File.ReadAllText(fileName));
 
 if (parsingResult.HasErrors())
@@ -56,9 +97,14 @@ else
     var visitor = new PdfDrawerVisitor();
 
     visitor.RegisterFormulaFunction("GetFontCount", (_) => LocalFontNames().Count());
-    visitor.RegisterFormulaFunction("GetFont", (arguments) => GetFontNameByIndex(arguments));
-    visitor.RegisterFormulaFunction("GetCommentDate", (arguments) => GetCommentDate(arguments));
-    visitor.RegisterFormulaFunction("GetComment", (arguments) => GetCommentString(arguments));
+    visitor.RegisterFormulaFunction("GetFont", GetFontNameByIndex);
+    visitor.RegisterFormulaFunction("getGlobalCommentDate", getGlobalCommentDate);
+    visitor.RegisterFormulaFunction("getGlobalCommentsCount", (_) => getGlobalCommentsCount());
+    visitor.RegisterFormulaFunction("getCommentsCount", getCommentsCount);
+    visitor.RegisterFormulaFunction("getCommentDate", getCommentDate);
+    visitor.RegisterFormulaFunction("getComment", getComment);
+    visitor.RegisterFormulaFunction("GETCOMMENTAUTHOR", getCommentAuthor);
+    
     visitor.Draw(drawer, parsingResult);
     document.Save("helloworld.pdf");
 
@@ -92,18 +138,39 @@ object GetFontNameByIndex(object[] arguments)
     return LocalFontNames().Skip(index).First();
 }
 
-
-object GetCommentDate(object[] arguments)
+object getGlobalCommentsCount()
 {
-    var index = (int)arguments[0];
-    return DateTime.Now.AddDays(index).ToShortDateString();
+    return globalComments.Length;
 }
 
-object GetCommentString(object[] arguments)
+object getGlobalCommentDate(object[] arguments)
 {
     var index = (int)arguments[0];
-    var dt = DateTime.Now.AddDays(index).ToShortDateString();
-    return $"la date est '{dt}' pour l'index '{index}'";
+    return globalComments[index].Date.ToShortDateString();
 }
 
+object getCommentsCount(object[] arguments)
+{
+    var globalIndex = (int)arguments[0];
+    return globalComments[globalIndex].Comments.Length;
+}
 
+object getCommentDate(object[] arguments)
+{
+    var globalIndex = (int)arguments[0];
+    var index = (int)arguments[1];
+    return globalComments[globalIndex].Comments[index].Date.ToShortDateString();
+}
+object getComment(object[] arguments)
+{
+    var globalIndex = (int)arguments[0];
+    var index = (int)arguments[1];
+    return globalComments[globalIndex].Comments[index].Comment;
+}
+
+object getCommentAuthor(object[] arguments)
+{
+    var globalIndex = (int)arguments[0];
+    var index = (int)arguments[1];
+    return globalComments[globalIndex].Comments[index].Author;
+}

@@ -57,6 +57,9 @@
     <None Update="ValidInputFiles\pdf-to-csharp-source.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="ValidInputFiles\pdf1-table.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="ValidInputFiles\pdf1-conditions.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
