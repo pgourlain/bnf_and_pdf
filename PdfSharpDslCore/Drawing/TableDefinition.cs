@@ -22,7 +22,18 @@ namespace PdfSharpDslCore.Drawing
 
         public double ColWidth(int i)
         {
-            return 0;
+            return Columns[i].DesiredWidth ?? 0;
+        }
+
+        /// <summary>
+        /// if MaxWidth if not define, return pageWidth
+        /// </summary>
+        /// <param name="i"></param>
+        /// <param name="pageWidth"></param>
+        /// <returns></returns>
+        public double ColMaxWidth(int i, double pageWidth)
+        {
+            return Math.Min(Columns[i].MaxWidth ?? pageWidth, pageWidth);
         }
 
         public XStringAlignment Alignment(int i)
@@ -42,6 +53,18 @@ namespace PdfSharpDslCore.Drawing
         public XFont? Font { get; set; }
         public XBrush? Brush { get; set; }
         public XBrush? BackColor { get; set; }
+
+        public double DrawWidth
+        {
+            get
+            {
+                if (MaxWidth is not null)
+                {
+                    return Math.Min(DesiredWidth ?? 0, MaxWidth ?? 0);
+                }
+                return DesiredWidth ?? 0;
+            }
+        }
 
     }
 

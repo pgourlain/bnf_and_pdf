@@ -25,21 +25,28 @@ namespace PdfSharpDslCore.Parser
     public class PdfGrammar : Grammar
     {
         protected NonTerminal FormulaRoot;
+        private NonTerminal EmbbededSmtListOpt;
+
         public PdfGrammar()
         {
-            var sstring = new StringLiteral("string", "\"", StringOptions.AllowsDoubledQuote | StringOptions.AllowsAllEscapes);
-            sstring.Priority = TerminalPriority.High;
+            var sstring = new StringLiteral("string", "\"", StringOptions.AllowsDoubledQuote | StringOptions.AllowsAllEscapes)
+                {
+                    Priority = TerminalPriority.High
+                };
             var textString = new StringLiteral("textstring", "\"", StringOptions.AllowsDoubledQuote | StringOptions.AllowsAllEscapes | StringOptions.AllowsLineBreak);
             var number_literal = new NumberLiteral("number", NumberOptions.AllowSign);
-            var pixel_literal = new NumberLiteral("pixel", NumberOptions.IntOnly);
-            pixel_literal.DefaultFloatType = TypeCode.Double;
-            pixel_literal.AddSuffix("px", TypeCode.Int64);
-            pixel_literal.DefaultIntTypes = new TypeCode[3]
+            var pixel_literal = new NumberLiteral("pixel", NumberOptions.IntOnly)
             {
-                TypeCode.Int32,
-                TypeCode.Int64,
-                (TypeCode)30
+                DefaultFloatType = TypeCode.Double,
+                DefaultIntTypes = new TypeCode[3]
+                {
+                    TypeCode.Int32,
+                    TypeCode.Int64,
+                    (TypeCode)30
+                }
             };
+            pixel_literal.AddSuffix("px", TypeCode.Int64);
+
             var colorNumber = new NumberLiteral("ColorValue");
             colorNumber.AddPrefix("g", NumberOptions.Default | NumberOptions.AllowStartEndDot);
             colorNumber.AddPrefix("0x", NumberOptions.Hex);
@@ -108,6 +115,10 @@ namespace PdfSharpDslCore.Parser
             var TableColFont = new NonTerminal("TableColFont");
             var TableColColors = new NonTerminal("TableColColors");
             var TableRowStyle = new NonTerminal("TableRowStyle");
+            var TableRowListOrRowTemplate = new NonTerminal("TableRowListOrRowTemplate");
+            var TableRowTemplate = new NonTerminal("TableRowTemplate");
+            var TableRowTemplateCount = new NonTerminal("TableRowTemplateCount");
+
             var PointAutoLocation = new NonTerminal("PointAutoLocation");
             var NumberOrAuto = new NonTerminal("NumberOrAuto");
             var ViewSizeSmt = new NonTerminal("ViewSizeSmt");
@@ -139,6 +150,8 @@ namespace PdfSharpDslCore.Parser
             var UnaryExpression = new NonTerminal("UnaryExpression");
             var VarSmt = new NonTerminal("VarSmt");
             var VarRef = new NonTerminal("VarRef");
+
+            var RowTemplateSmt = new NonTerminal("RowTemplateSmt");
             #endregion
 
             #region Formula rules
@@ -213,6 +226,7 @@ namespace PdfSharpDslCore.Parser
                 | ForSmt
                 | UdfInvokeSmt
                 | IfSmt
+                | RowTemplateSmt
             ;
 
             #region basics rules
@@ -272,7 +286,7 @@ namespace PdfSharpDslCore.Parser
 
             //TextAlignment is not yet supported on multiline text (only top left is provided by pdfsharpcore)
             //multiline
-            TextSmt.Rule = ToTerm("TEXT") + RectOrPointLocation /*+ TextAlignment */+ textString;
+            TextSmt.Rule = ToTerm("TEXT") + RectOrPointLocation + OptArg("MaxWidth", FormulaExpression) + Arg("Text") + FormulaExpression;
 
             TextAlignment.Rule = HAlign + VAlign;
             HAlign.Rule = Empty | Arg("HAlign") + HAlignValue;
@@ -309,17 +323,20 @@ namespace PdfSharpDslCore.Parser
 
             TableSmt.Rule = ToTerm("TABLE") + TableLocation + TableContent + ToTerm("ENDTABLE");
 
-            TableContent.Rule = TableHead + TableRowList;
+            TableContent.Rule = TableHead + TableRowListOrRowTemplate;
 
             TableHead.Rule = ToTerm("HEAD") + TableHeadStyle + TableColHeadList + ToTerm("ENDHEAD");
             TableRowList.Rule = MakeStarRule(TableRowList, TableRow);
+            TableRowListOrRowTemplate.Rule = TableRowList | TableRowTemplate;
+            TableRowTemplateCount.Rule = FormulaExpression;
+            TableRowTemplate.Rule = ToTerm("ROWTEMPLATE") + TableRowTemplateCount + TableColList + ToTerm("ENDROW");
             TableColHeadList.Rule = MakeStarRule(TableColHeadList, TableHeadCol);
             TableHeadCol.Rule = ToTerm("COL") + TableColWidth + TableColFont + TableColColors + sstring + semi;
             //desiredWidth and maxWidth
             TableColWidth.Rule = Arg("Width") + NumberOrAuto + Arg("MaxWidth") + NumberOrAuto;
             TableColList.Rule = MakeStarRule(TableColList, TableCol);
             TableRow.Rule = ToTerm("ROW") + TableRowStyle + TableColList + ToTerm("ENDROW");
-            TableCol.Rule = ToTerm("COL") + sstring + semi;
+            TableCol.Rule = ToTerm("COL") + FormulaExpression + semi;
             TableLocation.Rule = PointLocation /*+ "," + PointAutoLocation*/;
             PointAutoLocation.Rule = NumberOrAuto + "," + NumberOrAuto;
             NumberOrAuto.Rule = FormulaExpression | "auto";
@@ -347,9 +364,10 @@ namespace PdfSharpDslCore.Parser
             var EmbbededSmtList = new NonTerminal("EmbbededSmtList");
             var ForBlock = new NonTerminal("ForBlock");
             ForSmt.Rule = ToTerm("FOR") + variable_literal + "=" + FormulaExpression + "TO" + FormulaExpression + ForBlock;
-            var EmbbededSmtListOpt = new NonTerminal("EmbbededSmtListOpt");
-            ForBlock.Rule = ToTerm("DO") + EmbbededSmtListOpt + "ENDFOR";
-            EmbbededSmtListOpt.Rule = Empty + EmbbededSmtList;
+            var embbededSmtListOpt = new NonTerminal("EmbbededSmtListOpt");
+            this.EmbbededSmtListOpt = embbededSmtListOpt;
+            ForBlock.Rule = ToTerm("DO") + embbededSmtListOpt + "ENDFOR";
+            embbededSmtListOpt.Rule = Empty + EmbbededSmtList;
             EmbbededSmtList.Rule = MakePlusRule(EmbbededSmtList, null, PdfInstruction);
 
             var UdfArgumentslistOpt = new NonTerminal("UdfArgumentslistOpt");
@@ -360,7 +378,7 @@ namespace PdfSharpDslCore.Parser
             UdfArgumentslistOpt.Rule = Empty | UdfArgumentslist;
             UdfSmt.Rule = ToTerm("UDF") + variable_literal + PreferShiftHere() + UdfArguments + UdfBlock;
             UdfArgumentslist.Rule = MakePlusRule(UdfArgumentslist, comma, variable_literal);
-            UdfBlock.Rule = EmbbededSmtListOpt + "ENDUDF";
+            UdfBlock.Rule = embbededSmtListOpt + "ENDUDF";
 
 
             var UdfInvokeArguments = new NonTerminal("UdfInvokeArguments");
@@ -370,20 +388,23 @@ namespace PdfSharpDslCore.Parser
             UdfInvokeArgumentslistOpt.Rule = Empty | CallInvokeArgumentslist;
 
             IfSmt.Rule = "IF" + FormulaExpression + then_clause + Else_clause_opt + "ENDIF";
-            then_clause.Rule = "THEN" + EmbbededSmtListOpt;
-            Else_clause_opt.Rule = Empty | PreferShiftHere() + "ELSE" + EmbbededSmtListOpt;
+            then_clause.Rule = "THEN" + embbededSmtListOpt;
+            Else_clause_opt.Rule = Empty | PreferShiftHere() + "ELSE" + embbededSmtListOpt;
+
+            ConfigureRowTemplateSmt(RowTemplateSmt);
 
 
             RegisterBracePair("(", ")");
 
-            MarkPunctuation(";", ",", "(", ")", "TABLE", "ENDTABLE", "HEAD", "ENDHEAD", "ROW", "ENDROW", "ENDFOR", "UDF", "ENDUDF", "IF", "THEN", "ELSE", "ENDIF");
+            MarkPunctuation(";", ",", "(", ")", "TABLE", "ENDTABLE", "HEAD", "ENDHEAD", "ROW", "ROWTEMPLATE ", "ENDROW", "ENDFOR", "UDF", "ENDUDF", 
+                "IF", "THEN", "ELSE", "ENDIF", "ROWTEMPLATE", "ENDROWTEMPLATE");
             RegisterBracePair("(", ")");
             MarkTransient(PdfLine, PdfPrimaryInstruction, SetContent, NumberOrAuto,
                  styleExpr, semiOpt, PixelOrPoint, HAlignValue, TextOrientationValue, VAlignValue,
-                 EmbbededSmtListOpt,
+                 embbededSmtListOpt,
                  UdfArguments, UdfArgumentslistOpt,
                  UdfInvokeArguments, UdfInvokeArgumentslistOpt, stylePenOpt,
-                 CustomFunctionArgs, CustomFunctionArgsOpt);
+                 CustomFunctionArgs, CustomFunctionArgsOpt, TableRowTemplateCount);
 
             this.AddTermsReportGroup("punctuation", comma);
             this.AddToNoReportGroup("(", "++", "--");
@@ -393,6 +414,22 @@ namespace PdfSharpDslCore.Parser
             this.AddToNoReportGroup(semi);
         }
 
+        void ConfigureRowTemplateSmt(NonTerminal rowTemplateSmt)
+        {
+            /*
+            ROWTEMPLATE Count=getGlobalCommentsCount()
+                LINETEXT 50, 100 HAlign=center VAlign=bottom Text=getGlobalCommentDate($ROWINDEX); 
+                
+                SET VAR GINDEX=$ROWINDEX;
+                ROWTEMPLATE Count=getCommentsCount($GINDEX)
+                    LINETEXT 150, 100 HAlign=center VAlign=bottom Text=getCommentDate($GINDEX,$ROWINDEX);         
+                ENDROWTEMPLATE
+            ENDROWTEMPLATE
+             */
+            var rowTemplateContent = new NonTerminal("RowTemplateBlock");
+            rowTemplateSmt.Rule = "ROWTEMPLATE" + Arg("Count") + FormulaRoot + Arg("Y") + FormulaRoot + OptArg("BorderSize", FormulaRoot) +  rowTemplateContent;
+            rowTemplateContent.Rule = EmbbededSmtListOpt + "ENDROWTEMPLATE";
+        }
         /// <summary>
         /// for argument in grammar
         /// </summary>
@@ -400,7 +437,16 @@ namespace PdfSharpDslCore.Parser
         /// <returns></returns>
         BnfExpression Arg(string name)
         {
-            return name + PreferShiftHere() + "=";
+            var result = name + PreferShiftHere() + "=";
+            //result.ErrorAlias = $"argument missing {name}";
+            return result;
+        }
+
+        BnfExpression OptArg(string name, BnfExpression bnfExpression)
+        {
+            var term = new NonTerminal($"Opt-{name}");
+            term.Rule = Empty | name + PreferShiftHere() + "=" + bnfExpression;
+            return term;
         }
 
         public override string ConstructParserErrorMessage(ParsingContext context, StringSet expectedTerms)
@@ -418,8 +464,7 @@ namespace PdfSharpDslCore.Parser
             var l = new List<string>();
             foreach (var item in expectedTerminals)
             {
-                l.Add(item switch
-                {
+                l.Add(item switch {
                     KeyTerm k => k.Text,
                     _ => item.ToString(),
                 });

@@ -12,7 +12,7 @@ using System.Diagnostics.CodeAnalysis;
 namespace pdfsharpdslTests
 {
     [ExcludeFromCodeCoverage]
-    public class GenerationTests : BaseTests
+    public class GenerationTests : GenerationBaseTests
     {
         [Theory]
         [InlineData("pdf1-linetext.txt")]
@@ -118,21 +118,6 @@ namespace pdfsharpdslTests
                 i++;
             }
             return string.Join(",", lines.ToArray());
-        }
-
-        private MemoryStream GeneratePdf(string dslFileContent)
-        {
-            var parsingResult = ParseText(dslFileContent);
-
-            //PdfSharpCore cclasses
-            using var document = new PdfDocument();
-            //draw parsing result
-            using var drawer = new PdfDocumentDrawer(document);
-            new PdfDrawerVisitor().Draw(drawer, parsingResult);
-
-            var result = new MemoryStream();
-            document.Save(result, false);
-            return result;
         }
     }
 }

@@ -168,6 +168,7 @@ namespace PdfSharpDslCore.Parser
 
         protected override void ExecuteText(IPdfDocumentDrawer drawer,
             ParseTreeNode nodeLocation,
+            ParseTreeNode? optMaxWidth,
             ParseTreeNode contentNode)
         {
             var text = Convert.ToString(EvaluateForObject(contentNode, _variables, _customFunctions));
@@ -175,6 +176,14 @@ namespace PdfSharpDslCore.Parser
             if (text is not null)
             {
                 (double x, double y, double? w, double? h) = ParseTextLocation(nodeLocation.ChildNodes[0]);
+                if (optMaxWidth != null)
+                {
+                    var maxWidth = EvaluateForDouble(optMaxWidth);
+                    if (maxWidth is not null)
+                    {
+                        w = maxWidth;
+                    }
+                }
 
                 drawer.DrawText(text, x, y, w, h);
             }
@@ -315,6 +324,43 @@ namespace PdfSharpDslCore.Parser
             state.CurrentBrush = new XSolidBrush(color);
         }
 
+        protected override void ExecuteRowTemplateStatement(IPdfDocumentDrawer state,
+            ParseTreeNode rowCountNode, ParseTreeNode offsetYNode, ParseTreeNode? borderSizeNode, ParseTreeNode body)
+        {
+            var borderSize = borderSizeNode != null ? EvaluateForDouble(borderSizeNode) ?? 0 : 0;
+            
+            var rowCount = EvaluateForDouble(rowCountNode)??0;
+            var offsetY = (EvaluateForDouble(offsetYNode)??0) + borderSize;
+
+            double drawHeight = borderSize;
+            var vars = _variables;
+            if (vars is IVariablesDictionary savable) savable.SaveVariables();
+            try
+            {
+                state.BeginIterationTemplate();
+                for (int i = 0; i < rowCount; i++)
+                {
+                    state.BeginDrawRowTemplate(offsetY);
+                    //set row index
+                    _variables.Add("ROWINDEX", i);
+
+                    Visit(state, body.ChildNodes);
+                    var drawingRect = state.EndDrawRowTemplate();
+
+                    drawHeight += drawingRect.Height + borderSize;
+                    offsetY += drawingRect.Height + borderSize;
+
+                }
+                state.EndIterationTemplate(drawHeight);
+
+            }
+            finally
+            {
+                //restore variables before call
+                if (vars is IVariablesDictionary restorable) restorable.RestoreVariables();
+            }
+            _variables.Add("LASTTEMPLATEHEIGHT", drawHeight);
+        }
         #endregion
 
 
@@ -325,23 +371,17 @@ namespace PdfSharpDslCore.Parser
 
         private object SystemVariableGet(IPdfDocumentDrawer state, string key)
         {
-            switch (key)
+            return key switch
             {
-                case "PAGEHEIGHT":
-                    return state.PageHeight;
-                case "PAGEWIDTH":
-                    return state.PageWidth;
-            }
-            return null!;
+                "PAGEHEIGHT" => state.PageHeight,
+                "PAGEWIDTH" => state.PageWidth,
+                _ => null!
+            };
         }
 
         private double? ParseMargin(ParseTreeNode node)
         {
-            if (node.ChildNodes.Count > 0)
-            {
-                return EvaluateForDouble(node.ChildNodes[2]);
-            }
-            return null;
+            return node.ChildNodes.Count > 0 ? EvaluateForDouble(node.ChildNodes[2]) : null;
         }
 
         private void ExecuteTable(IPdfDocumentDrawer drawer, ParseTreeNode node)
@@ -365,8 +405,49 @@ namespace PdfSharpDslCore.Parser
                 result.HeaderBackColor = new XSolidBrush(color);
             }
             GenerateTableHead(node.ChildNodes("TableHeadCol"), result);
-            GenerateTableRows(node.ChildNodes("TableRow"), result);
+            var rowTemplate = node.ChildNodes("TableRowTemplate");
+            if (rowTemplate != null && rowTemplate.Any())
+            {
+                GenerateTableRowsTemplate(rowTemplate, result);
+            }
+            else
+            {
+                GenerateTableRows(node.ChildNodes("TableRow"), result);
+            }
             return result;
+        }
+
+        private void GenerateTableRowsTemplate(IEnumerable<ParseTreeNode> nodes, TableDefinition tbl)
+        {
+            foreach (var row in nodes)
+            {
+                var rowCount = EvaluateForDouble(row.ChildNodes[0]);
+                var vars = _variables;
+                if (vars is IVariablesDictionary savable) savable.SaveVariables();
+                try
+                {
+                    for (var i = 0; i < rowCount; i++)
+                    {
+                        var rowDef = new RowDefinition();
+                        var cols = row.ChildNodes("TableCol").SelectMany(x => x.ChildNodes).Where(x => x.Term?.Name != "COL").ToArray();
+
+                        _variables.Add("ROWINDEX", i);
+                        var rowData = cols.Select(x => EvaluateForObject(x, _variables, _customFunctions)?.ToString()!).ToList();
+
+                        while (rowData.Count < tbl.Columns.Count)
+                        {
+                            rowData.Add(string.Empty);
+                        }
+                        rowDef.Data = rowData.ToArray();
+                        tbl.Rows.Add(rowDef);
+                    }
+                }
+                finally
+                {
+                    //restore variables before call
+                    if (vars is IVariablesDictionary restorable) restorable.RestoreVariables();
+                }
+            }
         }
 
         private void GenerateTableRows(IEnumerable<ParseTreeNode> nodes, TableDefinition tbl)
@@ -401,10 +482,10 @@ namespace PdfSharpDslCore.Parser
                 var colDef = new ColumnDefinition();
                 //width
                 var colWidthNode = col.ChildNodes[1];
-                if (colWidthNode.ChildNodes.Count == 2)
+                if (colWidthNode.ChildNodes.Count == 6)
                 {
-                    var desiredWidth = EvaluateForDouble(colWidthNode.ChildNodes[0]);
-                    var maxWidth = EvaluateForDouble(colWidthNode.ChildNodes[1]);
+                    var desiredWidth = EvaluateForDouble(colWidthNode.ChildNodes[2]);
+                    var maxWidth = EvaluateForDouble(colWidthNode.ChildNodes[5]);
                     colDef.MaxWidth = maxWidth;
                     colDef.DesiredWidth = desiredWidth;
 
@@ -430,8 +511,8 @@ namespace PdfSharpDslCore.Parser
 
         private static (XStringAlignment, XLineAlignment) ParseTextAlignment(ParseTreeNode alignNode)
         {
-            ParseTreeNode? hNode = alignNode.Term.Name == "HAlign" ? alignNode : null;
-            ParseTreeNode? vNode = alignNode.Term.Name == "VAlign" ? alignNode : null;
+            var hNode = alignNode.Term.Name == "HAlign" ? alignNode : null;
+            var vNode = alignNode.Term.Name == "VAlign" ? alignNode : null;
             return ParseTextAlignment(hNode, vNode);
         }
         private static (XStringAlignment, XLineAlignment) ParseTextAlignment(ParseTreeNode? hNode, ParseTreeNode? vNode)
@@ -452,19 +533,18 @@ namespace PdfSharpDslCore.Parser
                         break;
                 }
             }
-            if (vNode != null && vNode.ChildNodes.Count > 2)
+
+            if (vNode == null || vNode.ChildNodes.Count <= 2) return (hAlign, vAlign);
+            switch (vNode.ChildNodes[2].Token.Value)
             {
-                switch (vNode.ChildNodes[2].Token.Value)
-                {
-                    case "top":
-                        break;
-                    case "vcenter":
-                        vAlign = XLineAlignment.Center;
-                        break;
-                    case "bottom":
-                        vAlign = XLineAlignment.Far;
-                        break;
-                }
+                case "top":
+                    break;
+                case "vcenter":
+                    vAlign = XLineAlignment.Center;
+                    break;
+                case "bottom":
+                    vAlign = XLineAlignment.Far;
+                    break;
             }
             return (hAlign, vAlign);
         }
@@ -542,9 +622,9 @@ namespace PdfSharpDslCore.Parser
             double fontSize = 0;
             if (node.Term.Name == "FontSmt")
             {
-                fontName = (string)EvaluateForObject(node.ChildNodes[2], _variables, _customFunctions)!;
-                fontSize = EvaluateForDouble(node.ChildNodes[4], _variables, _customFunctions) ?? 0;
-                styleNode = node.ChildNodes.Count > 5 ? node.ChildNodes[5] : null!;
+                fontName = (string)EvaluateForObject(node.ChildNodes[3], _variables, _customFunctions)!;
+                fontSize = EvaluateForDouble(node.ChildNodes[6], _variables, _customFunctions) ?? 0;
+                styleNode = node.ChildNodes.Count > 7 ? node.ChildNodes[7] : null!;
             }
             else
             {

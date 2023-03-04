@@ -140,5 +140,26 @@ namespace PdfSharpDslCore.Generator.DrawingGenerator
         {
             //throw new NotImplementedException();
         }
+
+        public void BeginDrawRowTemplate(double offsetY)
+        {
+            //throw new NotImplementedException();
+        }
+
+        public XRect EndDrawRowTemplate()
+        {
+            //throw new NotImplementedException();
+            return XRect.Empty;
+        }
+
+        public void BeginIterationTemplate()
+        {
+            //throw new NotImplementedException();
+        }
+
+        public void EndIterationTemplate(double drawHeight)
+        {
+            //throw new NotImplementedException();
+        }
     }
 }

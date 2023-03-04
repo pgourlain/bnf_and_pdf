@@ -258,7 +258,7 @@ IMAGE 100,320,50,50 pixel crop Source="C:/Samples/imageTest.jpg";
 ## Text
 
 ```text
-# LINETEXT PointOrRect [hAlign] [vAlign] [Orientation] "text"
+# LINETEXT PointOrRect [hAlign] [vAlign] [Orientation] Text="text"
 LINETEXT 42,100 Text="Horizontal text"
 
 LINETEXT 42,100 vertical Text="Horizontal text"
@@ -275,8 +275,41 @@ LINETEXT 42,100 left bottom vertical Text="Horizontal text";
 - horizontal, vertical
 
 
+```text
+# TEXT PointOrRect [MaxWidth=formula] Text="text"
+TEXT 42,100 Text="Horizontal text"
 
-## Table
+TEXT 42,100 MaxWidth=50 Text="Horizontal text"
+```
+- specify MaxWidth to wrap text on multi-lines
+- this 'TEXT' cannot be align
+
+## ROWTEMPLATE
+
+```text
+# ROWTEMPLATE Count=formula Y=formula [BorderSize=formula]
+# ENDROWTEMPLATE
+
+ROWTEMPLATE Count=3 Y=300 BorderSize=5
+    # top line under border
+	LINE 0,0,$PAGEWIDTH-20, 0;
+
+	LINE 0,0,50, 50;
+    # bottom line under border
+	LINE 0,50,$PAGEWIDTH-20, 50;
+ENDROWTEMPLATE
+# rect include borders
+RECT 0,300, $PAGEWIDTH-20, $LASTTEMPLATEHEIGHT 
+```
+
+This statement is like a table, but only for row
+- foreach loop the start point is 0,0
+- you can access to variable '$ROWINDEX' inside template
+- after template you can access to '$LASTTEMPLATEHEIGHT' to know the height(in point) of the previous template
+
+**[BorderSize]** 
+- is to add space between each loop
+- a space is added on top and at bottom when specified
 
 TODO
 

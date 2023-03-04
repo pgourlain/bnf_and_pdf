@@ -33,13 +33,13 @@ namespace PdfSharpDslCore.Evaluation
             var result = PerformEvaluate(_rootNode, variables).Value;
             return result;
         }
- 
+
 
         private IEvaluation<object> PerformEvaluate(ParseTreeNode node, IDictionary<string, object?> variables)
         {
             ParseTreeNode? opNode;
             ParseTreeNode? rightNode;
-            IEvaluation<object> right ;
+            IEvaluation<object> right;
             BinaryOperation op;
             switch (node.Term.Name)
             {

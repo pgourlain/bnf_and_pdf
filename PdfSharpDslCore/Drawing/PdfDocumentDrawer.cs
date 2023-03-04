@@ -1,123 +1,78 @@
-
-
 using PdfSharpCore;
 using PdfSharpCore.Drawing;
-using PdfSharpCore.Drawing.BarCodes;
 using PdfSharpCore.Drawing.Layout;
 using PdfSharpCore.Pdf;
+using SixLabors.ImageSharp;
 using System;
 using System.Collections.Generic;
-using System.Data.Common;
 using System.Linq;
-using System.Xml.Linq;
+using System.Net;
 
 namespace PdfSharpDslCore.Drawing
 {
-    public class PdfDocumentDrawer : IDisposable, IPdfDocumentDrawer
+    public sealed class PdfDocumentDrawer : IDisposable, IPdfDocumentDrawer
     {
-        PdfDocument _document;
-        PdfPage? _currentPage;
-        XPen? _currentPen;
-        XBrush? _currentBrush;
-        XBrush? _highlightBrush;
+        private readonly PdfDocument _document;
+        private PdfPage? _currentPage;
+        private XPen? _currentPen;
+        private XBrush? _currentBrush;
 
-        XFont? _currentFont;
-        XGraphics? _gfx;
-        private bool disposedValue;
-        XPoint _currentPoint = new XPoint(0, 0);
-        PageSize _defaultPageSize = PageSize.A4;
-        PageOrientation _defaultPageOrientation = PageOrientation.Portrait;
+        private XFont? _currentFont;
+        private XGraphics? _gfx;
+        private IXGraphicsRenderer? _gfxRenderer;
+        private bool _disposedValue;
+        private XPoint _currentPoint = new XPoint(0, 0);
+        private PageSize _defaultPageSize = PageSize.A4;
+        private PageOrientation _defaultPageOrientation = PageOrientation.Portrait;
+
+        private readonly DrawingContext drawingContext = new();
 
         public PdfDocumentDrawer(PdfDocument document)
         {
-            if (document is null)
-            {
-                throw new ArgumentNullException(nameof(document));
-            }
-            _document = document;
+            _document = document ?? throw new ArgumentNullException(nameof(document));
         }
+
         #region properties
+
         public PdfPage CurrentPage
         {
             get
             {
-                if (_currentPage is null)
-                {
-                    _currentPage = _document.AddPage();
-                    _currentPage.Size = _defaultPageSize;
-                    _currentPage.Orientation = _defaultPageOrientation;
-                }
+                if (_currentPage is not null) return _currentPage;
+                _currentPage = _document.AddPage();
+                _currentPage.Size = _defaultPageSize;
+                _currentPage.Orientation = _defaultPageOrientation;
+
                 return _currentPage;
             }
             set
             {
-                if (_currentPage != value)
-                {
-                    _currentPage = value;
-                    _gfx?.Dispose();
-                    _gfx = null;
-                }
+                if (_currentPage == value) return;
+                _currentPage = value;
+                _gfx?.Dispose();
+                _gfx = null;
+                _gfxRenderer = null;
             }
         }
 
         public XPen CurrentPen
         {
-            get
-            {
-                if (_currentPen is null)
-                {
-                    _currentPen = XPens.Black;
-                }
-                return _currentPen;
-            }
-            set
-            {
-                _currentPen = value;
-            }
+            get => _currentPen ??= XPens.Black;
+            set => _currentPen = value;
         }
 
         public XBrush CurrentBrush
         {
-            get
-            {
-                if (_currentBrush is null)
-                {
-                    _currentBrush = XBrushes.Black;
-                }
-                return _currentBrush;
-            }
-            set
-            {
-                _currentBrush = value;
-            }
+            get => _currentBrush ??= XBrushes.Black;
+            set => _currentBrush = value;
         }
 
-        public XBrush? HighlightBrush
-        {
-            get
-            {
-                return _highlightBrush;
-            }
-            set
-            {
-                _highlightBrush = value;
-            }
-        }
+        public XBrush? HighlightBrush { get; set; }
 
         public XFont CurrentFont
         {
-            get
-            {
-                if (_currentFont is null)
-                {
-                    _currentFont = new XFont("Arial", 10);
-                }
-                return _currentFont;
-            }
-            set
-            {
-                _currentFont = value;
-            }
+            get => _currentFont ??= new XFont("Arial", 10);
+            set => _currentFont = value;
         }
 
         public double PageWidth => CurrentPage.Width;
@@ -128,38 +83,37 @@ namespace PdfSharpDslCore.Drawing
         {
             get
             {
-                if (_gfx is null)
-                {
-                    _gfx = XGraphics.FromPdfPage(CurrentPage);
-                }
+                if (_gfx is not null) return _gfx;
+                _gfx = XGraphics.FromPdfPage(CurrentPage);
+                // HACK, read from https://github.com/ststeiger/PdfSharpCore/blob/master/docs/MigraDocCore/samples/MixMigraDocCoreAndPDFsharpCore.md
+                _gfx.MUH = PdfFontEncoding.Unicode;
+
                 return _gfx;
             }
         }
 
         #endregion
 
-        protected virtual void Dispose(bool disposing)
+        private void Dispose(bool disposing)
         {
-            if (!disposedValue)
+            if (_disposedValue) return;
+            if (disposing)
             {
-                if (disposing)
-                {
-                    // TODO: dispose managed state (managed objects)
-                    if (!(_gfx is null))
-                        _gfx.Dispose();
-                }
-                _gfx = null;
-                // TODO: free unmanaged resources (unmanaged objects) and override finalizer
-                // TODO: set large fields to null
-                disposedValue = true;
+                // TODO: dispose managed state (managed objects)
+                _gfx?.Dispose();
             }
+
+            _gfx = null;
+            _gfxRenderer = null;
+            // TODO: free unmanaged resources (unmanaged objects) and override finalizer
+            // TODO: set large fields to null
+            _disposedValue = true;
         }
 
         public void Dispose()
         {
             // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
             Dispose(disposing: true);
-            GC.SuppressFinalize(this);
         }
 
         private (double, double, double, double) CoordRectToPage(double x, double y, double w, double h)
@@ -169,18 +123,22 @@ namespace PdfSharpDslCore.Drawing
             {
                 x = page.Width + x;
             }
+
             if (y < 0)
             {
                 y = page.Height + y;
             }
+
             if (w < 0)
             {
                 w = page.Width + w - x;
             }
+
             if (h < 0)
             {
                 h = page.Height + h - y;
             }
+
             return (x, y, w, h);
         }
 
@@ -191,24 +149,22 @@ namespace PdfSharpDslCore.Drawing
             {
                 x = page.Width + x;
             }
+
             if (y < 0)
             {
                 y = page.Height + y;
             }
-            if (!(w is null))
+
+            if (w is < 0)
             {
-                if (w < 0)
-                {
-                    w = page.Width + w - x;
-                }
+                w = page.Width + w - x;
             }
-            if (!(h is null))
+
+            if (h is < 0)
             {
-                if (h < 0)
-                {
-                    h = page.Height + h - y;
-                }
+                h = page.Height + h - y;
             }
+
             return (x, y, w, h);
         }
 
@@ -219,24 +175,30 @@ namespace PdfSharpDslCore.Drawing
             {
                 x = page.Width + x;
             }
+
             if (y < 0)
             {
                 y = page.Height + y;
             }
+
             if (x1 < 0)
             {
                 x1 = page.Width + x1;
             }
+
             if (y1 < 0)
             {
                 y1 = page.Height + y1;
             }
+
             Gfx.DrawLine(CurrentPen, x, y, x1, y1);
+            this.drawingContext.UpdateDrawingRect(new XPoint(x, y), new XPoint(x1, y1));
         }
 
         public void DrawRect(double x, double y, double w, double h, bool isFilled)
         {
             (x, y, w, h) = CoordRectToPage(x, y, w, h);
+            this.drawingContext.UpdateDrawingRect(x, y, w, h);
             if (isFilled)
             {
                 Gfx.DrawRectangle(CurrentPen, CurrentBrush, x, y, w, h);
@@ -251,6 +213,7 @@ namespace PdfSharpDslCore.Drawing
         {
             (x, y, w, h) = CoordRectToPage(x, y, w, h);
             var r = new XRect(x, y, w, h);
+            this.drawingContext.UpdateDrawingRect(r);
             if (isFilled)
             {
                 Gfx.DrawEllipse(CurrentPen, CurrentBrush, r);
@@ -259,10 +222,10 @@ namespace PdfSharpDslCore.Drawing
             {
                 Gfx.DrawEllipse(CurrentPen, r);
             }
-
         }
 
-        public void DrawText(string text, double x, double y, double? w, double? h/*, XStringAlignment hAlign, XLineAlignment vAlign*/)
+        public void DrawText(string text, double x, double y, double? w,
+            double? h /*, XStringAlignment hAlign, XLineAlignment vAlign*/)
         {
             var page = CurrentPage;
             (x, y, w, h) = CoordRectToPage(x, y, w, h);
@@ -275,33 +238,39 @@ namespace PdfSharpDslCore.Drawing
             if (w == null || h == null)
             {
                 //because of missing w/h alignment is Left
-                var sizeFormatter = new XTextSegmentFormatter(Gfx);
-                sizeFormatter.Alignment = XParagraphAlignment.Left;
-                var size = sizeFormatter.CalculateTextSize(text, CurrentFont, CurrentBrush, page.Width - x);
+                var sizeFormatter = new XTextSegmentFormatter(Gfx) {
+                    Alignment = XParagraphAlignment.Left
+                };
+                w = w ?? page.Width - x;
+                var size = sizeFormatter.CalculateTextSize(text, CurrentFont, CurrentBrush, w.Value);
                 var r = new XRect(x, y, size.Width, size.Height);
-                var formatter = new XTextFormatter(Gfx);
-                formatter.DrawString(text, CurrentFont, CurrentBrush, r);
+
+                sizeFormatter.DrawString(text, CurrentFont, CurrentBrush, r);
+                //var formatter = new XTextFormatter(Gfx);
+                //formatter.DrawString(text, CurrentFont, CurrentBrush, r);
+                this.drawingContext.UpdateDrawingRect(r);
 #if DEBUG1
                 Gfx.DrawRectangle(XPens.Red, r);
 #endif
             }
             else
             {
-                //fmt is not used, beacause DrawSTring support only TopLeft
+                //fmt is not used, because DrawString support only TopLeft
                 var r = new XRect(x, y, w.Value, h.Value);
                 var formatter = new XTextFormatter(Gfx);
                 formatter.DrawString(text, CurrentFont, CurrentBrush, r);
+                this.drawingContext.UpdateDrawingRect(r);
 #if DEBUG1
                 Gfx.DrawRectangle(XPens.Red, r);
 #endif
             }
         }
 
-        public void DrawLineText(string text, double x, double y, double? w, double? h, XStringAlignment hAlign, XLineAlignment vAlign, TextOrientation textOrientation)
+        public void DrawLineText(string text, double x, double y, double? w, double? h, XStringAlignment hAlign,
+            XLineAlignment vAlign, TextOrientation textOrientation)
         {
             (x, y, w, h) = CoordRectToPage(x, y, w, h);
-            var fmt = new XStringFormat
-            {
+            var fmt = new XStringFormat {
                 Alignment = hAlign,
                 LineAlignment = vAlign,
             };
@@ -322,7 +291,7 @@ namespace PdfSharpDslCore.Drawing
         {
             double angle = 0;
 
-            if (!(textOrientation.Angle is null))
+            if (textOrientation.Angle is not null)
             {
                 angle = textOrientation.Angle.Value;
             }
@@ -335,106 +304,41 @@ namespace PdfSharpDslCore.Drawing
             {
                 Gfx.RotateAtTransform(angle, new XPoint(x, y));
             }
+
             var textSize = Gfx.MeasureString(text, CurrentFont);
             if (w == null || h == null)
             {
                 Gfx.DrawString(text, CurrentFont, CurrentBrush, x, y, fmt);
+                this.drawingContext.UpdateDrawingRect(x, y, textSize.Width, textSize.Height);
+                if (HighlightBrush == null) return;
 
-                if (_highlightBrush != null)
-                {
-                    var r = RectFromStringFormat(x, y, textSize, fmt);
-                    //
-                    //var highlightColor = XColor.FromArgb(50, 255, 233, 178);
-                    //var b = new XSolidBrush(highlightColor);
-                    Gfx.DrawRectangle(_highlightBrush, r);
-                }
+                var r = DrawingHelper.RectFromStringFormat(x, y, textSize, fmt);
+                //
+                //var highlightColor = XColor.FromArgb(50, 255, 233, 178);
+                //var b = new XSolidBrush(highlightColor);
+                Gfx.DrawRectangle(HighlightBrush, r);
             }
             else
             {
                 //fmt is not used, because DrawString support only TopLeft
                 var r = new XRect(x, y, w.Value, h.Value);
                 Gfx.DrawString(text, CurrentFont, CurrentBrush, r, fmt);
-                if (_highlightBrush != null)
-                {
-                    var hr = RectFromStringFormat(x, y, textSize, fmt);
-                    hr.Intersect(r);
-                    //var highlightColor = XColor.FromArgb(50, 255, 233, 178);
-                    //var b = new XSolidBrush(highlightColor);
-                    Gfx.DrawRectangle(_highlightBrush, hr);
-                }
-            }
-        }
 
-        private XRect RectFromStringFormat(XRect r, XSize textSize, XStringFormat fmt)
-        {
-            var result = new XRect(r.TopLeft, textSize);
-            
-            switch (fmt.Alignment)
-            {
-                case XStringAlignment.Center:
-                    result.Offset((r.Width - textSize.Width)/2, 0);
-                    break;
-                case XStringAlignment.Near:
-                    break;
-                case XStringAlignment.Far:
-                    result.Offset(r.Right-textSize.Width, 0);
-                    break;
+                this.drawingContext.UpdateDrawingRect(r);
+                if (HighlightBrush == null) return;
+                var hr = DrawingHelper.RectFromStringFormat(x, y, textSize, fmt);
+                hr.Intersect(r);
+                //var highlightColor = XColor.FromArgb(50, 255, 233, 178);
+                //var b = new XSolidBrush(highlightColor);
+                Gfx.DrawRectangle(HighlightBrush, hr);
             }
-            switch (fmt.LineAlignment)
-            {
-                case XLineAlignment.Center:
-                    result.Offset(0,(r.Height - textSize.Height) / 2);
-                    break;
-                case XLineAlignment.Near:
-                    break;
-                case XLineAlignment.Far:
-                    result.Offset(0, r.Bottom - textSize.Height);
-                    break;
-            }
-            //to crop if text is larger/higher than provided rectangle
-            result.Intersect(r);
-            return result;
-        }
-
-        private XRect RectFromStringFormat(double x, double y, XSize textSize, XStringFormat fmt)
-        {
-            var result = new XRect(x, y, textSize.Width, textSize.Height);
-
-            var xOffset = 0.0;
-            var yOffset = 0.0;
-            switch (fmt.Alignment)
-            {
-                case XStringAlignment.Center:
-                    xOffset -= textSize.Width / 2;
-                    break;
-                case XStringAlignment.Near:
-                    break;
-                case XStringAlignment.Far:
-                    xOffset -= textSize.Width;
-                    break;
-            }
-            switch (fmt.LineAlignment)
-            {
-                case XLineAlignment.Center:
-                    yOffset -= textSize.Height / 2;
-                    break;
-                case XLineAlignment.Near:
-                    break;
-                case XLineAlignment.Far:
-                    yOffset -= textSize.Height;
-                    break;
-            }
-            result.Offset(xOffset, yOffset);
-
-            return result;
         }
 
         public void DrawTitle(string text, double margin, XStringAlignment hAlign, XLineAlignment vAlign)
         {
             var page = CurrentPage;
 
-            var fmt = new XStringFormat
-            {
+            var fmt = new XStringFormat {
                 Alignment = hAlign,
                 LineAlignment = vAlign,
             };
@@ -444,21 +348,22 @@ namespace PdfSharpDslCore.Drawing
             {
                 margin = page.Height - textSize.Height + margin;
             }
+
             var r = new XRect(0, margin, page.Width, textSize.Height);
             Gfx.DrawString(text, CurrentFont, CurrentBrush, r, fmt);
-            if (_highlightBrush != null)
-            {
-                var hr = RectFromStringFormat(r, textSize, fmt);
-                Gfx.DrawRectangle(_highlightBrush, hr);
-            }
+            this.drawingContext.UpdateDrawingRect(r);
+            if (HighlightBrush == null) return;
+
+            var hr = DrawingHelper.RectFromStringFormat(r, textSize, fmt);
+            Gfx.DrawRectangle(HighlightBrush, hr);
         }
 
         public void DrawTable(double x, double y, TableDefinition tblDef)
         {
+            var availableWidth = PageWidth - x;
             Gfx.Save();
             try
             {
-                var maxHeightForTable = CurrentPage.Height - y;
                 //todo check if the current page can receive 
                 //calculate table dimension
                 var defaultFont = CurrentFont;
@@ -480,27 +385,57 @@ namespace PdfSharpDslCore.Drawing
                         {
                             column.DesiredWidth = measure.Width + margins.Left + margins.Right;
                         }
+
                         if (calcHeaderHeight)
                         {
-                            tblDef.HeaderHeight = Math.Max(tblDef.HeaderHeight ?? 0, measure.Height + margins.Top + margins.Bottom);
+                            tblDef.HeaderHeight = Math.Max(tblDef.HeaderHeight ?? 0,
+                                measure.Height + margins.Top + margins.Bottom);
                         }
                     }
+
                     i++;
                 }
+
                 //measure all rows
+                var sizeFormatter = new XTextSegmentFormatter(Gfx) {
+                    Alignment = XParagraphAlignment.Left
+                };
                 foreach (var row in tblDef.Rows)
                 {
-                    if (row.DesiredHeight is null)
+                    var rowMeasure = row.DesiredHeight is null;
+                    for (i = 0; i < row.Data.Length; i++)
                     {
-                        for (i = 0; i < row.Data.Length; i++)
+                        var testSize = !colMeasure[i];
+                        var pageSpaceLeft = tblDef.ColMaxWidth(i, availableWidth);
+                        var column = tblDef.Columns[i];
+                        if (colMeasure[i])
                         {
-                            var measure = Gfx.MeasureString(row.Data[i], xFonts[i]);
-                            row.DesiredHeight = Math.Max(row.DesiredHeight ?? 0, measure.Height + margins.Top + margins.Bottom);
-                            if (colMeasure[i])
+                            var cSize = Gfx.MeasureString(row.Data[i], xFonts[i]);
+                            cSize.Width += (margins.Left + margins.Right);
+                            if (cSize.Width > pageSpaceLeft)
                             {
-                                var column = tblDef.Columns[i];
-                                column.DesiredWidth = Math.Max(column.DesiredWidth ?? 0, measure.Width + margins.Left + margins.Right);
+                                //measure height with fixed width
+                                testSize = true;
+                                column.DesiredWidth = Math.Max(column.DesiredWidth ?? 0, pageSpaceLeft);
                             }
+                            else
+                            {
+                                column.DesiredWidth = Math.Max(column.DesiredWidth ?? 0, cSize.Width);
+                            }
+
+                            if (rowMeasure)
+                            {
+                                row.DesiredHeight = Math.Max(row.DesiredHeight ?? 0,
+                                    cSize.Height + margins.Top + margins.Bottom);
+                            }
+                        }
+
+                        if (!testSize) continue;
+                        var w = Math.Min(column.DesiredWidth ?? 0, pageSpaceLeft);
+                        var measure = sizeFormatter.CalculateTextSize(row.Data[i], xFonts[i], defaultBrush, w);
+                        if (rowMeasure)
+                        {
+                            row.DesiredHeight = Math.Max(row.DesiredHeight ?? 0, measure.Height + margins.Top + margins.Bottom);
                         }
                     }
                 }
@@ -517,17 +452,26 @@ namespace PdfSharpDslCore.Drawing
                     //TODO: set top margin
                     y = 1;
                 }
+
                 foreach (var column in tblDef.Columns)
                 {
-                    var r = new XRect(offsetX + x, y, column.DesiredWidth ?? 0, tblDef.HeaderHeight ?? 0);
+                    var w = column.DrawWidth;
+                    var h = tblDef.HeaderHeight ?? 0;
+
+                    var r = new XRect(offsetX + x, y, w, h);
+                    var hMargin = margins.Left + margins.Right;
+                    var vMargin = margins.Top + margins.Bottom;
+                    var rText = new XRect(offsetX + x + margins.Left, offsetY + y + margins.Top, w - hMargin,
+                        h - vMargin);
 
                     Gfx.DrawRectangle(CurrentPen, tblDef.HeaderBackColor, r);
-                    offsetX += column.DesiredWidth ?? 0;
+                    offsetX += column.DrawWidth;
                     //todo: alignment
                     var fmt = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center };
-                    DrawStringMultiline(column.ColumnHeaderName, xFonts[i], column.Brush ?? defaultBrush, r, fmt);
+                    DrawStringMultiline(column.ColumnHeaderName, xFonts[i], column.Brush ?? defaultBrush, rText, fmt);
                     i++;
                 }
+
                 offsetY = tblDef.HeaderHeight ?? 0;
                 //draw body
                 foreach (var row in tblDef.Rows)
@@ -541,23 +485,29 @@ namespace PdfSharpDslCore.Drawing
                         y = 1;
                         offsetY = 0;
                     }
+
                     offsetX = 0;
                     for (i = 0; i < row.Data.Length; i++)
                     {
-                        var w = tblDef.Columns[i].DesiredWidth ?? 0;
+                        var w = tblDef.Columns[i].DrawWidth;
                         var h = row.DesiredHeight ?? 0;
                         var r = new XRect(offsetX + x, offsetY + y, w, h);
+                        ResetClip();
                         Gfx.DrawRectangle(CurrentPen, tblDef.Columns[i].BackColor, r);
                         var hMargin = margins.Left + margins.Right;
                         var vMargin = margins.Top + margins.Bottom;
-                        var rText = new XRect(offsetX + x + margins.Left, offsetY + y + margins.Top, w - hMargin, h - vMargin);
+                        var rText = new XRect(offsetX + x + margins.Left, offsetY + y + margins.Top, w - hMargin,
+                            h - vMargin);
+                        Gfx.IntersectClip(rText);
                         var fmt = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center };
                         //to debug
                         //Gfx.DrawRectangle(XPens.Violet, rText);
                         //TODO: split to draw one string per line
-                        DrawStringMultiline(row.Data[i], xFonts[i], tblDef.Columns[i].Brush ?? defaultBrush, rText, fmt);
+                        DrawStringMultiline(row.Data[i], xFonts[i], tblDef.Columns[i].Brush ?? defaultBrush, rText,
+                            fmt);
                         offsetX += w;
                     }
+
                     offsetY += row.DesiredHeight ?? 0;
                 }
             }
@@ -565,21 +515,32 @@ namespace PdfSharpDslCore.Drawing
             {
                 Gfx.Restore();
             }
+        }
 
+        private void ResetClip()
+        {
+            if (_gfx is null) return;
+            _gfxRenderer ??= (IXGraphicsRenderer)_gfx.GetType().GetField("_renderer",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.GetField
+                                                             | System.Reflection.BindingFlags.Instance)
+                .GetValue(_gfx);
+            _gfxRenderer.ResetClip();
         }
 
         private void DrawStringMultiline(string text, XFont xFont, XBrush xBrush, XRect r, XStringFormat fmt)
         {
-            var splitted = text.Split(new string[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
-            splitted = splitted.SelectMany(x => x.Split('\r', '\n')).ToArray();
-            var h = r.Height / splitted.Length;
-            var offsetY = 0.0;
-            foreach (var s in splitted)
-            {
-                Gfx.DrawString(s, xFont, xBrush, new XRect(r.Left, r.Top + offsetY, r.Width, h), fmt);
-                offsetY += h;
-            }
-
+            var formatter = new XTextFormatter(Gfx);
+            formatter.DrawString(text, xFont, xBrush, r);
+            this.drawingContext.UpdateDrawingRect(r);
+            //var splitted = text.Split(new string[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+            //splitted = splitted.SelectMany(x => x.Split('\r', '\n')).ToArray();
+            //var h = r.Height / splitted.Length;
+            //var offsetY = 0.0;
+            //foreach (var s in splitted)
+            //{
+            //    Gfx.DrawString(s, xFont, xBrush, new XRect(r.Left, r.Top + offsetY, r.Width, h), fmt);
+            //    offsetY += h;
+            //}
         }
 
         public void SetViewSize(double w, double h)
@@ -614,6 +575,7 @@ namespace PdfSharpDslCore.Drawing
         {
             var endPoint = new XPoint(x, y);
             Gfx.DrawLine(CurrentPen, _currentPoint, endPoint);
+            this.drawingContext.UpdateDrawingRect(new XRect(_currentPoint, endPoint));
             _currentPoint = endPoint;
         }
 
@@ -626,16 +588,19 @@ namespace PdfSharpDslCore.Drawing
                 {
                     w = (double)(w * 72) / 96.0;
                 }
+
                 if (h is not null)
                 {
                     h = (double)(h * 72) / 96.0;
                 }
             }
+
             //fix coord if < 0 
             (x, y, w, h) = CoordRectToPage(x, y, w, h);
             if (w is null && h is null)
             {
                 Gfx.DrawImage(image, x, y);
+                this.drawingContext.UpdateDrawingRect(x, y, image.PointWidth, image.PointHeight);
             }
             else
             {
@@ -643,10 +608,12 @@ namespace PdfSharpDslCore.Drawing
                 {
                     w = image.PointWidth;
                 }
+
                 if (h is null)
                 {
                     h = image.PointHeight;
                 }
+
                 if (cropImage)
                 {
                     //draw in form, then draw form in page
@@ -659,11 +626,14 @@ namespace PdfSharpDslCore.Drawing
                 {
                     Gfx.DrawImage(image, x, y, w.Value, h.Value);
                 }
+                this.drawingContext.UpdateDrawingRect(x, y, w, h);
             }
         }
 
-        public void DrawPie(double x, double y, double? w, double? h, double startAngle, double sweepAngle, bool isFilled)
+        public void DrawPie(double x, double y, double? w, double? h, double startAngle, double sweepAngle,
+            bool isFilled)
         {
+            this.drawingContext.UpdateDrawingRect(x, y, w, h);
             if (isFilled)
             {
                 Gfx.DrawPie(CurrentPen, CurrentBrush, x, y, w ?? 0, h ?? 0, startAngle, sweepAngle);
@@ -676,14 +646,52 @@ namespace PdfSharpDslCore.Drawing
 
         public void DrawPolygon(IEnumerable<XPoint> points, bool isFilled)
         {
+            var ptArray = points.ToArray();
+            this.drawingContext.UpdateDrawingRect(ptArray);
             if (isFilled)
             {
-                Gfx.DrawPolygon(CurrentPen, CurrentBrush, points.ToArray(), XFillMode.Alternate);
+                Gfx.DrawPolygon(CurrentPen, CurrentBrush, ptArray, XFillMode.Alternate);
             }
             else
             {
-                Gfx.DrawPolygon(CurrentPen, points.ToArray());
+                Gfx.DrawPolygon(CurrentPen, ptArray);
             }
+        }
+
+        public void BeginDrawRowTemplate(double offsetY)
+        {
+            this.drawingContext.PushDrawingRect(new XRect(0, 0, 0, 0));
+            //Gfx.DrawLine(XPens.DarkViolet, new XPoint(0, offsetY), new XPoint(PageWidth, offsetY));
+            Gfx.Save();
+            Gfx.TranslateTransform(0, offsetY);
+            //Gfx.DrawLine(XPens.DarkViolet, new XPoint(0, 0), new XPoint(PageWidth, 0));
+
+        }
+
+        public XRect EndDrawRowTemplate()
+        {
+
+            var result = this.drawingContext.PopDrawingRect(false);
+            //var level = this.drawingContext.Level;
+            //XPen pen = level switch {
+            //    2 => XPens.PaleVioletRed,
+            //    1 => XPens.BlueViolet,
+            //    _ => XPens.Violet
+            //};
+
+            //Gfx.DrawRectangle(pen, result);
+            Gfx.Restore();
+            return result;
+        }
+
+        public void BeginIterationTemplate()
+        {
+
+        }
+
+        public void EndIterationTemplate(double drawHeight)
+        {
+            this.drawingContext.UpdateDrawingRect(0, 0, 0, drawHeight);
         }
 
     }

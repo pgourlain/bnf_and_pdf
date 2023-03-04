@@ -1,0 +1,14 @@
+﻿# table sample
+
+TABLE 20, 20
+HEAD
+COL Width=40 MaxWidth=40 "Date";
+COL Width=40 MaxWidth=20 "";
+COL Width=auto MaxWidth=600 "Remarques";
+ENDHEAD
+ROWTEMPLATE 10 
+COL "getCommentDate($ROWINDEX)";
+COL "    ";
+COL "getComment($ROWINDEX)";
+ENDROW
+ENDTABLE

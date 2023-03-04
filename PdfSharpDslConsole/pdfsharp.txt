@@ -159,7 +159,7 @@ HEAD g1.9
 # COL desiredwidth maxwidth [Font=name,size,style] [FontColor BackColor] headerName
 COL Width=auto MaxWidth=auto FONT="Consolas", 8, bold green g1.9 "FirstName";
 COL Width=auto MaxWidth=40 FONT="Consolas", 8, regular red lightblue "LastName"; 
-COL Width=auto MaxWidth=40 "Age";
+COL Width=auto MaxWidth=300 "Age";
 COL Width=auto MaxWidth=40 "Title";
 COL Width=auto MaxWidth=40 "Project";
 ENDHEAD
@@ -236,6 +236,43 @@ ENDTABLE
 
 NEWPAGE;
 
+SET FONT Name="Arial" Size=20 bold ;
+TITLE HAlign=hcenter Text="ROWTEMPLATE";
+
+SET FONT Name="Arial" Size=10 regular;
+
+SET PEN black 0.5;
+
+LINETEXT 50, 100 HAlign=hcenter VAlign=bottom Text="Date";
+LINETEXT 150, 100 HAlign=left VAlign=bottom Text="Remarques";
+
+ROWTEMPLATE Count=getGlobalCommentsCount() Y=100 BorderSize=15
+    LINETEXT 50, 5 HAlign=hcenter VAlign=top Text=getGlobalCommentDate($ROWINDEX); 
+	# LINE 0,0, $PAGEWIDTH, 0;
+    
+    SET VAR GINDEX=$ROWINDEX;
+    ROWTEMPLATE Count=getCommentsCount($GINDEX) Y=0 BorderSize=3
+		LINETEXT 130, 0 HAlign=left VAlign=top Text=getCommentAuthor($GINDEX,$ROWINDEX) + "   " + getCommentDate($GINDEX,$ROWINDEX)+":";   
+        TEXT 130, 12 MaxWidth=$PAGEWIDTH-20-130 Text="- "+getComment($GINDEX,$ROWINDEX);         
+    ENDROWTEMPLATE
+	RECT 125,0, $PAGEWIDTH-20-145, $LASTTEMPLATEHEIGHT 
+ENDROWTEMPLATE
+
+
+ROWTEMPLATE Count=3 Y=300 BorderSize=5
+    # top line under border
+	LINE 0,0,$PAGEWIDTH-20, 0;
+
+	LINE 0,0,50, 50;
+    # bottom line under border
+	LINE 0,50,$PAGEWIDTH-20, 50;
+ENDROWTEMPLATE
+# rect include borders
+RECT 0,300, $PAGEWIDTH-20, $LASTTEMPLATEHEIGHT 
+
+NEWPAGE
+
+SET PEN black 0.5;
 SET FONT Name="Arial" Size=20 bold ;
 TITLE HAlign=hcenter Text="Image TEST";
 
