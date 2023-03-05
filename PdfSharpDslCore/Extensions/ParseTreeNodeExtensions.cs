@@ -3,6 +3,7 @@ using PdfSharpCore.Drawing;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
@@ -35,9 +36,9 @@ namespace PdfSharpDslCore.Extensions
             return result.AsReadOnly();
         }
 
-        public static ParseTreeNode ChildNode(this ParseTreeNode node, string termName)
+        public static ParseTreeNode? ChildNode(this ParseTreeNode node, string termName)
         {
-            return node.ChildNodes.Where(n => n.Term != null && n.Term.Name == termName).FirstOrDefault();
+            return node.ChildNodes.FirstOrDefault(n => n.Term != null && n.Term.Name == termName);
         }
 
         public static XFontStyle ParseFontStyle(this ParseTreeNode? node)
@@ -67,8 +68,9 @@ namespace PdfSharpDslCore.Extensions
         {
             var color = (string)node.ChildNodes[0].Token.Value;
 
-            var staticColor = typeof(XColors).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
-                .Where(x => string.Compare(x.Name, color, StringComparison.OrdinalIgnoreCase) == 0).FirstOrDefault();
+            var staticColor = typeof(XColors)
+                .GetProperties(BindingFlags.Public | BindingFlags.Static)
+                .FirstOrDefault(x => string.Compare(x.Name, color, StringComparison.OrdinalIgnoreCase) == 0);
             return ((XColor?)staticColor?.GetValue(null)) ?? XColors.Black;
         }
 

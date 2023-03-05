@@ -6,6 +6,7 @@ using PdfSharpDslCore.Evaluation;
 using PdfSharpDslCore.Extensions;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 
@@ -337,15 +338,15 @@ namespace PdfSharpDslCore.Parser
             if (vars is IVariablesDictionary savable) savable.SaveVariables();
             try
             {
-                state.BeginIterationTemplate();
+                state.BeginIterationTemplate((int)rowCount);
                 for (int i = 0; i < rowCount; i++)
                 {
-                    state.BeginDrawRowTemplate(offsetY);
+                    state.BeginDrawRowTemplate(i, offsetY);
                     //set row index
                     _variables.Add("ROWINDEX", i);
 
                     Visit(state, body.ChildNodes);
-                    var drawingRect = state.EndDrawRowTemplate();
+                    var drawingRect = state.EndDrawRowTemplate(i);
 
                     drawHeight += drawingRect.Height + borderSize;
                     offsetY += drawingRect.Height + borderSize;
@@ -361,6 +362,24 @@ namespace PdfSharpDslCore.Parser
             }
             _variables.Add("LASTTEMPLATEHEIGHT", drawHeight);
         }
+
+        protected override void ExecuteDebugOptions(IPdfDocumentDrawer state, IEnumerable<string> options)
+        {
+            foreach (var option in options.Select(MapToDebugOption))
+            {
+                state.DebugOptions |= option;
+            }
+        }
+
+        private DebugOptions MapToDebugOption(string s) => s switch
+        {
+            "DEBUG_TEXT" => DebugOptions.DebugText,
+            "DEBUG_RECT" => DebugOptions.DebugRect,
+            "DEBUG_ROWTEMPLATE" => DebugOptions.DebugRowTemplate,
+            "DEBUG_ALL" => DebugOptions.DebugAll,
+            _ => DebugOptions.None
+        };
+
         #endregion
 
 

@@ -1,8 +1,9 @@
 ﻿using PdfSharpCore.Drawing;
+using PdfSharpCore.Pdf;
 
 namespace PdfSharpDslCore.Drawing
 {
-    internal class DrawingHelper
+    internal static class DrawingHelper
     {
         public static XRect RectFromStringFormat(XRect r, XSize textSize, XStringFormat fmt)
         {
@@ -70,6 +71,55 @@ namespace PdfSharpDslCore.Drawing
             result.Offset(xOffset, yOffset);
 
             return result;
+        }
+        public static (double, double, double, double) CoordRectToPage(this PdfPage page, double x, double y, double w, double h)
+        {
+            if (x < 0)
+            {
+                x = page.Width + x;
+            }
+
+            if (y < 0)
+            {
+                y = page.Height + y;
+            }
+
+            if (w < 0)
+            {
+                w = page.Width + w - x;
+            }
+
+            if (h < 0)
+            {
+                h = page.Height + h - y;
+            }
+
+            return (x, y, w, h);
+        }
+
+        public static (double, double, double?, double?) CoordRectToPage(this PdfPage page, double x, double y, double? w, double? h)
+        {
+            if (x < 0)
+            {
+                x = page.Width + x;
+            }
+
+            if (y < 0)
+            {
+                y = page.Height + y;
+            }
+
+            if (w is < 0)
+            {
+                w = page.Width + w - x;
+            }
+
+            if (h is < 0)
+            {
+                h = page.Height + h - y;
+            }
+
+            return (x, y, w, h);
         }
     }
 }

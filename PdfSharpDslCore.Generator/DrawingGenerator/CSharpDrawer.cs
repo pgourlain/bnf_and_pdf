@@ -70,6 +70,7 @@ namespace PdfSharpDslCore.Generator.DrawingGenerator
         public double PageWidth => 100;//throw new NotImplementedException();
 
         public double PageHeight => 100;//throw new NotImplementedException();
+        public DebugOptions DebugOptions { get; set; }
 
         public void DrawEllipse(double x, double y, double w, double h, bool isFilled)
         {
@@ -141,18 +142,18 @@ namespace PdfSharpDslCore.Generator.DrawingGenerator
             //throw new NotImplementedException();
         }
 
-        public void BeginDrawRowTemplate(double offsetY)
+        public void BeginDrawRowTemplate(int index, double offsetY)
         {
             //throw new NotImplementedException();
         }
 
-        public XRect EndDrawRowTemplate()
+        public XRect EndDrawRowTemplate(int index)
         {
             //throw new NotImplementedException();
             return XRect.Empty;
         }
 
-        public void BeginIterationTemplate()
+        public void BeginIterationTemplate(int rowCount)
         {
             //throw new NotImplementedException();
         }

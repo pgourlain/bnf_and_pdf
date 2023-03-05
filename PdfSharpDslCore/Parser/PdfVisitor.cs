@@ -31,9 +31,12 @@ namespace PdfSharpDslCore.Parser
 
             //define each udf before visiting in order to accept call before definition
             tree.Root.ChildNodes.Where(x => x.Term?.Name == "UdfSmt").ToList().ForEach(ExecuteUdfStatement);
+            //check for debug options
+            var debugOptions = ParseDebugOptions(tree.Root.ChildNodes("debugOption"));
+            ExecuteDebugOptions(state, debugOptions);
             Visit(state, tree.Root.ChildNodes);
         }
-
+        
         /// <summary>
         /// register a custom function 
         /// </summary>
@@ -68,73 +71,74 @@ namespace PdfSharpDslCore.Parser
                     Visit(state, node.ChildNodes[0]);
                     break;
                 case "SetSmt":
-                    VisitSET(state, node.ChildNodes[1]);
+                    VisitSet(state, node.ChildNodes[1]);
                     break;
                 case "RectSmt":
-                    VisitRECT(state, node.ChildNodes[1], false);
+                    VisitRect(state, node.ChildNodes[1], false);
                     break;
                 case "FillRectSmt":
-                    VisitRECT(state, node.ChildNodes[1], true);
+                    VisitRect(state, node.ChildNodes[1], true);
                     break;
                 case "LineTextSmt":
-                    VisitLINETEXT(state, node);
+                    VisitLinetext(state, node);
                     break;
                 case "NewPage":
-                    VisitNEWPAGE(state, node);
+                    VisitNewpage(state, node);
                     break;
                 case "IfSmt":
-                    VisitIF(state, node);
+                    VisitIf(state, node);
                     break;
                 case "PieSmt":
-                    VisitPIE(state, node, false);
+                    VisitPie(state, node, false);
                     break;
                 case "FillPieSmt":
-                    VisitPIE(state, node, true);
+                    VisitPie(state, node, true);
                     break;
                 case "ViewSizeSmt":
-                    VisitVIEWSIZE(state, node.ChildNodes[1]);
+                    VisitViewsize(state, node.ChildNodes[1]);
                     break;
                 case "EllipseSmt":
-                    VisitELLIPSE(state, node, false);
+                    VisitEllipse(state, node, false);
                     break;
                 case "FillEllipseSmt":
-                    VisitELLIPSE(state, node, true);
+                    VisitEllipse(state, node, true);
                     break;
                 case "TitleSmt":
-                    VisitTITLE(state, node);
+                    VisitTitle(state, node);
                     break;
                 case "PolygonSmt":
-                    VisitPOLYGON(state, node, false);
+                    VisitPolygon(state, node, false);
                     break;
                 case "FillPolygonSmt":
-                    VisitPOLYGON(state, node, true);
+                    VisitPolygon(state, node, true);
                     break;
                 case "MoveToSmt":
-                    VisitMOVETO(state, node);
+                    VisitMoveto(state, node);
                     break;
                 case "LineToSmt":
-                    VisitLINETO(state, node);
+                    VisitLineto(state, node);
                     break;
                 case "TextSmt":
-                    VisitTEXT(state, node);
+                    VisitText(state, node);
                     break;
                 case "LineSmt":
-                    VisitLINE(state, node);
+                    VisitLine(state, node);
                     break;
                 case "ForSmt":
-                    VisitFOR(state, node);
+                    VisitFor(state, node);
                     break;
                 case "ImageSmt":
-                    VisitIMAGE(state, node);
+                    VisitImage(state, node);
                     break;
+                case "DebugOptionsSmt":
                 case "UdfSmt":
                     //nothing to do, it's already done before
                     break;
                 case "UdfInvokeSmt":
-                    VisitCALLUDF(state, node);
+                    VisitCalludf(state, node);
                     break;
                 case "RowTemplateSmt":
-                    VisitROWTEMPLATE(state, node);
+                    VisitRowtemplate(state, node);
                     break;
                 default:
                     CustomVisit(state, node);
@@ -142,7 +146,10 @@ namespace PdfSharpDslCore.Parser
             }
         }
 
-        #region to be override 
+        #region to be override
+
+        protected virtual void ExecuteDebugOptions(TState state, IEnumerable<string> options)
+        { }
         protected virtual void CustomVisit(TState state, ParseTreeNode node)
         {
             throw new NotImplementedException($"{node.Term.Name} is not yet implemented");
@@ -156,8 +163,7 @@ namespace PdfSharpDslCore.Parser
         protected virtual void ExecutePen(TState state, ParseTreeNode widthNode,
             ParseTreeNode colorNode,
             ParseTreeNode styleNode)
-        {
-        }
+        { }
 
         protected virtual void ExecuteSetVar(TState state, ParseTreeNode node)
         { }
@@ -263,7 +269,19 @@ namespace PdfSharpDslCore.Parser
 
         #region private visit methods
 
-        private void VisitROWTEMPLATE(TState state, ParseTreeNode node)
+        private IEnumerable<string> ParseDebugOptions(IEnumerable<ParseTreeNode> nodes)
+        {
+            foreach (var optionNode in nodes)
+            {
+                var optionName = optionNode.Token.Text;
+                if (optionName.StartsWith("DEBUG_"))
+                {
+                    yield return optionName;
+                }
+            }
+        }
+
+        private void VisitRowtemplate(TState state, ParseTreeNode node)
         {
             var rowCount = node.ChildNodes[2];
             var offset = node.ChildNodes[5];
@@ -276,21 +294,21 @@ namespace PdfSharpDslCore.Parser
             {
                 borderSizeNode = null;
             }
-            var body = node.ChildNode("RowTemplateBlock").ChildNode("EmbbededSmtList");
+            var body = node.ChildNode("RowTemplateBlock")?.ChildNode("EmbbededSmtList")!;
             ExecuteRowTemplateStatement(state, rowCount, offset, borderSizeNode, body);
         }
 
-        private void VisitCALLUDF(TState state, ParseTreeNode node)
+        private void VisitCalludf(TState state, ParseTreeNode node)
         {
             var fnName = node.ChildNodes[1].Token.ValueString;
-            var arguments = node.ChildNode("CallInvokeArgumentslist");
+            var arguments = node.ChildNode("CallInvokeArgumentslist")!;
             ParseTreeNode defArgs = null!;
             ParseTreeNode defBody = null!;
 
             if (_udfs.TryGetValue(fnName, out var defNode))
             {
-                defArgs = defNode.ChildNode("UdfArgumentslist");
-                defBody = defNode.ChildNode("UdfBlock").ChildNode("EmbbededSmtList");
+                defArgs = defNode.ChildNode("UdfArgumentslist")!;
+                defBody = defNode.ChildNode("UdfBlock")?.ChildNode("EmbbededSmtList")!;
                 if (defArgs.ChildNodes.Count != arguments.ChildNodes.Count)
                 {
                     throw new PdfParserException($"UDF '{fnName}' arguments count not match, provided ${arguments.ChildNodes.Count}, expected ${defArgs.ChildNodes.Count}.");
@@ -299,10 +317,10 @@ namespace PdfSharpDslCore.Parser
             ExecuteUdfInvokeStatement(state, fnName, arguments, defArgs, defBody);
         }
 
-        private void VisitIMAGE(TState state, ParseTreeNode node)
+        private void VisitImage(TState state, ParseTreeNode node)
         {
-            var locationNode = node.ChildNode("ImageLocation");
-            var isEmbedded = node.ChildNode("ImageRawOrSource").ChildNodes[0].Token.ValueString == "Data";
+            var locationNode = node.ChildNode("ImageLocation")!;
+            var isEmbedded = node.ChildNode("ImageRawOrSource")?.ChildNodes[0].Token.ValueString == "Data";
             var imagePathNode = node.ChildNodes[3];
             var unitNode = locationNode.ChildNodes.Count > 1 ? locationNode.ChildNodes[1] : null;
             var cropNode = locationNode.ChildNodes.Count > 1 ? locationNode.ChildNodes[2] : null;
@@ -311,22 +329,22 @@ namespace PdfSharpDslCore.Parser
         }
 
 
-        private void VisitFOR(TState state, ParseTreeNode node)
+        private void VisitFor(TState state, ParseTreeNode node)
         {
             var varNameNode = node.ChildNodes[1];
             var fromNode = node.ChildNodes[3];
             var toNode = node.ChildNodes[5];
-            var forbody = node.ChildNode("ForBlock").ChildNode("EmbbededSmtList");
+            var forbody = node.ChildNode("ForBlock")?.ChildNode("EmbbededSmtList")!;
 
             ExecuteForStatement(state, varNameNode, fromNode, toNode, forbody);
         }
 
-        private void VisitLINE(TState state, ParseTreeNode node)
+        private void VisitLine(TState state, ParseTreeNode node)
         {
             ExecuteLine(state, node.ChildNodes[1]);
         }
 
-        private void VisitTEXT(TState state, ParseTreeNode node)
+        private void VisitText(TState state, ParseTreeNode node)
         {
             var nodeLocation = node.ChildNodes[1];
             var optMaxWidth = node.ChildNode("Opt-MaxWidth");
@@ -342,45 +360,45 @@ namespace PdfSharpDslCore.Parser
             ExecuteText(state, nodeLocation, optMaxWidth, contentNode);
         }
 
-        private void VisitLINETO(TState state, ParseTreeNode node)
+        private void VisitLineto(TState state, ParseTreeNode node)
         {
             ExecuteLineTo(state, node.ChildNodes[1]);
         }
 
-        private void VisitMOVETO(TState state, ParseTreeNode node)
+        private void VisitMoveto(TState state, ParseTreeNode node)
         {
             ExecuteMoveTo(state, node.ChildNodes[1]);
         }
 
-        private void VisitPOLYGON(TState state, ParseTreeNode node, bool isFilled)
+        private void VisitPolygon(TState state, ParseTreeNode node, bool isFilled)
         {
             List<ParseTreeNode> pointNodes = new List<ParseTreeNode>();
 
             pointNodes.Add(node.ChildNodes[1]);
             pointNodes.Add(node.ChildNodes[2]);
-            var polygonPoint = node.ChildNode("PolygonPoint");
+            var polygonPoint = node.ChildNode("PolygonPoint")!;
             pointNodes.AddRange(polygonPoint.ChildNodes);
             ExecutePolygon(state, pointNodes, isFilled);
         }
 
-        private void VisitTITLE(TState state, ParseTreeNode node)
+        private void VisitTitle(TState state, ParseTreeNode node)
         {
             var marginNode = node.ChildNodes[1];
             var alignmentsNode = node.ChildNodes[2];
             var contentNode = node.ChildNodes[5];
             ExecuteTitle(state, marginNode, alignmentsNode, contentNode);
         }
-        private void VisitELLIPSE(TState state, ParseTreeNode node, bool isFilled)
+        private void VisitEllipse(TState state, ParseTreeNode node, bool isFilled)
         {
             ExecuteEllipse(state, node, isFilled);
         }
 
-        private void VisitVIEWSIZE(TState state, ParseTreeNode node)
+        private void VisitViewsize(TState state, ParseTreeNode node)
         {
             ExecuteViewSize(state, node);
         }
 
-        private void VisitPIE(TState state, ParseTreeNode node, bool isFilled)
+        private void VisitPie(TState state, ParseTreeNode node, bool isFilled)
         {
             var locationNode = node.ChildNodes[1];
             var startAngleNode = node.ChildNodes[4];
@@ -388,7 +406,7 @@ namespace PdfSharpDslCore.Parser
             ExecutePie(state, locationNode, startAngleNode, sweepAngleNode, isFilled);
         }
 
-        private void VisitIF(TState state, ParseTreeNode node)
+        private void VisitIf(TState state, ParseTreeNode node)
         {
             var condNode = node.ChildNodes[0];
             var ifNode = node.ChildNode("then_clause");
@@ -404,18 +422,18 @@ namespace PdfSharpDslCore.Parser
             ExecuteIfStatement(state, condNode, ifNode, elseNode);
         }
 
-        private void VisitNEWPAGE(TState state, ParseTreeNode node)
+        private void VisitNewpage(TState state, ParseTreeNode node)
         {
             var sizeNode = node.ChildNode("PageSize");
-            var orientationNode = node.ChildNode("PageOrientation");
-            sizeNode = sizeNode.ChildNodes.Count > 0 ? sizeNode.ChildNodes[0] : null;
+            var orientationNode = node.ChildNode("PageOrientation")!;
+            sizeNode = sizeNode?.ChildNodes.Count > 0 ? sizeNode.ChildNodes[0] : null;
             orientationNode = orientationNode.ChildNodes.Count > 0 ? orientationNode.ChildNodes[0] : null;
             ExecuteNewPage(state, sizeNode, orientationNode);
         }
-        private void VisitLINETEXT(TState state, ParseTreeNode node)
+        private void VisitLinetext(TState state, ParseTreeNode node)
         {
-            var nodeLocation = node.ChildNode("RectOrPointLocation");
-            var nodeAlignment = node.ChildNode("TextAlignment");
+            var nodeLocation = node.ChildNode("RectOrPointLocation")!;
+            var nodeAlignment = node.ChildNode("TextAlignment")!;
             var nodeOrientation = node.ChildNode("TextOrientation");
             var contentNode = node.ChildNodes.Last();
             if (nodeOrientation != null && nodeOrientation.ChildNodes.Count > 2)
@@ -429,26 +447,26 @@ namespace PdfSharpDslCore.Parser
             ExecuteLineText(state, nodeLocation, nodeAlignment, nodeOrientation, contentNode);
         }
 
-        private void VisitRECT(TState state, ParseTreeNode node, bool isFilled)
+        private void VisitRect(TState state, ParseTreeNode node, bool isFilled)
         {
             ExecuteRect(state, node, isFilled);
         }
 
-        private void VisitSET(TState state, ParseTreeNode node)
+        private void VisitSet(TState state, ParseTreeNode node)
         {
             var executor = (Action<TState, ParseTreeNode>)(node.Term.Name switch {
-                "PenSmt" => VisitSETPen,
-                "BrushSmt" => VisitSETBrush,
-                "HBrushSmt" => VisitSETHBrush,
-                "FontSmt" => VisitSETFont,
-                "VarSmt" => VisitSETVar,
+                "PenSmt" => VisitSetPen,
+                "BrushSmt" => VisitSetBrush,
+                "HBrushSmt" => VisitSethBrush,
+                "FontSmt" => VisitSetFont,
+                "VarSmt" => VisitSetVar,
                 _ => NotImplemented
             });
 
             executor(state, node);
         }
 
-        private void VisitSETPen(TState state, ParseTreeNode node)
+        private void VisitSetPen(TState state, ParseTreeNode node)
         {
             var width = node.ChildNodes[2];
             var color = node.ChildNodes[1];
@@ -460,20 +478,20 @@ namespace PdfSharpDslCore.Parser
             ExecutePen(state, width, color, n!);
         }
 
-        private void VisitSETBrush(TState state, ParseTreeNode node)
+        private void VisitSetBrush(TState state, ParseTreeNode node)
         {
             ExecuteBrush(state, node.ChildNodes[1]);
         }
 
-        private void VisitSETHBrush(TState state, ParseTreeNode node)
+        private void VisitSethBrush(TState state, ParseTreeNode node)
         {
             ExecuteHBrush(state, node.ChildNodes[1]);
         }
-        private void VisitSETFont(TState state, ParseTreeNode node)
+        private void VisitSetFont(TState state, ParseTreeNode node)
         {
             ExecuteFont(state, node);
         }
-        private void VisitSETVar(TState state, ParseTreeNode node)
+        private void VisitSetVar(TState state, ParseTreeNode node)
         {
             ExecuteSetVar(state, node);
         }

@@ -31,6 +31,8 @@ namespace pdfsharpdslTests
 
         public double PageHeight => 29.7 * 28.34;
 
+        public DebugOptions DebugOptions { get; set ; }
+
         public void DrawEllipse(double x, double y, double w, double h, bool isFilled)
         {
             throw new NotImplementedException();
@@ -140,17 +142,17 @@ namespace pdfsharpdslTests
             throw new NotImplementedException();
         }
 
-        public void BeginDrawRowTemplate(double offsetY)
+        public void BeginDrawRowTemplate(int index, double offsetY)
         {
             throw new NotImplementedException();
         }
 
-        public XRect EndDrawRowTemplate()
+        public XRect EndDrawRowTemplate(int index)
         {
             throw new NotImplementedException();
         }
 
-        public void BeginIterationTemplate()
+        public void BeginIterationTemplate(int rowCount)
         {
             throw new NotImplementedException();
         }

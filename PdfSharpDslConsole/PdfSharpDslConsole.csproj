@@ -53,6 +53,9 @@
     <None Update="sample1.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="pdfsharp-rowtemplate.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <!-- <None Update="pdfsharp.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None> -->
