@@ -336,6 +336,20 @@ CALL MyUdf1(100,100);
 ```
 each parameter can be a Formula
 
+## Debugging
+
+```text
+DEBUGOPTIONS Option1 [, Option2];
+```
+
+Available options
+- DEBUG_TEXT : shows red rect around texts
+- DEBUG_ROWTEMPLATE : shows red rect around each iteration and index number of each at topleft rectangle
+  - text format is "{level}.{index}", where level is > 0 when ROWTEMPLATE is part of another ROWTEMPALTE 
+
+
+
+
 ## Named Color list
 
 aliceblue
@@ -494,3 +508,4 @@ this package is build on top of
 
 You can generate C# from PDF DSL, in order to have "hard coded" PDF.
 You can generate C# code of UDF (user define function)
+- is not yet available

@@ -1,0 +1,42 @@
+﻿# sample
+
+DEBUGOPTIONS DEBUG_TEXT1, DEBUG_ROWTEMPLATE1;
+
+NEWPAGE A4 portrait;
+
+SET PEN black 0.5;
+SET BRUSH black;
+
+SET HBRUSH 0x50ffe9b2; 
+TITLE Margin=150 HAlign=hcenter Text="Highlighting section(center)";
+SET HBRUSH 0x00000000; 
+
+SET FONT Name="Consolas" Size=8 ;
+LINETEXT 42,100 HAlign=left VAlign=vcenter Orientation=vertical Text=("Vertical text to "+ 90 +"°");
+
+NEWPAGE;
+ROWTEMPLATE Count=3 Y=100 BorderSize=5
+    # top line under border
+	LINE 0,0,$PAGEWIDTH-20, 0;
+
+	LINE 0,0,50, 50;
+    # bottom line under border
+	LINE 0,50,$PAGEWIDTH-20, 50;
+	ROWTEMPLATE Count=10 Y=0 BorderSize=3
+	    LINE $ROWINDEX*10 ,0,$ROWINDEX*10+10, 10; 
+	ENDROWTEMPLATE
+ENDROWTEMPLATE
+
+NEWPAGE;
+
+ROWTEMPLATE Count=getGlobalCommentsCount() Y=100 BorderSize=15
+    LINETEXT 50, 5 HAlign=hcenter VAlign=top Text=getGlobalCommentDate($ROWINDEX); 
+	# LINE 0,0, $PAGEWIDTH, 0;
+    
+    SET VAR GINDEX=$ROWINDEX;
+    ROWTEMPLATE Count=getCommentsCount($GINDEX) Y=0 BorderSize=3
+		LINETEXT 130, 0 HAlign=left VAlign=top Text=getCommentAuthor($GINDEX,$ROWINDEX) + "   " + getCommentDate($GINDEX,$ROWINDEX)+":";   
+        TEXT 130, 12 MaxWidth=$PAGEWIDTH-20-130 Text="- "+getComment($GINDEX,$ROWINDEX);         
+    ENDROWTEMPLATE
+	RECT 125,0, $PAGEWIDTH-20-145, $LASTTEMPLATEHEIGHT 
+ENDROWTEMPLATE

@@ -31,9 +31,12 @@ namespace PdfSharpDslCore.Parser
 
             //define each udf before visiting in order to accept call before definition
             tree.Root.ChildNodes.Where(x => x.Term?.Name == "UdfSmt").ToList().ForEach(ExecuteUdfStatement);
+            //check for debug options
+            var debugOptions = ParseDebugOptions(tree.Root.ChildNodes("debugOption"));
+            ExecuteDebugOptions(state, debugOptions);
             Visit(state, tree.Root.ChildNodes);
         }
-
+        
         /// <summary>
         /// register a custom function 
         /// </summary>
@@ -127,6 +130,7 @@ namespace PdfSharpDslCore.Parser
                 case "ImageSmt":
                     VisitImage(state, node);
                     break;
+                case "DebugOptionsSmt":
                 case "UdfSmt":
                     //nothing to do, it's already done before
                     break;
@@ -142,7 +146,10 @@ namespace PdfSharpDslCore.Parser
             }
         }
 
-        #region to be override 
+        #region to be override
+
+        protected virtual void ExecuteDebugOptions(TState state, IEnumerable<string> options)
+        { }
         protected virtual void CustomVisit(TState state, ParseTreeNode node)
         {
             throw new NotImplementedException($"{node.Term.Name} is not yet implemented");
@@ -261,6 +268,18 @@ namespace PdfSharpDslCore.Parser
         }
 
         #region private visit methods
+
+        private IEnumerable<string> ParseDebugOptions(IEnumerable<ParseTreeNode> nodes)
+        {
+            foreach (var optionNode in nodes)
+            {
+                var optionName = optionNode.Token.Text;
+                if (optionName.StartsWith("DEBUG_"))
+                {
+                    yield return optionName;
+                }
+            }
+        }
 
         private void VisitRowtemplate(TState state, ParseTreeNode node)
         {

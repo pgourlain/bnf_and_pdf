@@ -88,7 +88,7 @@ var globalComments = new[]
 
 
 var parser = new Irony.Parsing.Parser(new PdfGrammar());
-var fileName = "pdfsharp.txt";
+var fileName = "pdfsharp-rowtemplate.txt";
 if (args.Length > 0)
 {
     fileName = args[0];

@@ -1,5 +1,8 @@
 
 # Change log
+## Version 1.0.2 (March 5, 2023)
+* Add DEBUGOPTIONS, in order to show area of each figure
+
 ## Version 1.0.1 (March 4, 2023)
 * Add ROWTEMPLATE and TEXT statements
 

@@ -3,11 +3,6 @@ using Irony;
 using Irony.Parsing;
 using PdfSharpCore;
 using PdfSharpCore.Drawing;
-using PdfSharpCore.Drawing.BarCodes;
-using PdfSharpDslCore.Drawing;
-using SixLabors.Fonts;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Processing;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -152,6 +147,7 @@ namespace PdfSharpDslCore.Parser
             var VarRef = new NonTerminal("VarRef");
 
             var RowTemplateSmt = new NonTerminal("RowTemplateSmt");
+            var DebugOptionsSmt = new NonTerminal("DebugOptionsSmt");
             #endregion
 
             #region Formula rules
@@ -200,7 +196,7 @@ namespace PdfSharpDslCore.Parser
             comma.ErrorAlias = "',' expected";
             semiOpt.Rule = Empty | semi;
 
-            PdfLine.Rule = UdfSmt | PdfInstruction;
+            PdfLine.Rule = UdfSmt | DebugOptionsSmt | PdfInstruction;
 
             PdfInstruction.Rule = PdfPrimaryInstruction + semiOpt;
 
@@ -392,6 +388,11 @@ namespace PdfSharpDslCore.Parser
             Else_clause_opt.Rule = Empty | PreferShiftHere() + "ELSE" + embbededSmtListOpt;
 
             ConfigureRowTemplateSmt(RowTemplateSmt);
+
+            var debugOption = new IdentifierTerminal("debugOption");
+            var debugOptionList = new NonTerminal("debugOptionList");
+            debugOptionList.Rule = MakePlusRule(debugOptionList, comma, debugOption);
+            DebugOptionsSmt.Rule = "DEBUGOPTIONS" +  debugOptionList + semi;
 
 
             RegisterBracePair("(", ")");

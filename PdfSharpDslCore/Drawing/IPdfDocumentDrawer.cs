@@ -30,6 +30,8 @@ namespace PdfSharpDslCore.Drawing
         XFont CurrentFont { get; set; }
         double PageWidth { get; }
         double PageHeight { get; }
+        
+        DebugOptions DebugOptions { get; set; }
 
         void NewPage(PageSize? pageSize = null, PageOrientation? pageOrientation = null);
         void DrawLine(double x, double y, double x1, double y1);
@@ -41,9 +43,9 @@ namespace PdfSharpDslCore.Drawing
         void DrawImage(XImage image, double x, double y, double? w, double? h, bool sizeInPixel, bool cropImage);
         void DrawPie(double x, double y, double? w, double? h, double startAngle, double sweepAngle, bool isFilled);
         void DrawPolygon(IEnumerable<XPoint> points, bool isFilled);
-        void BeginDrawRowTemplate(double offsetY);
-        XRect EndDrawRowTemplate();
-        void BeginIterationTemplate();
+        void BeginDrawRowTemplate(int index, double offsetY);
+        XRect EndDrawRowTemplate(int index);
+        void BeginIterationTemplate(int rowCount);
         void EndIterationTemplate(double drawHeight);
     }
 }
