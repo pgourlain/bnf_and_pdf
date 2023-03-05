@@ -25,7 +25,7 @@ namespace PdfSharpDslCore.Drawing
         private PageSize _defaultPageSize = PageSize.A4;
         private PageOrientation _defaultPageOrientation = PageOrientation.Portrait;
 
-        private readonly DrawingContext drawingContext = new();
+        private readonly DrawingContext _drawingContext = new();
 
         public PdfDocumentDrawer(PdfDocument document)
         {
@@ -115,59 +115,7 @@ namespace PdfSharpDslCore.Drawing
             // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
             Dispose(disposing: true);
         }
-
-        private (double, double, double, double) CoordRectToPage(double x, double y, double w, double h)
-        {
-            var page = CurrentPage;
-            if (x < 0)
-            {
-                x = page.Width + x;
-            }
-
-            if (y < 0)
-            {
-                y = page.Height + y;
-            }
-
-            if (w < 0)
-            {
-                w = page.Width + w - x;
-            }
-
-            if (h < 0)
-            {
-                h = page.Height + h - y;
-            }
-
-            return (x, y, w, h);
-        }
-
-        private (double, double, double?, double?) CoordRectToPage(double x, double y, double? w, double? h)
-        {
-            var page = CurrentPage;
-            if (x < 0)
-            {
-                x = page.Width + x;
-            }
-
-            if (y < 0)
-            {
-                y = page.Height + y;
-            }
-
-            if (w is < 0)
-            {
-                w = page.Width + w - x;
-            }
-
-            if (h is < 0)
-            {
-                h = page.Height + h - y;
-            }
-
-            return (x, y, w, h);
-        }
-
+        
         public void DrawLine(double x, double y, double x1, double y1)
         {
             var page = CurrentPage;
@@ -192,13 +140,13 @@ namespace PdfSharpDslCore.Drawing
             }
 
             Gfx.DrawLine(CurrentPen, x, y, x1, y1);
-            this.drawingContext.UpdateDrawingRect(new XPoint(x, y), new XPoint(x1, y1));
+            this._drawingContext.UpdateDrawingRect(new XPoint(x, y), new XPoint(x1, y1));
         }
 
         public void DrawRect(double x, double y, double w, double h, bool isFilled)
         {
-            (x, y, w, h) = CoordRectToPage(x, y, w, h);
-            this.drawingContext.UpdateDrawingRect(x, y, w, h);
+            (x, y, w, h) = CurrentPage.CoordRectToPage(x, y, w, h);
+            this._drawingContext.UpdateDrawingRect(x, y, w, h);
             if (isFilled)
             {
                 Gfx.DrawRectangle(CurrentPen, CurrentBrush, x, y, w, h);
@@ -211,9 +159,9 @@ namespace PdfSharpDslCore.Drawing
 
         public void DrawEllipse(double x, double y, double w, double h, bool isFilled)
         {
-            (x, y, w, h) = CoordRectToPage(x, y, w, h);
+            (x, y, w, h) = CurrentPage.CoordRectToPage(x, y, w, h);
             var r = new XRect(x, y, w, h);
-            this.drawingContext.UpdateDrawingRect(r);
+            this._drawingContext.UpdateDrawingRect(r);
             if (isFilled)
             {
                 Gfx.DrawEllipse(CurrentPen, CurrentBrush, r);
@@ -228,7 +176,7 @@ namespace PdfSharpDslCore.Drawing
             double? h /*, XStringAlignment hAlign, XLineAlignment vAlign*/)
         {
             var page = CurrentPage;
-            (x, y, w, h) = CoordRectToPage(x, y, w, h);
+            (x, y, w, h) = page.CoordRectToPage(x, y, w, h);
             //20221009 : only top left is supported
             //var fmt = new XStringFormat
             //{
@@ -248,7 +196,7 @@ namespace PdfSharpDslCore.Drawing
                 sizeFormatter.DrawString(text, CurrentFont, CurrentBrush, r);
                 //var formatter = new XTextFormatter(Gfx);
                 //formatter.DrawString(text, CurrentFont, CurrentBrush, r);
-                this.drawingContext.UpdateDrawingRect(r);
+                this._drawingContext.UpdateDrawingRect(r);
 #if DEBUG1
                 Gfx.DrawRectangle(XPens.Red, r);
 #endif
@@ -259,7 +207,7 @@ namespace PdfSharpDslCore.Drawing
                 var r = new XRect(x, y, w.Value, h.Value);
                 var formatter = new XTextFormatter(Gfx);
                 formatter.DrawString(text, CurrentFont, CurrentBrush, r);
-                this.drawingContext.UpdateDrawingRect(r);
+                this._drawingContext.UpdateDrawingRect(r);
 #if DEBUG1
                 Gfx.DrawRectangle(XPens.Red, r);
 #endif
@@ -269,7 +217,7 @@ namespace PdfSharpDslCore.Drawing
         public void DrawLineText(string text, double x, double y, double? w, double? h, XStringAlignment hAlign,
             XLineAlignment vAlign, TextOrientation textOrientation)
         {
-            (x, y, w, h) = CoordRectToPage(x, y, w, h);
+            (x, y, w, h) = CurrentPage.CoordRectToPage(x, y, w, h);
             var fmt = new XStringFormat {
                 Alignment = hAlign,
                 LineAlignment = vAlign,
@@ -309,7 +257,7 @@ namespace PdfSharpDslCore.Drawing
             if (w == null || h == null)
             {
                 Gfx.DrawString(text, CurrentFont, CurrentBrush, x, y, fmt);
-                this.drawingContext.UpdateDrawingRect(x, y, textSize.Width, textSize.Height);
+                this._drawingContext.UpdateDrawingRect(x, y, textSize.Width, textSize.Height);
                 if (HighlightBrush == null) return;
 
                 var r = DrawingHelper.RectFromStringFormat(x, y, textSize, fmt);
@@ -324,7 +272,7 @@ namespace PdfSharpDslCore.Drawing
                 var r = new XRect(x, y, w.Value, h.Value);
                 Gfx.DrawString(text, CurrentFont, CurrentBrush, r, fmt);
 
-                this.drawingContext.UpdateDrawingRect(r);
+                this._drawingContext.UpdateDrawingRect(r);
                 if (HighlightBrush == null) return;
                 var hr = DrawingHelper.RectFromStringFormat(x, y, textSize, fmt);
                 hr.Intersect(r);
@@ -351,7 +299,7 @@ namespace PdfSharpDslCore.Drawing
 
             var r = new XRect(0, margin, page.Width, textSize.Height);
             Gfx.DrawString(text, CurrentFont, CurrentBrush, r, fmt);
-            this.drawingContext.UpdateDrawingRect(r);
+            this._drawingContext.UpdateDrawingRect(r);
             if (HighlightBrush == null) return;
 
             var hr = DrawingHelper.RectFromStringFormat(r, textSize, fmt);
@@ -531,7 +479,7 @@ namespace PdfSharpDslCore.Drawing
         {
             var formatter = new XTextFormatter(Gfx);
             formatter.DrawString(text, xFont, xBrush, r);
-            this.drawingContext.UpdateDrawingRect(r);
+            this._drawingContext.UpdateDrawingRect(r);
             //var splitted = text.Split(new string[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
             //splitted = splitted.SelectMany(x => x.Split('\r', '\n')).ToArray();
             //var h = r.Height / splitted.Length;
@@ -575,7 +523,7 @@ namespace PdfSharpDslCore.Drawing
         {
             var endPoint = new XPoint(x, y);
             Gfx.DrawLine(CurrentPen, _currentPoint, endPoint);
-            this.drawingContext.UpdateDrawingRect(new XRect(_currentPoint, endPoint));
+            this._drawingContext.UpdateDrawingRect(new XRect(_currentPoint, endPoint));
             _currentPoint = endPoint;
         }
 
@@ -584,36 +532,27 @@ namespace PdfSharpDslCore.Drawing
             if (sizeInPixel)
             {
                 //convert Pixel to Point
-                if (w is not null)
-                {
-                    w = (double)(w * 72) / 96.0;
-                }
-
+                w = w * 72 / 96.0;
+                h = h * 72 / 96.0;
+                /*
                 if (h is not null)
                 {
                     h = (double)(h * 72) / 96.0;
                 }
+                 */
             }
 
             //fix coord if < 0 
-            (x, y, w, h) = CoordRectToPage(x, y, w, h);
+            (x, y, w, h) = CurrentPage.CoordRectToPage(x, y, w, h);
             if (w is null && h is null)
             {
                 Gfx.DrawImage(image, x, y);
-                this.drawingContext.UpdateDrawingRect(x, y, image.PointWidth, image.PointHeight);
+                this._drawingContext.UpdateDrawingRect(x, y, image.PointWidth, image.PointHeight);
             }
             else
             {
-                if (w is null)
-                {
-                    w = image.PointWidth;
-                }
-
-                if (h is null)
-                {
-                    h = image.PointHeight;
-                }
-
+                w ??= image.PointWidth;
+                h ??= image.PointHeight;
                 if (cropImage)
                 {
                     //draw in form, then draw form in page
@@ -626,14 +565,14 @@ namespace PdfSharpDslCore.Drawing
                 {
                     Gfx.DrawImage(image, x, y, w.Value, h.Value);
                 }
-                this.drawingContext.UpdateDrawingRect(x, y, w, h);
+                this._drawingContext.UpdateDrawingRect(x, y, w, h);
             }
         }
 
         public void DrawPie(double x, double y, double? w, double? h, double startAngle, double sweepAngle,
             bool isFilled)
         {
-            this.drawingContext.UpdateDrawingRect(x, y, w, h);
+            this._drawingContext.UpdateDrawingRect(x, y, w, h);
             if (isFilled)
             {
                 Gfx.DrawPie(CurrentPen, CurrentBrush, x, y, w ?? 0, h ?? 0, startAngle, sweepAngle);
@@ -647,7 +586,7 @@ namespace PdfSharpDslCore.Drawing
         public void DrawPolygon(IEnumerable<XPoint> points, bool isFilled)
         {
             var ptArray = points.ToArray();
-            this.drawingContext.UpdateDrawingRect(ptArray);
+            this._drawingContext.UpdateDrawingRect(ptArray);
             if (isFilled)
             {
                 Gfx.DrawPolygon(CurrentPen, CurrentBrush, ptArray, XFillMode.Alternate);
@@ -660,7 +599,7 @@ namespace PdfSharpDslCore.Drawing
 
         public void BeginDrawRowTemplate(double offsetY)
         {
-            this.drawingContext.PushDrawingRect(new XRect(0, 0, 0, 0));
+            this._drawingContext.PushDrawingRect(new XRect(0, 0, 0, 0));
             //Gfx.DrawLine(XPens.DarkViolet, new XPoint(0, offsetY), new XPoint(PageWidth, offsetY));
             Gfx.Save();
             Gfx.TranslateTransform(0, offsetY);
@@ -670,8 +609,7 @@ namespace PdfSharpDslCore.Drawing
 
         public XRect EndDrawRowTemplate()
         {
-
-            var result = this.drawingContext.PopDrawingRect(false);
+            var result = this._drawingContext.PopDrawingRect(false);
             //var level = this.drawingContext.Level;
             //XPen pen = level switch {
             //    2 => XPens.PaleVioletRed,
@@ -691,7 +629,7 @@ namespace PdfSharpDslCore.Drawing
 
         public void EndIterationTemplate(double drawHeight)
         {
-            this.drawingContext.UpdateDrawingRect(0, 0, 0, drawHeight);
+            this._drawingContext.UpdateDrawingRect(0, 0, 0, drawHeight);
         }
 
     }
