@@ -38,8 +38,8 @@ namespace PdfSharpDslCore.Generator.Evaluation
             IDictionary<string, EvaluationResult> variables,
             IDictionary<string, IEvaluation<EvaluationResult>[]> customFunctions)
         {
-            ParseTreeNode? opNode;
-            ParseTreeNode? rightNode;
+            ParseTreeNode opNode;
+            ParseTreeNode rightNode;
             IEvaluation<EvaluationResult> right;
             string op;
             switch (node.Term.Name)

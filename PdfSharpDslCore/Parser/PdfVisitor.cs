@@ -294,21 +294,21 @@ namespace PdfSharpDslCore.Parser
             {
                 borderSizeNode = null;
             }
-            var body = node.ChildNode("RowTemplateBlock").ChildNode("EmbbededSmtList");
+            var body = node.ChildNode("RowTemplateBlock")?.ChildNode("EmbbededSmtList")!;
             ExecuteRowTemplateStatement(state, rowCount, offset, borderSizeNode, body);
         }
 
         private void VisitCalludf(TState state, ParseTreeNode node)
         {
             var fnName = node.ChildNodes[1].Token.ValueString;
-            var arguments = node.ChildNode("CallInvokeArgumentslist");
+            var arguments = node.ChildNode("CallInvokeArgumentslist")!;
             ParseTreeNode defArgs = null!;
             ParseTreeNode defBody = null!;
 
             if (_udfs.TryGetValue(fnName, out var defNode))
             {
-                defArgs = defNode.ChildNode("UdfArgumentslist");
-                defBody = defNode.ChildNode("UdfBlock").ChildNode("EmbbededSmtList");
+                defArgs = defNode.ChildNode("UdfArgumentslist")!;
+                defBody = defNode.ChildNode("UdfBlock")?.ChildNode("EmbbededSmtList")!;
                 if (defArgs.ChildNodes.Count != arguments.ChildNodes.Count)
                 {
                     throw new PdfParserException($"UDF '{fnName}' arguments count not match, provided ${arguments.ChildNodes.Count}, expected ${defArgs.ChildNodes.Count}.");
@@ -319,8 +319,8 @@ namespace PdfSharpDslCore.Parser
 
         private void VisitImage(TState state, ParseTreeNode node)
         {
-            var locationNode = node.ChildNode("ImageLocation");
-            var isEmbedded = node.ChildNode("ImageRawOrSource").ChildNodes[0].Token.ValueString == "Data";
+            var locationNode = node.ChildNode("ImageLocation")!;
+            var isEmbedded = node.ChildNode("ImageRawOrSource")?.ChildNodes[0].Token.ValueString == "Data";
             var imagePathNode = node.ChildNodes[3];
             var unitNode = locationNode.ChildNodes.Count > 1 ? locationNode.ChildNodes[1] : null;
             var cropNode = locationNode.ChildNodes.Count > 1 ? locationNode.ChildNodes[2] : null;
@@ -334,7 +334,7 @@ namespace PdfSharpDslCore.Parser
             var varNameNode = node.ChildNodes[1];
             var fromNode = node.ChildNodes[3];
             var toNode = node.ChildNodes[5];
-            var forbody = node.ChildNode("ForBlock").ChildNode("EmbbededSmtList");
+            var forbody = node.ChildNode("ForBlock")?.ChildNode("EmbbededSmtList")!;
 
             ExecuteForStatement(state, varNameNode, fromNode, toNode, forbody);
         }
@@ -376,7 +376,7 @@ namespace PdfSharpDslCore.Parser
 
             pointNodes.Add(node.ChildNodes[1]);
             pointNodes.Add(node.ChildNodes[2]);
-            var polygonPoint = node.ChildNode("PolygonPoint");
+            var polygonPoint = node.ChildNode("PolygonPoint")!;
             pointNodes.AddRange(polygonPoint.ChildNodes);
             ExecutePolygon(state, pointNodes, isFilled);
         }
@@ -425,15 +425,15 @@ namespace PdfSharpDslCore.Parser
         private void VisitNewpage(TState state, ParseTreeNode node)
         {
             var sizeNode = node.ChildNode("PageSize");
-            var orientationNode = node.ChildNode("PageOrientation");
-            sizeNode = sizeNode.ChildNodes.Count > 0 ? sizeNode.ChildNodes[0] : null;
+            var orientationNode = node.ChildNode("PageOrientation")!;
+            sizeNode = sizeNode?.ChildNodes.Count > 0 ? sizeNode.ChildNodes[0] : null;
             orientationNode = orientationNode.ChildNodes.Count > 0 ? orientationNode.ChildNodes[0] : null;
             ExecuteNewPage(state, sizeNode, orientationNode);
         }
         private void VisitLinetext(TState state, ParseTreeNode node)
         {
-            var nodeLocation = node.ChildNode("RectOrPointLocation");
-            var nodeAlignment = node.ChildNode("TextAlignment");
+            var nodeLocation = node.ChildNode("RectOrPointLocation")!;
+            var nodeAlignment = node.ChildNode("TextAlignment")!;
             var nodeOrientation = node.ChildNode("TextOrientation");
             var contentNode = node.ChildNodes.Last();
             if (nodeOrientation != null && nodeOrientation.ChildNodes.Count > 2)
