@@ -12,7 +12,7 @@ namespace pdfsharpdslTests
     [ExcludeFromCodeCoverage]
     internal class PdfDrawerForTestsVisitor : PdfDrawerVisitor
     {
-        public IDictionary<string, object?> Vars => _variables;
+        public IDictionary<string, object?> Vars => Variables;
 
         public IDictionary<string, object?[]> UDFs = new Dictionary<string, object?[]>();
         public PdfDrawerForTestsVisitor()
