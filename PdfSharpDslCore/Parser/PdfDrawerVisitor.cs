@@ -24,7 +24,7 @@ namespace PdfSharpDslCore.Parser
         }
         public override void Draw(IPdfDocumentDrawer state, ParseTree tree)
         {
-            _variables = new VariablesDictionary(k => SystemVariableGet(state, k));
+            Variables = new VariablesDictionary(k => SystemVariableGet(state, k));
             base.Draw(state, tree);
         }
 
@@ -56,21 +56,16 @@ namespace PdfSharpDslCore.Parser
             {
                 Enum.TryParse<XDashStyle>(styleNode.Token.ValueString, true, out style);
             }
-            var pen = new XPen(color, width);
-            pen.DashStyle = style;
+            var pen = new XPen(color, width)
+            {
+                DashStyle = style
+            };
             state.CurrentPen = pen;
         }
         protected override void ExecuteHBrush(IPdfDocumentDrawer drawer, ParseTreeNode colorNode)
         {
             var color = colorNode.ParseColor();
-            if (color.A == 0)
-            {
-                drawer.HighlightBrush = null;
-            }
-            else
-            {
-                drawer.HighlightBrush = new XSolidBrush(color);
-            }
+            drawer.HighlightBrush = color.A == 0 ? null : new XSolidBrush(color);
         }
 
         protected override void ExecuteFont(IPdfDocumentDrawer drawer, ParseTreeNode fontNode)
@@ -100,7 +95,7 @@ namespace PdfSharpDslCore.Parser
         protected override void ExecuteIfStatement(IPdfDocumentDrawer state, ParseTreeNode condNode,
             ParseTreeNode? ifNode, ParseTreeNode? elseNode)
         {
-            var condition = Convert.ToBoolean(EvaluateForObject(condNode, _variables, _customFunctions));
+            var condition = Convert.ToBoolean(EvaluateForObject(condNode));
             ParseTreeNode? nodeToVisit = condition ? ifNode : elseNode;
             if (nodeToVisit != null)
             {
@@ -135,7 +130,7 @@ namespace PdfSharpDslCore.Parser
            ParseTreeNode alignmentsNode,
            ParseTreeNode contentNode)
         {
-            var text = Convert.ToString(EvaluateForObject(contentNode, _variables, _customFunctions));
+            var text = Convert.ToString(EvaluateForObject(contentNode));
             var margin = ParseMargin(marginNode);
             var (hAlign, vAlign) = ParseTextAlignment(alignmentsNode);
 
@@ -145,7 +140,7 @@ namespace PdfSharpDslCore.Parser
         protected override void ExecutePolygon(IPdfDocumentDrawer state,
                 IEnumerable<ParseTreeNode> pointNodes, bool isFilled)
         {
-            List<XPoint> points = new List<XPoint>();
+            var points = new List<XPoint>();
             foreach (var ptNode in pointNodes)
             {
                 var (x, y) = ParsePointLocation(ptNode);
@@ -172,9 +167,9 @@ namespace PdfSharpDslCore.Parser
             ParseTreeNode? optMaxWidth,
             ParseTreeNode contentNode)
         {
-            var text = Convert.ToString(EvaluateForObject(contentNode, _variables, _customFunctions));
+            var text = Convert.ToString(EvaluateForObject(contentNode));
 
-            if (text is not null)
+            if (!string.IsNullOrEmpty(text))
             {
                 (double x, double y, double? w, double? h) = ParseTextLocation(nodeLocation.ChildNodes[0]);
                 if (optMaxWidth != null)
@@ -196,7 +191,7 @@ namespace PdfSharpDslCore.Parser
             ParseTreeNode? nodeOrientation,
             ParseTreeNode contentNode)
         {
-            var text = Convert.ToString(EvaluateForObject(contentNode, _variables, _customFunctions));
+            var text = Convert.ToString(EvaluateForObject(contentNode));
             TextOrientation textOrientation = new TextOrientation { Orientation = TextOrientationEnum.Horizontal, Angle = null };
 
             if (nodeOrientation != null)
@@ -210,7 +205,7 @@ namespace PdfSharpDslCore.Parser
                     textOrientation = textOrientation with { Orientation = specifiedOrientation };
                 }
             }
-            if (text is not null)
+            if (string.IsNullOrEmpty(text))
             {
                 (double x, double y, double? w, double? h) = ParseTextLocation(nodeLocation.ChildNodes[0]);
                 var (hAlign, vAlign) = ParseTextAlignment(nodeAlignment.ChildNodes[0], nodeAlignment.ChildNodes[1]);
@@ -232,13 +227,13 @@ namespace PdfSharpDslCore.Parser
             ParseTreeNode forbody)
         {
             var varName = InternalSetVar(varNameNode, fromNode);
-            var from = Convert.ToInt32(_variables[varName]);
-            var to = Convert.ToInt32(EvaluateForObject(toNode, _variables, _customFunctions));
+            var from = Convert.ToInt32(Variables[varName]);
+            var to = Convert.ToInt32(EvaluateForObject(toNode));
             if (forbody != null)
             {
                 for (int i = from; i <= to; i++)
                 {
-                    _variables.Add(varName, i);
+                    Variables.Add(varName, i);
                     Visit(state, forbody.ChildNodes);
                 }
             }
@@ -289,18 +284,18 @@ namespace PdfSharpDslCore.Parser
             ParseTreeNode defArgs,
             ParseTreeNode defBody)
         {
-            var evaluatedArgs = args.ChildNodes.Select(x => EvaluateForObject(x, _variables, _customFunctions)).ToArray();
+            var evaluatedArgs = args.ChildNodes.Select(EvaluateForObject).ToArray();
 
             if (defArgs != null)
             {
-                var vars = _variables;
+                var vars = Variables;
                 if (vars is IVariablesDictionary savable) savable.SaveVariables();
                 try
                 {
                     for (int i = 0; i < defArgs.ChildNodes.Count; i++)
                     {
                         var defVar = defArgs.ChildNodes[i];
-                        _variables.Add(defVar.Token.ValueString, evaluatedArgs[i] ?? null!);
+                        Variables.Add(defVar.Token.ValueString, evaluatedArgs[i] ?? null!);
                     }
 
                     Visit(state, defBody.ChildNodes);
@@ -334,7 +329,7 @@ namespace PdfSharpDslCore.Parser
             var offsetY = (EvaluateForDouble(offsetYNode)??0) + borderSize;
 
             double drawHeight = borderSize;
-            var vars = _variables;
+            var vars = Variables;
             if (vars is IVariablesDictionary savable) savable.SaveVariables();
             try
             {
@@ -343,7 +338,7 @@ namespace PdfSharpDslCore.Parser
                 {
                     state.BeginDrawRowTemplate(i, offsetY);
                     //set row index
-                    _variables.Add("ROWINDEX", i);
+                    vars.Add("ROWINDEX", i);
 
                     Visit(state, body.ChildNodes);
                     var drawingRect = state.EndDrawRowTemplate(i);
@@ -360,7 +355,7 @@ namespace PdfSharpDslCore.Parser
                 //restore variables before call
                 if (vars is IVariablesDictionary restorable) restorable.RestoreVariables();
             }
-            _variables.Add("LASTTEMPLATEHEIGHT", drawHeight);
+            Variables.Add("LASTTEMPLATEHEIGHT", drawHeight);
         }
 
         protected override void ExecuteDebugOptions(IPdfDocumentDrawer state, IEnumerable<string> options)
@@ -441,7 +436,7 @@ namespace PdfSharpDslCore.Parser
             foreach (var row in nodes)
             {
                 var rowCount = EvaluateForDouble(row.ChildNodes[0]);
-                var vars = _variables;
+                var vars = Variables;
                 if (vars is IVariablesDictionary savable) savable.SaveVariables();
                 try
                 {
@@ -450,8 +445,8 @@ namespace PdfSharpDslCore.Parser
                         var rowDef = new RowDefinition();
                         var cols = row.ChildNodes("TableCol").SelectMany(x => x.ChildNodes).Where(x => x.Term?.Name != "COL").ToArray();
 
-                        _variables.Add("ROWINDEX", i);
-                        var rowData = cols.Select(x => EvaluateForObject(x, _variables, _customFunctions)?.ToString()!).ToList();
+                        vars.Add("ROWINDEX", i);
+                        var rowData = cols.Select(x => EvaluateForObject(x)?.ToString()!).ToList();
 
                         while (rowData.Count < tbl.Columns.Count)
                         {
@@ -601,7 +596,7 @@ namespace PdfSharpDslCore.Parser
 
         private double? EvaluateForDouble(ParseTreeNode node)
         {
-            return EvaluateForDouble(node, _variables, _customFunctions);
+            return EvaluateForDouble(node, Variables, CustomFunctions);
         }
         private static double? EvaluateForDouble(ParseTreeNode node, IDictionary<string, object?> variables,
             IDictionary<string, Func<object[], object>> funcs)
@@ -609,6 +604,11 @@ namespace PdfSharpDslCore.Parser
             return new Evaluator(node, funcs).EvaluateForDouble(variables);
         }
 
+        private object? EvaluateForObject(ParseTreeNode node)
+        {
+            return EvaluateForObject(node, Variables, CustomFunctions);
+        }
+        
         private static object? EvaluateForObject(ParseTreeNode node, IDictionary<string, object?> variables,
             IDictionary<string, Func<object[], object>> funcs)
         {
@@ -623,9 +623,9 @@ namespace PdfSharpDslCore.Parser
         private string InternalSetVar(ParseTreeNode varNameNode,
                     ParseTreeNode fromNode)
         {
-            var v = EvaluateForObject(fromNode, _variables, _customFunctions);
+            var v = EvaluateForObject(fromNode);
             var varName = varNameNode.Token.ValueString;
-            _variables.Add(varName, v);
+            Variables.Add(varName, v);
             return varName;
         }
 
@@ -641,14 +641,14 @@ namespace PdfSharpDslCore.Parser
             double fontSize = 0;
             if (node.Term.Name == "FontSmt")
             {
-                fontName = (string)EvaluateForObject(node.ChildNodes[3], _variables, _customFunctions)!;
-                fontSize = EvaluateForDouble(node.ChildNodes[6], _variables, _customFunctions) ?? 0;
+                fontName = (string)EvaluateForObject(node.ChildNodes[3])!;
+                fontSize = EvaluateForDouble(node.ChildNodes[6]) ?? 0;
                 styleNode = node.ChildNodes.Count > 7 ? node.ChildNodes[7] : null!;
             }
             else
             {
                 fontName = (string)node.ChildNodes[2].Token.Value;
-                fontSize = EvaluateForDouble(node.ChildNodes[3], _variables, _customFunctions) ?? 0;
+                fontSize = EvaluateForDouble(node.ChildNodes[3]) ?? 0;
                 styleNode = node.ChildNodes.Count > 4 ? node.ChildNodes[4] : null!;
 
             }

@@ -49,7 +49,7 @@ namespace PdfSharpDslCore.Generator.DrawingGenerator
                 state.AppendMembersLine("//coucou");
             }
             
-            foreach (var udf in _udfs)
+            foreach (var udf in UserDefinedFunctions)
             {
                 state.AppendMembersLine($"//udf {udf.Key}");
                 state.AppendMembersLine($"partial void {udf.Key}();");

@@ -1,11 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Xml.Linq;
 using Irony.Parsing;
-using PdfSharpCore.Drawing;
-using PdfSharpDslCore.Drawing;
 using PdfSharpDslCore.Extensions;
 
 namespace PdfSharpDslCore.Parser
@@ -13,13 +9,17 @@ namespace PdfSharpDslCore.Parser
 
     public class PdfVisitor<TState>
     {
-        protected IDictionary<string, object?> _variables = new Dictionary<string, object?>();
-        protected IDictionary<string, ParseTreeNode> _udfs = new Dictionary<string, ParseTreeNode>();
-        protected IDictionary<string, Func<object[], object>> _customFunctions = new Dictionary<string, Func<object[], object>>();
+        protected IDictionary<string, object?> Variables { get; set; } = new Dictionary<string, object?>();
+
+        protected IDictionary<string, Func<object[], object>> CustomFunctions { get; set; } = new Dictionary<string, Func<object[], object>>();
+
+        protected IDictionary<string, ParseTreeNode> UserDefinedFunctions { get; set; } = new Dictionary<string, ParseTreeNode>();
+
         protected string BaseDirectory { get; }
 
         public PdfVisitor() : this(Environment.CurrentDirectory) { }
-        public PdfVisitor(string baseDirectory)
+
+        protected PdfVisitor(string baseDirectory)
         {
             this.BaseDirectory = baseDirectory;
         }
@@ -45,13 +45,13 @@ namespace PdfSharpDslCore.Parser
         public void RegisterFormulaFunction(string name, Func<object[], object> func)
         {
             var fnName = name.ToUpperInvariant();
-            if (_customFunctions.ContainsKey(fnName))
+            if (CustomFunctions.ContainsKey(fnName))
             {
-                _customFunctions[fnName] = func;
+                CustomFunctions[fnName] = func;
             }
             else
             {
-                _customFunctions.Add(fnName, func);
+                CustomFunctions.Add(fnName, func);
             }
         }
 
@@ -260,11 +260,11 @@ namespace PdfSharpDslCore.Parser
         private void ExecuteUdfStatement(ParseTreeNode node)
         {
             var fnName = node.ChildNodes[0].Token.ValueString;
-            if (_udfs.ContainsKey(fnName))
+            if (UserDefinedFunctions.ContainsKey(fnName))
             {
                 throw new PdfParserException($"An another UDF '{fnName}' is already defined.");
             }
-            _udfs.Add(fnName, node);
+            UserDefinedFunctions.Add(fnName, node);
         }
 
         #region private visit methods
@@ -305,7 +305,7 @@ namespace PdfSharpDslCore.Parser
             ParseTreeNode defArgs = null!;
             ParseTreeNode defBody = null!;
 
-            if (_udfs.TryGetValue(fnName, out var defNode))
+            if (UserDefinedFunctions.TryGetValue(fnName, out var defNode))
             {
                 defArgs = defNode.ChildNode("UdfArgumentslist")!;
                 defBody = defNode.ChildNode("UdfBlock")?.ChildNode("EmbbededSmtList")!;

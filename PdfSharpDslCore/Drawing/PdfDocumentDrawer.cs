@@ -27,11 +27,7 @@ namespace PdfSharpDslCore.Drawing
 
         private readonly DrawingContext _drawingCtx = new();
 
-        private readonly XPen DebugPen = new XPen(XColors.Red, 0.5)
-        {
-            DashStyle = XDashStyle.DashDot
-        };
-
+        private readonly XPen DebugPen = new XPen(XColors.Red, 0.5)  { DashStyle = XDashStyle.DashDot };
         private readonly Lazy<XFont> DebugFont = new Lazy<XFont>(() => new XFont("monospace", 6));
 
         public PdfDocumentDrawer(PdfDocument document)

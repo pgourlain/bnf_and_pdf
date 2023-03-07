@@ -45,7 +45,7 @@ namespace PdfSharpDslCore.Parser
             var colorNumber = new NumberLiteral("ColorValue");
             colorNumber.AddPrefix("g", NumberOptions.Default | NumberOptions.AllowStartEndDot);
             colorNumber.AddPrefix("0x", NumberOptions.Hex);
-            var variable_literal = new IdentifierTerminal("var");
+            var variableLiteral = new IdentifierTerminal("var");
             KeyTerm lpar = ToTerm("(");
             KeyTerm rpar = ToTerm(")");
             KeyTerm comma = ToTerm(",", "comma");
@@ -171,13 +171,13 @@ namespace PdfSharpDslCore.Parser
             CallInvokeArgumentslist.Rule = MakePlusRule(CallInvokeArgumentslist, comma, FormulaExpression);
 
             var CustomFunctionArgs = new NonTerminal("CustomFunctionArgs");
-            CustomFunctionExpression.Rule = variable_literal + CustomFunctionArgs;
+            CustomFunctionExpression.Rule = variableLiteral + CustomFunctionArgs;
             var CustomFunctionArgsOpt = new NonTerminal("CustomFunctionArgsOpt");
             CustomFunctionArgs.Rule = lpar + CustomFunctionArgsOpt + rpar;
             CustomFunctionArgsOpt.Rule = Empty | CallInvokeArgumentslist;
 
             UnOp.Rule = ToTerm("+") | "-";
-            VarRef.Rule = "$" + variable_literal;
+            VarRef.Rule = "$" + variableLiteral;
             BinOp.Rule = ToTerm("+") | "-" | "*" | "/" | "%" | "==" | "<=" | ">=" | "<" | ">" | "<>" | "and" | "or";
             MarkTransient(FormulaExpression, LiteralExpression, BinOp, FormulaPrimary,
                 Parenthesized_Expression, UnOp);
@@ -232,18 +232,18 @@ namespace PdfSharpDslCore.Parser
             RectOrPointLocation.Rule = RectLocation | PointLocation;
 
             #endregion
-
-            SetSmt.Rule = ToTerm("SET") + SetContent;
+            
+            SetSmt.Rule =  ToInstructionTerm("SET") + SetContent;
             SetContent.Rule = PenSmt | BrushSmt | FontSmt | VarSmt | HBrushSmt;
-            RectSmt.Rule = ToTerm("RECT") + RectLocation;
-            FillRectSmt.Rule = ToTerm("FILLRECT") + RectLocation;
-            EllipseSmt.Rule = ToTerm("ELLIPSE") + RectLocation;
-            FillEllipseSmt.Rule = ToTerm("FILLELLIPSE") + RectLocation;
+            RectSmt.Rule = ToInstructionTerm("RECT") + RectLocation;
+            FillRectSmt.Rule = ToInstructionTerm("FILLRECT") + RectLocation;
+            EllipseSmt.Rule = ToInstructionTerm("ELLIPSE") + RectLocation;
+            FillEllipseSmt.Rule = ToInstructionTerm("FILLELLIPSE") + RectLocation;
 
 
-            LineSmt.Rule = ToTerm("LINE") + RectLocation;
-            MoveToSmt.Rule = ToTerm("MOVETO") + PointLocation;
-            LineToSmt.Rule = ToTerm("LINETO") + PointLocation;
+            LineSmt.Rule = ToInstructionTerm("LINE") + RectLocation;
+            MoveToSmt.Rule = ToInstructionTerm("MOVETO") + PointLocation;
+            LineToSmt.Rule = ToInstructionTerm("LINETO") + PointLocation;
             var stylePenOpt = new NonTerminal("StylePenOpt");
             var stylePen = new NonTerminal("StylePen");
             stylePenOpt.Rule = Empty | stylePen;
@@ -252,9 +252,10 @@ namespace PdfSharpDslCore.Parser
             BrushSmt.Rule = ToTerm("BRUSH") + ColorExp + BrushType;
             //TODO: how to deactivate HBRUSH...
             HBrushSmt.Rule = ToTerm("HBRUSH") + ColorExp + BrushType;
-            FontSmt.Rule = ToTerm("FONT") + Arg("Name") + FormulaExpression + Arg("Size") + FormulaExpression + styleExpr;
+            //do not use ToTerm, because "FONT" is used in as argument in Table
+            FontSmt.Rule = new KeyTerm("FONT", "FONT") + Arg("Name") + FormulaExpression + Arg("Size") + FormulaExpression + styleExpr;
 
-            VarSmt.Rule = ToTerm("VAR") + variable_literal + "=" + FormulaExpression + semi;
+            VarSmt.Rule = ToTerm("VAR") + variableLiteral + "=" + FormulaExpression + semi;
 
             ColorExp.Rule = NamedColor | HexColor;
             foreach (var prop in typeof(XColors).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static))
@@ -282,7 +283,7 @@ namespace PdfSharpDslCore.Parser
 
             //TextAlignment is not yet supported on multiline text (only top left is provided by pdfsharpcore)
             //multiline
-            TextSmt.Rule = ToTerm("TEXT") + RectOrPointLocation + OptArg("MaxWidth", FormulaExpression) + Arg("Text") + FormulaExpression;
+            TextSmt.Rule = ToInstructionTerm("TEXT") + RectOrPointLocation + OptArg("MaxWidth", FormulaExpression) + Arg("Text") + FormulaExpression;
 
             TextAlignment.Rule = HAlign + VAlign;
             HAlign.Rule = Empty | Arg("HAlign") + HAlignValue;
@@ -296,8 +297,8 @@ namespace PdfSharpDslCore.Parser
                 | "horizontal";
 
             //simple line
-            LineTextSmt.Rule = ToTerm("LINETEXT") + RectOrPointLocation + TextAlignment + TextOrientation
-                + Arg("Text") + FormulaExpression;
+            LineTextSmt.Rule = ToInstructionTerm("LINETEXT") + RectOrPointLocation + TextAlignment + TextOrientation
+                               + Arg("Text") + FormulaExpression;
             BrushType.Rule = Empty /* | GradientBrush*/;
 
             PageSize.Rule = Empty;
@@ -311,13 +312,13 @@ namespace PdfSharpDslCore.Parser
             }
 
             PageOrientation.Rule = Empty | "portrait" | "landscape";
-            NewPageSmt.Rule = ToTerm("NEWPAGE") + PageSize + PageOrientation;
+            NewPageSmt.Rule = ToInstructionTerm("NEWPAGE") + PageSize + PageOrientation;
 
-            TitleSmt.Rule = ToTerm("TITLE") + MarginArg + HAlign + Arg("Text") + FormulaExpression;
+            TitleSmt.Rule = ToInstructionTerm("TITLE") + MarginArg + HAlign + Arg("Text") + FormulaExpression;
             MarginArg.Rule = Empty | Arg("Margin") + FormulaExpression;
 
 
-            TableSmt.Rule = ToTerm("TABLE") + TableLocation + TableContent + ToTerm("ENDTABLE");
+            TableSmt.Rule = ToInstructionTerm("TABLE") + TableLocation + TableContent + ToTerm("ENDTABLE");
 
             TableContent.Rule = TableHead + TableRowListOrRowTemplate;
 
@@ -325,7 +326,7 @@ namespace PdfSharpDslCore.Parser
             TableRowList.Rule = MakeStarRule(TableRowList, TableRow);
             TableRowListOrRowTemplate.Rule = TableRowList | TableRowTemplate;
             TableRowTemplateCount.Rule = FormulaExpression;
-            TableRowTemplate.Rule = ToTerm("ROWTEMPLATE") + TableRowTemplateCount + TableColList + ToTerm("ENDROW");
+            TableRowTemplate.Rule = ToInstructionTerm("ROWTEMPLATE") + TableRowTemplateCount + TableColList + ToTerm("ENDROW");
             TableColHeadList.Rule = MakeStarRule(TableColHeadList, TableHeadCol);
             TableHeadCol.Rule = ToTerm("COL") + TableColWidth + TableColFont + TableColColors + sstring + semi;
             //desiredWidth and maxWidth
@@ -341,25 +342,25 @@ namespace PdfSharpDslCore.Parser
             TableColColors.Rule = Empty | ColorExp + ColorExp;
             TableRowStyle.Rule = Empty | FormulaExpression;
 
-            ViewSizeSmt.Rule = ToTerm("VIEWSIZE") + PointLocation;
+            ViewSizeSmt.Rule = ToInstructionTerm("VIEWSIZE") + PointLocation;
 
             PixelOrPoint.Rule = ToTerm("pixel") | "point";
             CropExp.Rule = Empty | "crop" | "fit";
             ImageLocation.Rule = PointLocation | RectLocation + PixelOrPoint + CropExp;
             //PreferShift because
             var ImageRawOrSource = new NonTerminal("ImageRawOrSource");
-            ImageSmt.Rule = ToTerm("IMAGE") + ImageLocation + ImageRawOrSource + FormulaExpression;
+            ImageSmt.Rule = ToInstructionTerm("IMAGE") + ImageLocation + ImageRawOrSource + FormulaExpression;
             ImageRawOrSource.Rule = Arg("Source") | Arg("Data");
 
-            PieSmt.Rule = ToTerm("PIE") + RectLocation + Arg("Start") + FormulaExpression + Arg("Angle") + FormulaExpression;
-            PolygonSmt.Rule = ToTerm("POLYGON") + PointLocation + comma + PointLocation + comma + PolygonPoint;
+            PieSmt.Rule = ToInstructionTerm("PIE") + RectLocation + Arg("Start") + FormulaExpression + Arg("Angle") + FormulaExpression;
+            PolygonSmt.Rule = ToInstructionTerm("POLYGON") + PointLocation + comma + PointLocation + comma + PolygonPoint;
             PolygonPoint.Rule = MakePlusRule(PolygonPoint, comma, PointLocation);
-            FillPieSmt.Rule = ToTerm("FILLPIE") + RectLocation + Arg("Start") + FormulaExpression + Arg("Angle") + FormulaExpression;
-            FillPolygonSmt.Rule = ToTerm("FILLPOLYGON") + PointLocation + comma + PointLocation + comma + PolygonPoint;
+            FillPieSmt.Rule = ToInstructionTerm("FILLPIE") + RectLocation + Arg("Start") + FormulaExpression + Arg("Angle") + FormulaExpression;
+            FillPolygonSmt.Rule = ToInstructionTerm("FILLPOLYGON") + PointLocation + comma + PointLocation + comma + PolygonPoint;
 
             var EmbbededSmtList = new NonTerminal("EmbbededSmtList");
             var ForBlock = new NonTerminal("ForBlock");
-            ForSmt.Rule = ToTerm("FOR") + variable_literal + "=" + FormulaExpression + "TO" + FormulaExpression + ForBlock;
+            ForSmt.Rule = ToInstructionTerm("FOR") + variableLiteral + "=" + FormulaExpression + "TO" + FormulaExpression + ForBlock;
             var embbededSmtListOpt = new NonTerminal("EmbbededSmtListOpt");
             this.EmbbededSmtListOpt = embbededSmtListOpt;
             ForBlock.Rule = ToTerm("DO") + embbededSmtListOpt + "ENDFOR";
@@ -372,18 +373,18 @@ namespace PdfSharpDslCore.Parser
             var UdfBlock = new NonTerminal("UdfBlock");
             UdfArguments.Rule = lpar + UdfArgumentslistOpt + rpar;
             UdfArgumentslistOpt.Rule = Empty | UdfArgumentslist;
-            UdfSmt.Rule = ToTerm("UDF") + variable_literal + PreferShiftHere() + UdfArguments + UdfBlock;
-            UdfArgumentslist.Rule = MakePlusRule(UdfArgumentslist, comma, variable_literal);
+            UdfSmt.Rule = ToTerm("UDF") + variableLiteral + PreferShiftHere() + UdfArguments + UdfBlock;
+            UdfArgumentslist.Rule = MakePlusRule(UdfArgumentslist, comma, variableLiteral);
             UdfBlock.Rule = embbededSmtListOpt + "ENDUDF";
 
 
             var UdfInvokeArguments = new NonTerminal("UdfInvokeArguments");
             var UdfInvokeArgumentslistOpt = new NonTerminal("UdfInvokeArgumentslistOpt");
-            UdfInvokeSmt.Rule = ToTerm("CALL") + variable_literal + PreferShiftHere() + UdfInvokeArguments;
+            UdfInvokeSmt.Rule = ToInstructionTerm("CALL") + variableLiteral + PreferShiftHere() + UdfInvokeArguments;
             UdfInvokeArguments.Rule = lpar + UdfInvokeArgumentslistOpt + rpar;
             UdfInvokeArgumentslistOpt.Rule = Empty | CallInvokeArgumentslist;
 
-            IfSmt.Rule = "IF" + FormulaExpression + then_clause + Else_clause_opt + "ENDIF";
+            IfSmt.Rule = ToInstructionTerm("IF") + FormulaExpression + then_clause + Else_clause_opt + "ENDIF";
             then_clause.Rule = "THEN" + embbededSmtListOpt;
             Else_clause_opt.Rule = Empty | PreferShiftHere() + "ELSE" + embbededSmtListOpt;
 
@@ -431,22 +432,34 @@ namespace PdfSharpDslCore.Parser
             rowTemplateSmt.Rule = "ROWTEMPLATE" + Arg("Count") + FormulaRoot + Arg("Y") + FormulaRoot + OptArg("BorderSize", FormulaRoot) +  rowTemplateContent;
             rowTemplateContent.Rule = EmbbededSmtListOpt + "ENDROWTEMPLATE";
         }
+
+        KeyTerm ToInstructionTerm(string name)
+        {
+            var result = ToTerm(name);
+            AddTermsReportGroup("instruction", result);
+            return result;
+        }
+        
         /// <summary>
         /// for argument in grammar
         /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
-        BnfExpression Arg(string name)
+        private BnfExpression Arg(string name)
         {
-            var result = name + PreferShiftHere() + "=";
+            var term = ToTerm(name);
+            term.ErrorAlias = $"Missing argument '{name}=...'";
+            var result = term + PreferShiftHere() + "=";
             //result.ErrorAlias = $"argument missing {name}";
             return result;
         }
 
         BnfExpression OptArg(string name, BnfExpression bnfExpression)
         {
-            var term = new NonTerminal($"Opt-{name}");
-            term.Rule = Empty | name + PreferShiftHere() + "=" + bnfExpression;
+            var term = new NonTerminal($"Opt-{name}")
+            {
+                Rule = Empty | name + PreferShiftHere() + "=" + bnfExpression
+            };
             return term;
         }
 

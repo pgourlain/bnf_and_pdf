@@ -133,12 +133,12 @@ else
 
 IEnumerable<string> LocalFontFiles()
 {
-    yield return @"Fonts\AlexBrush-Regular.ttf";
-    yield return @"Fonts\Just-Signature.ttf";
-    yield return @"Fonts\Inspiration-Regular.ttf";
-    yield return @"Fonts\Quirlycues.ttf";
-    yield return @"Fonts\Rabiohead.ttf";
-    yield return @"Fonts\SCRIPTIN.ttf";
+    yield return @"Fonts/AlexBrush-Regular.ttf";
+    yield return @"Fonts/Just-Signature.ttf";
+    yield return @"Fonts/Inspiration-Regular.ttf";
+    yield return @"Fonts/Quirlycues.ttf";
+    yield return @"Fonts/Rabiohead.ttf";
+    yield return @"Fonts/SCRIPTIN.ttf";
 }
 
 IEnumerable<string> LocalFontNames()

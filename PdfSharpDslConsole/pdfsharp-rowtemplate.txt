@@ -30,7 +30,7 @@ ENDROWTEMPLATE
 NEWPAGE;
 
 ROWTEMPLATE Count=getGlobalCommentsCount() Y=100 BorderSize=15
-    LINETEXT 50, 5 HAlign=hcenter VAlign=top Text=getGlobalCommentDate($ROWINDEX); 
+    LINETEXT 50, 5 HAlign=hcenter VAlign=top Text=getGlobalCommentDate($ROWINDEX);
 	# LINE 0,0, $PAGEWIDTH, 0;
     
     SET VAR GINDEX=$ROWINDEX;
