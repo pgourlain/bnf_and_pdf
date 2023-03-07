@@ -205,7 +205,7 @@ namespace PdfSharpDslCore.Parser
                     textOrientation = textOrientation with { Orientation = specifiedOrientation };
                 }
             }
-            if (string.IsNullOrEmpty(text))
+            if (!string.IsNullOrEmpty(text))
             {
                 (double x, double y, double? w, double? h) = ParseTextLocation(nodeLocation.ChildNodes[0]);
                 var (hAlign, vAlign) = ParseTextAlignment(nodeAlignment.ChildNodes[0], nodeAlignment.ChildNodes[1]);
