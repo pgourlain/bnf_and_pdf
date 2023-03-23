@@ -648,16 +648,28 @@ namespace PdfSharpDslCore.Drawing
 
         public void BeginIterationTemplate(int rowCount)
         {
+            //Save Brushes, Pens and Fonts for replayer
         }
 
         public void EndIterationTemplate(double drawHeight)
         {
+            //clean up instruction if at root level
             var r = _drawingCtx.DrawingRect;
             if (r is not null)
             {
                 //update height of last ROWTEMPLATE (including bordersize)
                 this._drawingCtx.UpdateDrawingRect(r.Value.X, r.Value.Y, r.Value.Width, drawHeight);
             }
+        }
+
+        public void SetOffsetY(double offsetY)
+        {
+            Gfx.Save();
+            Gfx.TranslateTransform(0, offsetY);
+        }
+        public void ResetOffset()
+        {
+            Gfx.Restore();
         }
 
         private void DebugRect(XRect rect)

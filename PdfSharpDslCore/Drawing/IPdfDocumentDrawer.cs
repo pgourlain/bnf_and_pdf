@@ -47,5 +47,7 @@ namespace PdfSharpDslCore.Drawing
         XRect EndDrawRowTemplate(int index);
         void BeginIterationTemplate(int rowCount);
         void EndIterationTemplate(double drawHeight);
+        void SetOffsetY(double offsetY);
+        void ResetOffset();
     }
 }

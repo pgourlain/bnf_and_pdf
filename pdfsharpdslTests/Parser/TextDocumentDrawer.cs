@@ -161,5 +161,15 @@ namespace pdfsharpdslTests
         {
             throw new NotImplementedException();
         }
+
+        public void SetOffsetY(double offsetY)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ResetOffset()
+        {
+            throw new NotImplementedException();
+        }
     }
 }
