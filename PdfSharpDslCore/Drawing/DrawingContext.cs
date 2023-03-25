@@ -6,9 +6,12 @@ namespace PdfSharpDslCore.Drawing
 {
     public class DrawingContext
     {
+        private InstructionsRecorder _recorder = new();
+        private Stack<XGraphics> _previousGraphics = new();
+
         Stack<XRect?> history = new Stack<XRect?>();
         internal XRect? DrawingRect { get; private set; }
-        public int Level => history.Count;
+        public int Level => _previousGraphics.Count;
 
         public DebugOptions DebugOptions { get; set; }
         public bool DebugText => (DebugOptions & (DebugOptions.DebugText | DebugOptions.DebugAll)) > 0;
@@ -64,6 +67,34 @@ namespace PdfSharpDslCore.Drawing
             var xREct = DrawingRect.Value;
             xREct.Union(src);
             DrawingRect = xREct;
+        }
+
+        public void OpenBlock(double offsetY, XGraphics previousGraphics)
+        {
+            _previousGraphics.Push(previousGraphics);
+            _recorder.OpenBlock(offsetY, true);
+        }
+
+        public XRect BlockRect => _recorder.CurrentBlock.Rect;
+        internal (IInstructionBlock, XGraphics) CloseBlock()
+        {
+            var block = _recorder.CurrentBlock;
+            _recorder.CloseBlock();
+            return (block, _previousGraphics.Pop());
+        }
+        public void PushInstruction(Action action, XRect rect)
+        {
+            _recorder.CurrentBlock.PushInstruction(new InstructionAction(action, rect));
+        }
+
+        public void PushInstruction(Action action, XPoint[] ptArray)
+        {
+            var r = XRect.Empty;
+            foreach (var pt in ptArray)   
+            {
+                r.Union(pt);
+            }
+            PushInstruction(action, r);
         }
     }
 }

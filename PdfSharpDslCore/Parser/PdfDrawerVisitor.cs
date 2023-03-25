@@ -355,6 +355,7 @@ namespace PdfSharpDslCore.Parser
                 //restore variables before call
                 if (vars is IVariablesDictionary restorable) restorable.RestoreVariables();
             }
+            //only available if no breaking page
             Variables.Add("LASTTEMPLATEHEIGHT", drawHeight);
         }
 
