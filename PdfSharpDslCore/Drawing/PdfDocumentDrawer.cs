@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using SixLabors.Fonts;
 
 namespace PdfSharpDslCore.Drawing
 {
@@ -244,21 +245,32 @@ namespace PdfSharpDslCore.Drawing
                 Alignment = hAlign,
                 LineAlignment = vAlign,
             };
+            InternalDrawLineText(text, x, y, w, h, textOrientation, fmt, CurrentFont, CurrentBrush, HighlightBrush);
+        }
+
+        private void InternalDrawLineText(string text, double x, double y, double? w, double? h,
+            TextOrientation textOrientation, XStringFormat fmt, XFont font, XBrush brush, XBrush? hb)
+        {
+            XRect r;
             //TODO : optimize to do this only on vertical text
             var cnt = Gfx.BeginContainer();
             try
             {
-                InternalDrawString(text, x, y, w, h, fmt, textOrientation, CurrentFont, CurrentBrush, HighlightBrush);
+                r = InternalDrawString(text, x, y, w, h, fmt, textOrientation, font, brush, hb);
             }
             finally
             {
                 Gfx.EndContainer(cnt);
             }
+
+            this._drawingCtx.PushInstruction(
+                () => InternalDrawLineText(text, x, y, w, h, textOrientation, fmt, font, brush, hb), r);
         }
 
-        private void InternalDrawString(string text, double x, double y, double? w, double? h,
+        private XRect InternalDrawString(string text, double x, double y, double? w, double? h,
             XStringFormat fmt, TextOrientation textOrientation, XFont font, XBrush brush, XBrush? hb)
         {
+            XRect result;
             double angle = 0;
 
             if (textOrientation.Angle is not null)
@@ -281,13 +293,13 @@ namespace PdfSharpDslCore.Drawing
                 Gfx.DrawString(text, font, brush, x, y, fmt);
                 var rText = new XRect(x, y, textSize.Width, textSize.Height);
                 var r = DrawingHelper.RectFromStringFormat(x, y, textSize, fmt);
-                this._drawingCtx.UpdateDrawingRect(r);
+                result = r;
                 if (_drawingCtx.DebugText)
                 {
                     DebugRect(r);
                 }
 
-                if (hb == null) return;
+                if (hb == null) return result;
 
 
                 //
@@ -301,18 +313,20 @@ namespace PdfSharpDslCore.Drawing
                 var r = new XRect(x, y, w.Value, h.Value);
                 Gfx.DrawString(text, font, brush, r, fmt);
                 var hr = DrawingHelper.RectFromStringFormat(x, y, textSize, fmt);
-                this._drawingCtx.UpdateDrawingRect(hr);
+                result = hr;
                 if (_drawingCtx.DebugText)
                 {
                     DebugRect(hr);
                 }
 
-                if (hb == null) return;
+                if (hb == null) return result;
                 hr.Intersect(r);
                 //var highlightColor = XColor.FromArgb(50, 255, 233, 178);
                 //var b = new XSolidBrush(highlightColor);
                 Gfx.DrawRectangle(hb, hr);
             }
+
+            return result;
         }
 
         public void DrawTitle(string text, double margin, XStringAlignment hAlign, XLineAlignment vAlign)
@@ -681,6 +695,10 @@ namespace PdfSharpDslCore.Drawing
             InternalEndRowTemplate(index, result);
             IInstructionBlock block;
             (block, _gfx) = this._drawingCtx.CloseBlock();
+            if (result.IsEmpty)
+            {
+                return new XRect(0, block.OffsetY, 0, 0);
+            }
             block.Draw(this, 0);
             return result;
         }
