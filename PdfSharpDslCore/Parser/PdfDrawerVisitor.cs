@@ -321,12 +321,15 @@ namespace PdfSharpDslCore.Parser
         }
 
         protected override void ExecuteRowTemplateStatement(IPdfDocumentDrawer state,
-            ParseTreeNode rowCountNode, ParseTreeNode offsetYNode, ParseTreeNode? borderSizeNode, ParseTreeNode body)
+            ParseTreeNode rowCountNode, ParseTreeNode offsetYNode, ParseTreeNode? borderSizeNode, 
+            ParseTreeNode? newPageTopMarginNode,
+            ParseTreeNode body)
         {
             var borderSize = borderSizeNode != null ? EvaluateForDouble(borderSizeNode) ?? 0 : 0;
             
             var rowCount = EvaluateForDouble(rowCountNode)??0;
             var offsetY = (EvaluateForDouble(offsetYNode)??0) + borderSize;
+            var newPageTopMargin = newPageTopMarginNode!=null?(EvaluateForDouble(newPageTopMarginNode) ?? 0) : 0;
 
             double drawHeight = borderSize;
             var vars = Variables;
@@ -336,7 +339,7 @@ namespace PdfSharpDslCore.Parser
                 state.BeginIterationTemplate((int)rowCount);
                 for (int i = 0; i < rowCount; i++)
                 {
-                    state.BeginDrawRowTemplate(i, offsetY);
+                    state.BeginDrawRowTemplate(i, offsetY, newPageTopMargin);
                     //set row index
                     vars.Add("ROWINDEX", i);
 

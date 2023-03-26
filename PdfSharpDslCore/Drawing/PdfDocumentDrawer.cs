@@ -7,6 +7,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using Microsoft.Extensions.Logging;
+using PdfSharpDslCore.Extensions;
 using SixLabors.Fonts;
 
 namespace PdfSharpDslCore.Drawing
@@ -14,6 +16,7 @@ namespace PdfSharpDslCore.Drawing
     public sealed class PdfDocumentDrawer : IDisposable, IPdfDocumentDrawer
     {
         private readonly PdfDocument _document;
+        private readonly ILogger? _logger;
         private PdfPage? _currentPage;
         private XPen? _currentPen;
         private XBrush? _currentBrush;
@@ -25,17 +28,19 @@ namespace PdfSharpDslCore.Drawing
         private XPoint _currentPoint = new XPoint(0, 0);
         private PageSize _defaultPageSize = PageSize.A4;
         private PageOrientation _defaultPageOrientation = PageOrientation.Portrait;
-        private List<Action> _actionOnBeforeNewPage = new();
-        private List<Action> _actionOnAfterNewPage = new();
+        private readonly List<Action> _actionOnBeforeNewPage = new();
+        private readonly List<Action> _actionOnAfterNewPage = new();
 
-        private readonly DrawingContext _drawingCtx = new();
+        private readonly DrawingContext _drawingCtx;
 
-        private readonly XPen DebugPen = new XPen(XColors.Red, 0.5)  { DashStyle = XDashStyle.DashDot };
-        private readonly Lazy<XFont> DebugFont = new Lazy<XFont>(() => new XFont("monospace", 6));
+        private readonly XPen _debugPen = new XPen(XColors.Red, 0.5)  { DashStyle = XDashStyle.DashDot };
+        private readonly Lazy<XFont> _debugFont = new Lazy<XFont>(() => new XFont("monospace", 6));
 
-        public PdfDocumentDrawer(PdfDocument document)
+        public PdfDocumentDrawer(PdfDocument document, ILogger? logger=null)
         {
+            _drawingCtx = new(logger);
             _document = document ?? throw new ArgumentNullException(nameof(document));
+            _logger = logger;
         }
 
         #region properties
@@ -61,6 +66,10 @@ namespace PdfSharpDslCore.Drawing
             {
                 if (_currentPage == value) return;
                 _currentPage = value;
+                if (_logger.DebugEnabled())
+                {
+                    _logger.WriteDebug(this, $"Dispose GFX:{_gfx?.GetHashCode()??0}");
+                }
                 _gfx?.Dispose();
                 _gfx = null;
                 _gfxRenderer = null;
@@ -96,6 +105,10 @@ namespace PdfSharpDslCore.Drawing
             get
             {
                 if (_gfx is not null) return _gfx;
+                if (_logger.DebugEnabled())
+                {
+                    _logger.WriteDebug(this, "Create new gfx from page");
+                }
                 _gfx = XGraphics.FromPdfPage(CurrentPage);
                 // HACK, read from https://github.com/ststeiger/PdfSharpCore/blob/master/docs/MigraDocCore/samples/MixMigraDocCoreAndPDFsharpCore.md
                 _gfx.MUH = PdfFontEncoding.Unicode;
@@ -536,7 +549,7 @@ namespace PdfSharpDslCore.Drawing
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.GetField
                                                              | System.Reflection.BindingFlags.Instance)
                 .GetValue(_gfx);
-            _gfxRenderer.ResetClip();
+            _gfxRenderer?.ResetClip();
         }
 
         private void DrawStringMultiline(string text, XFont xFont, XBrush xBrush, XRect r, XStringFormat fmt)
@@ -563,6 +576,10 @@ namespace PdfSharpDslCore.Drawing
 
         private PdfPage AddPage()
         {
+            if (_logger.DebugEnabled())
+            {
+                _logger.WriteDebug(this, $"AddPage: before={_actionOnBeforeNewPage.Count}, after={_actionOnAfterNewPage.Count}");
+            }
             _actionOnBeforeNewPage.ForEach(fn => fn());
             var page = _document.AddPage();
             page.Size = _defaultPageSize;
@@ -682,9 +699,9 @@ namespace PdfSharpDslCore.Drawing
         }
 
 
-        public void BeginDrawRowTemplate(int index, double offsetY)
+        public void BeginDrawRowTemplate(int index, double offsetY, double newPageTopMargin)
         {
-            this._drawingCtx.OpenBlock(offsetY, Gfx);
+            this._drawingCtx.OpenBlock(offsetY, Gfx, newPageTopMargin);
             _gfx = XGraphics.CreateMeasureContext(new XSize(PageWidth, PageHeight), 
                 XGraphicsUnit.Point, XPageDirection.Downwards);
         }
@@ -694,12 +711,19 @@ namespace PdfSharpDslCore.Drawing
             var result = this._drawingCtx.BlockRect;
             InternalEndRowTemplate(index, result);
             IInstructionBlock block;
-            (block, _gfx) = this._drawingCtx.CloseBlock();
+            var level = _drawingCtx.Level;
+            (block, _gfx) = this._drawingCtx.RestoreGraphics();
             if (result.IsEmpty)
             {
                 return new XRect(0, block.OffsetY, 0, 0);
             }
-            block.Draw(this, 0);
+
+            if (level <= 1)
+            {
+                block.Draw(this, 0);
+            }
+
+            this._drawingCtx.CloseBlock();
             return result;
         }
 
@@ -708,23 +732,23 @@ namespace PdfSharpDslCore.Drawing
             if (_drawingCtx.DebugRowTemplate)
             {
                 DebugRect(result);
-                Gfx.DrawLine(DebugPen, 0, 0, 5, 2);
-                Gfx.DrawLine(DebugPen, 0, 0, 2, 5);
-                Gfx.DrawLine(DebugPen, 0, 0, 10, 10);
+                Gfx.DrawLine(_debugPen, 0, 0, 5, 2);
+                Gfx.DrawLine(_debugPen, 0, 0, 2, 5);
+                Gfx.DrawLine(_debugPen, 0, 0, 10, 10);
                 var fmt = new XStringFormat()
                 {
                     Alignment = XStringAlignment.Near,
                     LineAlignment = XLineAlignment.Near
                 };
 
-                Gfx.DrawString($"{_drawingCtx.Level}.{index}", DebugFont.Value, XBrushes.Red, 10, 10, fmt);
+                Gfx.DrawString($"{_drawingCtx.Level}.{index}", _debugFont.Value, XBrushes.Red, 10, 10, fmt);
             }
             this._drawingCtx.PushInstruction(() => InternalEndRowTemplate(index, result), XRect.Empty);
         }
 
         public void BeginIterationTemplate(int rowCount)
         {
-            //Save Brushes, Pens and Fonts for replayer
+            //should I, Save Brushes, Pens and Fonts for replayer ?
         }
 
         public void EndIterationTemplate(double drawHeight)
@@ -740,22 +764,48 @@ namespace PdfSharpDslCore.Drawing
 
         public void SetOffsetY(double offsetY)
         {
+            if (_logger.DebugEnabled())
+            {
+                _logger.WriteDebug(this, $"SetOffsetY(GFX:{Gfx.GetHashCode()})");    
+            }
             Gfx.Save();
             Gfx.TranslateTransform(0, offsetY);
-            DoBeforeNewPage(() => Gfx.Restore());
-            DoAfterNewPage(() => this.Gfx.Save());
+            DoBeforeNewPage(RestoreOnNewPage);
+            DoAfterNewPage(SaveOnNewPage);
         }
         
         public void ResetOffset()
         {
+            if (_logger.DebugEnabled())
+            {
+                _logger.WriteDebug(this, $"ResetOffset(GFX:{Gfx.GetHashCode()})");    
+            }
             _actionOnBeforeNewPage.RemoveAt(_actionOnBeforeNewPage.Count-1);
             _actionOnAfterNewPage.RemoveAt(_actionOnAfterNewPage.Count-1);
             Gfx.Restore();
         }
 
+        private void RestoreOnNewPage()
+        {
+            if (_logger.DebugEnabled())
+            {
+                _logger.WriteDebug(this, $"RestoreOnNewPage(GFX:{Gfx.GetHashCode()})");    
+            }
+            Gfx.Restore();
+        }
+
+        private void SaveOnNewPage()
+        {
+            if (_logger.DebugEnabled())
+            {
+                _logger.WriteDebug(this, $"SaveOnNewPage(GFX:{Gfx.GetHashCode()})");    
+            }
+            Gfx.Save();
+        }
+
         private void DebugRect(XRect rect)
         {
-            Gfx.DrawRectangle(DebugPen, rect);
+            Gfx.DrawRectangle(_debugPen, rect);
         }
         
         private void DoBeforeNewPage(Action action)

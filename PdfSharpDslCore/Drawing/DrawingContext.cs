@@ -1,13 +1,14 @@
 ﻿using PdfSharpCore.Drawing;
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace PdfSharpDslCore.Drawing
 {
     public class DrawingContext
     {
-        private InstructionsRecorder _recorder = new();
-        private Stack<XGraphics> _previousGraphics = new();
+        private readonly InstructionsRecorder _recorder;
+        private readonly Stack<XGraphics> _previousGraphics = new();
 
         Stack<XRect?> history = new Stack<XRect?>();
         internal XRect? DrawingRect { get; private set; }
@@ -17,6 +18,10 @@ namespace PdfSharpDslCore.Drawing
         public bool DebugText => (DebugOptions & (DebugOptions.DebugText | DebugOptions.DebugAll)) > 0;
         public bool DebugRowTemplate => (DebugOptions & (DebugOptions.DebugRowTemplate | DebugOptions.DebugAll)) > 0;
 
+        public DrawingContext(ILogger? logger)
+        {
+            _recorder = new(logger);
+        }
         internal XRect PopDrawingRect(bool updateRestored)
         {
             var result = DrawingRect;
@@ -69,18 +74,23 @@ namespace PdfSharpDslCore.Drawing
             DrawingRect = xREct;
         }
 
-        public void OpenBlock(double offsetY, XGraphics previousGraphics)
+        public void OpenBlock(double offsetY, XGraphics previousGraphics, double newPageTopMargin)
         {
             _previousGraphics.Push(previousGraphics);
-            _recorder.OpenBlock(offsetY, true);
+            _recorder.OpenBlock(offsetY, true, newPageTopMargin);
         }
 
         public XRect BlockRect => _recorder.CurrentBlock.Rect;
-        internal (IInstructionBlock, XGraphics) CloseBlock()
+        internal (IInstructionBlock, XGraphics) RestoreGraphics()
         {
             var block = _recorder.CurrentBlock;
-            _recorder.CloseBlock();
+
             return (block, _previousGraphics.Pop());
+        }
+
+        internal void CloseBlock()
+        {
+            _recorder.CloseBlock();
         }
         public void PushInstruction(Action action, XRect rect)
         {

@@ -142,7 +142,7 @@ namespace pdfsharpdslTests
             throw new NotImplementedException();
         }
 
-        public void BeginDrawRowTemplate(int index, double offsetY)
+        public void BeginDrawRowTemplate(int index, double offsetY, double newPageTopMargin)
         {
             throw new NotImplementedException();
         }

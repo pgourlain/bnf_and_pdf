@@ -47,7 +47,7 @@ namespace pdfsharpdslTests.ReplayerTests
 
             var recorder = new InstructionsRecorder();
 
-            var block = recorder.OpenBlock(0, true);
+            var block = recorder.OpenBlock(0, true,0);
             Assert.NotNull(block);
 
             var r = new XRect(0, 0, 50, 50);
@@ -70,7 +70,7 @@ namespace pdfsharpdslTests.ReplayerTests
             recorder.CloseBlock();
             
             //draw at bottom page
-            block = recorder.OpenBlock(200, true);
+            block = recorder.OpenBlock(200, true,0);
             var instr = new DummyInstruction(new XRect(0, 0, 50, 100));
             block.PushInstruction(instr);
             hasNewPage = block.Draw(drawerMock.Object, 0);
@@ -79,7 +79,7 @@ namespace pdfsharpdslTests.ReplayerTests
             recorder.CloseBlock();
             
             //draw at bottom page
-            block = recorder.OpenBlock(200, false);
+            block = recorder.OpenBlock(200, false,0);
             instr = new DummyInstruction(new XRect(0, 0, 50, 100));
             block.PushInstruction(instr);
             hasNewPage = block.Draw(drawerMock.Object, 0);
@@ -112,7 +112,7 @@ namespace pdfsharpdslTests.ReplayerTests
 
             var recorder = new InstructionsRecorder();
 
-            var block = recorder.OpenBlock(200, true);
+            var block = recorder.OpenBlock(200, true,0);
             AddInstructions(block, 1, 100);
             
             Assert.Equal(new XRect(0,200, 50, 100), block.Rect);

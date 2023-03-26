@@ -43,7 +43,7 @@ namespace PdfSharpDslCore.Drawing
         void DrawImage(XImage image, double x, double y, double? w, double? h, bool sizeInPixel, bool cropImage);
         void DrawPie(double x, double y, double? w, double? h, double startAngle, double sweepAngle, bool isFilled);
         void DrawPolygon(IEnumerable<XPoint> points, bool isFilled);
-        void BeginDrawRowTemplate(int index, double offsetY);
+        void BeginDrawRowTemplate(int index, double offsetY, double newPageTopMargin);
         XRect EndDrawRowTemplate(int index);
         void BeginIterationTemplate(int rowCount);
         void EndIterationTemplate(double drawHeight);

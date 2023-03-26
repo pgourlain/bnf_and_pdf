@@ -3,29 +3,25 @@ using PdfSharpCore.Pdf;
 using PdfSharpDslConsole.Fonts;
 using PdfSharpDslCore.Drawing;
 using PdfSharpDslCore.Parser;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+
+ServiceProvider serviceProvider = new ServiceCollection()
+    .AddLogging((loggingBuilder) => loggingBuilder
+        .SetMinimumLevel(LogLevel.Trace)
+        .AddConsole()
+    )
+    .BuildServiceProvider();
+
+var logger = serviceProvider.GetService<ILoggerFactory>()?.CreateLogger<PdfDocumentDrawer>();
+
+//Now both are working
+logger.LogDebug("Debug World");         
+logger.LogInformation("Hello World");
 
 //GlobalFontSettings.FontResolver = new FontResolver();
 GlobalFontSettings.DefaultFontEncoding = PdfFontEncoding.Unicode;
 
-
-//var pairings = new List<Tuple<string,string?>>();
-//IOrderedEnumerable<FontFamily> ordered = SystemFonts.Families.OrderBy(x => x.Name);
-//foreach (FontFamily family in ordered)
-//{
-//    IOrderedEnumerable<FontStyle> styles = family.GetAvailableStyles().OrderBy(x => x);
-//    foreach (FontStyle style in styles)
-//    {
-//        Font font = family.CreateFont(0F, style);
-//        font.TryGetPath(out var path);
-//        pairings.Add(new Tuple<string,string?>(font.Name, path));
-//    }
-//}
-
-//int max = pairings.Max(x => x.Item1.Length);
-//foreach (var pk in pairings)
-//{
-//    Console.WriteLine($"{pk.Item1.PadRight(max)} {pk.Item2}");
-//}
 
 #region global variables
 var globalComments = new[]
@@ -112,7 +108,7 @@ else
     //PdfSharpCore cclasses
     var document = new PdfDocument();
     //draw parsing result
-    using var drawer = new PdfDocumentDrawer(document);
+    using var drawer = new PdfDocumentDrawer(document, logger);
     var visitor = new PdfDrawerVisitor();
 
     visitor.RegisterFormulaFunction("GetFontCount", (_) => LocalFontNames().Count());
