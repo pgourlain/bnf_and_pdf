@@ -8,7 +8,7 @@ namespace PdfSharpDslCore.Drawing
     {
         XRect Rect { get; }
 
-        bool Draw(IPdfDocumentDrawer drawer, double offsetY);
+        bool Draw(IPdfDocumentDrawer drawer, double offsetY, double pageOffsetY);
     }
     
     internal interface IInstructionBlock : IInstruction

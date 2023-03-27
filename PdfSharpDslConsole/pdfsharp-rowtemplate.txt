@@ -18,13 +18,13 @@ NEWPAGE;
 
 TITLE Margin=10 HAlign=hcenter Text="nested template fit in one page";
 
-CALL NESTEDTEMPLATE1(100);
+# CALL NESTEDTEMPLATE1(100);
 
 NEWPAGE;
 
 TITLE Margin=10 HAlign=hcenter Text="nested template not fit into first page";
 
-CALL NESTEDTEMPLATE1(450);
+# CALL NESTEDTEMPLATE1(450);
 
 NEWPAGE;
 

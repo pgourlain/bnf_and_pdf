@@ -12,8 +12,6 @@ namespace PdfSharpDslCore.Drawing
 
     class RootInstructionBlock : InstructionBlock
     {
-        private readonly ILogger? _logger;
-
         public RootInstructionBlock(ILogger? logger)
             : base (null!, false, 0,0)
         {

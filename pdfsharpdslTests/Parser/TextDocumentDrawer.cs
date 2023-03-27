@@ -76,10 +76,12 @@ namespace pdfsharpdslTests
         {
             var halign = $"HAlign={ToHAlign(hAlign)}";
             OutputRendering.Append($"LINETEXT ");
-            OutputRendering.Append($"{x},{y}");
+            FormattableString s = $"{x},{y}";
+            OutputRendering.Append(s.ToString(CultureInfo.InvariantCulture));
             if (w is not null)
             {
-                OutputRendering.Append($",{w},{h}");
+                s = $",{w},{h}";
+                OutputRendering.Append(s.ToString(CultureInfo.InvariantCulture));
             }
             OutputRendering.Append($" HAlign={ToHAlign(hAlign)} VAlign={ToVAlign(vAlign)} ");
             OutputRendering.Append($"Text=\"{text}\"");

@@ -33,10 +33,10 @@ namespace PdfSharpDslCore.Drawing
 
         private readonly DrawingContext _drawingCtx;
 
-        private readonly XPen _debugPen = new XPen(XColors.Red, 0.5)  { DashStyle = XDashStyle.DashDot };
+        private readonly XPen _debugPen = new XPen(XColors.Red, 0.5) { DashStyle = XDashStyle.DashDot };
         private readonly Lazy<XFont> _debugFont = new Lazy<XFont>(() => new XFont("monospace", 6));
 
-        public PdfDocumentDrawer(PdfDocument document, ILogger? logger=null)
+        public PdfDocumentDrawer(PdfDocument document, ILogger? logger = null)
         {
             _drawingCtx = new(logger);
             _document = document ?? throw new ArgumentNullException(nameof(document));
@@ -68,7 +68,7 @@ namespace PdfSharpDslCore.Drawing
                 _currentPage = value;
                 if (_logger.DebugEnabled())
                 {
-                    _logger.WriteDebug(this, $"Dispose GFX:{_gfx?.GetHashCode()??0}");
+                    _logger.WriteDebug(this, $"Dispose GFX:{_gfx?.GetHashCode() ?? 0}");
                 }
                 _gfx?.Dispose();
                 _gfx = null;
@@ -169,7 +169,7 @@ namespace PdfSharpDslCore.Drawing
         private void InternalDrawLine(XPen pen, double x, double y, double x1, double y1)
         {
             Gfx.DrawLine(pen, x, y, x1, y1);
-            this._drawingCtx.PushInstruction(() => InternalDrawLine(pen, x,y,x1,y1), new XRect(new XPoint(x, y), new XPoint(x1, y1)));
+            this._drawingCtx.PushInstruction(() => InternalDrawLine(pen, x, y, x1, y1), new XRect(new XPoint(x, y), new XPoint(x1, y1)));
         }
 
         public void DrawRect(double x, double y, double w, double h, bool isFilled)
@@ -188,7 +188,7 @@ namespace PdfSharpDslCore.Drawing
             {
                 Gfx.DrawRectangle(pen, x, y, w, h);
             }
-            this._drawingCtx.PushInstruction(() => InternalDrawRect(pen, brush, x,y,w,h,isFilled), new XRect(x, y, w, h));
+            this._drawingCtx.PushInstruction(() => InternalDrawRect(pen, brush, x, y, w, h, isFilled), new XRect(x, y, w, h));
         }
 
         public void DrawEllipse(double x, double y, double w, double h, bool isFilled)
@@ -366,7 +366,7 @@ namespace PdfSharpDslCore.Drawing
             XFont font, XBrush brush, XBrush? hb)
         {
             Gfx.DrawString(text, font, brush, r, fmt);
-            this._drawingCtx.PushInstruction(() => InternalDrawText(text,r,fmt, textSize, font, brush, hb), r);
+            this._drawingCtx.PushInstruction(() => InternalDrawText(text, r, fmt, textSize, font, brush, hb), r);
             if (_drawingCtx.DebugText)
             {
                 var debugRect = DrawingHelper.RectFromStringFormat(r, textSize, fmt);
@@ -491,7 +491,7 @@ namespace PdfSharpDslCore.Drawing
                     offsetX += column.DrawWidth;
                     //todo: alignment
                     var fmt = new XStringFormat
-                        { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center };
+                    { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center };
                     DrawStringMultiline(column.ColumnHeaderName, xFonts[i], column.Brush ?? defaultBrush, rText, fmt);
                     i++;
                 }
@@ -524,7 +524,7 @@ namespace PdfSharpDslCore.Drawing
                             h - vMargin);
                         Gfx.IntersectClip(rText);
                         var fmt = new XStringFormat
-                            { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center };
+                        { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center };
                         //to debug
                         //Gfx.DrawRectangle(XPens.Violet, rText);
                         //TODO: split to draw one string per line
@@ -571,7 +571,10 @@ namespace PdfSharpDslCore.Drawing
         {
             _defaultPageSize = pageSize ?? _defaultPageSize;
             _defaultPageOrientation = pageOrientation ?? _defaultPageOrientation;
+
+            _actionOnBeforeNewPage.ForEach(fn => fn());
             CurrentPage = AddPage();
+            _actionOnAfterNewPage.ForEach(fn => fn());
         }
 
         private PdfPage AddPage()
@@ -580,11 +583,9 @@ namespace PdfSharpDslCore.Drawing
             {
                 _logger.WriteDebug(this, $"AddPage: before={_actionOnBeforeNewPage.Count}, after={_actionOnAfterNewPage.Count}");
             }
-            _actionOnBeforeNewPage.ForEach(fn => fn());
             var page = _document.AddPage();
             page.Size = _defaultPageSize;
             page.Orientation = _defaultPageOrientation;
-            _actionOnAfterNewPage.ForEach(fn => fn());
             return page;
         }
 
@@ -654,7 +655,7 @@ namespace PdfSharpDslCore.Drawing
                     Gfx.DrawImage(image, x, y, w.Value, h.Value);
                 }
             }
-            this._drawingCtx.PushInstruction(() => InternalDrawImage(image, x, y, ow, oh,cropImage), new XRect(x,y,w.Value,h.Value));
+            this._drawingCtx.PushInstruction(() => InternalDrawImage(image, x, y, ow, oh, cropImage), new XRect(x, y, w.Value, h.Value));
         }
 
         public void DrawPie(double x, double y, double? w, double? h, double startAngle, double sweepAngle,
@@ -675,8 +676,8 @@ namespace PdfSharpDslCore.Drawing
             {
                 Gfx.DrawPie(pen, x, y, w ?? 0, h ?? 0, startAngle, sweepAngle);
             }
-            this._drawingCtx.PushInstruction(() => InternalDrawPie(x,y,w,h,startAngle, sweepAngle, isFilled, pen, brush), 
-                new XRect(x,y,w??0,h??0));
+            this._drawingCtx.PushInstruction(() => InternalDrawPie(x, y, w, h, startAngle, sweepAngle, isFilled, pen, brush),
+                new XRect(x, y, w ?? 0, h ?? 0));
         }
 
         public void DrawPolygon(IEnumerable<XPoint> points, bool isFilled)
@@ -702,7 +703,7 @@ namespace PdfSharpDslCore.Drawing
         public void BeginDrawRowTemplate(int index, double offsetY, double newPageTopMargin)
         {
             this._drawingCtx.OpenBlock(offsetY, Gfx, newPageTopMargin);
-            _gfx = XGraphics.CreateMeasureContext(new XSize(PageWidth, PageHeight), 
+            _gfx = XGraphics.CreateMeasureContext(new XSize(PageWidth, PageHeight),
                 XGraphicsUnit.Point, XPageDirection.Downwards);
         }
 
@@ -720,7 +721,8 @@ namespace PdfSharpDslCore.Drawing
 
             if (level <= 1)
             {
-                block.Draw(this, 0);
+                //should return pageOffsetY
+                block.Draw(this, 0, 0);
             }
 
             this._drawingCtx.CloseBlock();
@@ -766,22 +768,22 @@ namespace PdfSharpDslCore.Drawing
         {
             if (_logger.DebugEnabled())
             {
-                _logger.WriteDebug(this, $"SetOffsetY(GFX:{Gfx.GetHashCode()})");    
+                _logger.WriteDebug(this, $"SetOffsetY({offsetY}, GFX:{Gfx.GetHashCode()})");
             }
             Gfx.Save();
             Gfx.TranslateTransform(0, offsetY);
             DoBeforeNewPage(RestoreOnNewPage);
             DoAfterNewPage(SaveOnNewPage);
         }
-        
+
         public void ResetOffset()
         {
             if (_logger.DebugEnabled())
             {
-                _logger.WriteDebug(this, $"ResetOffset(GFX:{Gfx.GetHashCode()})");    
+                _logger.WriteDebug(this, $"ResetOffset(GFX:{Gfx.GetHashCode()})");
             }
-            _actionOnBeforeNewPage.RemoveAt(_actionOnBeforeNewPage.Count-1);
-            _actionOnAfterNewPage.RemoveAt(_actionOnAfterNewPage.Count-1);
+            _actionOnBeforeNewPage.RemoveAt(_actionOnBeforeNewPage.Count - 1);
+            _actionOnAfterNewPage.RemoveAt(_actionOnAfterNewPage.Count - 1);
             Gfx.Restore();
         }
 
@@ -789,7 +791,7 @@ namespace PdfSharpDslCore.Drawing
         {
             if (_logger.DebugEnabled())
             {
-                _logger.WriteDebug(this, $"RestoreOnNewPage(GFX:{Gfx.GetHashCode()})");    
+                _logger.WriteDebug(this, $"RestoreOnNewPage(GFX:{Gfx.GetHashCode()})");
             }
             Gfx.Restore();
         }
@@ -798,7 +800,7 @@ namespace PdfSharpDslCore.Drawing
         {
             if (_logger.DebugEnabled())
             {
-                _logger.WriteDebug(this, $"SaveOnNewPage(GFX:{Gfx.GetHashCode()})");    
+                _logger.WriteDebug(this, $"SaveOnNewPage(GFX:{Gfx.GetHashCode()})");
             }
             Gfx.Save();
         }
@@ -807,7 +809,7 @@ namespace PdfSharpDslCore.Drawing
         {
             Gfx.DrawRectangle(_debugPen, rect);
         }
-        
+
         private void DoBeforeNewPage(Action action)
         {
             _actionOnBeforeNewPage.Add(action);

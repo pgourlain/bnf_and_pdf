@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Xunit;
 
 namespace pdfsharpdslTests.ReplayerTests
 {
@@ -22,7 +23,7 @@ namespace pdfsharpdslTests.ReplayerTests
             public XRect Rect { get; }
             public XRect DrawingRect { get; private set; }
 
-            public bool Draw(IPdfDocumentDrawer drawer, double offsetY)
+            public bool Draw(IPdfDocumentDrawer drawer, double offsetY, double pageOffsetY)
             {
                 var r = Rect;
                 r.Offset(0,offsetY);
@@ -60,11 +61,11 @@ namespace pdfsharpdslTests.ReplayerTests
             r.Union(r1);
             Assert.Equal(r, block.Rect);
 
-            var hasNewPage = block.Draw(drawerMock.Object, 0);
+            var hasNewPage = block.Draw(drawerMock.Object, 0,0);
             Assert.False(hasNewPage);
 
             block.PushInstruction(new DummyInstruction(new XRect(0, 200, 10, 100)));
-            hasNewPage = block.Draw(drawerMock.Object, 0);
+            hasNewPage = block.Draw(drawerMock.Object, 0, 0);
             Assert.True(hasNewPage);
             drawerMock.Verify(x => x.NewPage(null, null), Times.Once);
             recorder.CloseBlock();
@@ -73,19 +74,34 @@ namespace pdfsharpdslTests.ReplayerTests
             block = recorder.OpenBlock(200, true,0);
             var instr = new DummyInstruction(new XRect(0, 0, 50, 100));
             block.PushInstruction(instr);
-            hasNewPage = block.Draw(drawerMock.Object, 0);
+            hasNewPage = block.Draw(drawerMock.Object, 0, 0);
             Assert.True(hasNewPage);
             Assert.Equal(new XRect(0,0,50,100), instr.DrawingRect);
             recorder.CloseBlock();
             
+
+        }
+
+        [Fact]
+        public void DrawAtBottomPage()
+        {
+            var drawerMock = defaultDrawerMock();
+
+            var recorder = new InstructionsRecorder();
             //draw at bottom page
-            block = recorder.OpenBlock(200, false,0);
-            instr = new DummyInstruction(new XRect(0, 0, 50, 100));
+            var block = recorder.OpenBlock(200, false, 0);
+            var instr = new DummyInstruction(new XRect(0, 0, 50, 100));
             block.PushInstruction(instr);
-            hasNewPage = block.Draw(drawerMock.Object, 0);
+            var hasNewPage = block.Draw(drawerMock.Object, 0, 0);
+            
+            drawerMock.Verify(x => x.NewPage(null, null), Times.Once);
+            drawerMock.Verify(x => x.SetOffsetY(200), Times.Once);
+            drawerMock.Verify(x => x.SetOffsetY(-97), Times.Once);
+
             Assert.True(hasNewPage);
-            Assert.Equal(new XRect(0,200-297,50,100), instr.DrawingRect);
             recorder.CloseBlock();
+
+
         }
 
         [Fact]
@@ -99,7 +115,7 @@ namespace pdfsharpdslTests.ReplayerTests
             Assert.NotNull(block);
 
             AddInstructions(block, 10,60);
-            var hasNewPage = block.Draw(drawerMock.Object, 0);
+            var hasNewPage = block.Draw(drawerMock.Object, 0, 0);
             Assert.True(hasNewPage);
             //2 newPage() == 3 pages in total
             drawerMock.Verify(x => x.NewPage(null, null), Times.Exactly(2));
@@ -146,9 +162,9 @@ namespace pdfsharpdslTests.ReplayerTests
             var block = recorder.OpenBlock(0, true);
 
             var b2 = recorder.OpenBlock(200, true);
-
+            //180 height should be print on second page
             AddInstructions(b2, 3, 60);
-            var hasNewPage = block.Draw(drawerMock.Object, 0);
+            var hasNewPage = block.Draw(drawerMock.Object, 0, 0);
             Assert.True(hasNewPage);
             drawerMock.Verify(x => x.NewPage(null, null), Times.Exactly(1));
         }
