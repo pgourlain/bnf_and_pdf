@@ -22,6 +22,17 @@ CALL NESTEDTEMPLATE1(100);
 
 NEWPAGE;
 
+TITLE Margin=10 HAlign=hcenter Text="nested template not fit into first page";
+
+CALL NESTEDTEMPLATE1(450);
+
+NEWPAGE;
+
+TITLE Margin=10 HAlign=hcenter Text="nested template is higher than one page";
+
+CALL NESTEDTEMPLATE2(100, 3, 100);
+
+
 
 #ROWTEMPLATE Count=getGlobalCommentsCount() Y=100 BorderSize=15
 #    LINETEXT 50, 5 HAlign=hcenter VAlign=top Text=getGlobalCommentDate($ROWINDEX);
@@ -37,18 +48,22 @@ NEWPAGE;
 #ENDROWTEMPLATE
 
 ####### UDF ######
-UDF NESTEDTEMPLATE1(TOP)
-    ROWTEMPLATE Count=3 Y=$TOP BorderSize=5
+UDF NESTEDTEMPLATE2(TOP, COUNT, INNERCOUNT)
+    ROWTEMPLATE Count=$COUNT Y=$TOP BorderSize=5
         # top line under border
-        LINE 0,0,$PAGEWIDTH-20, 0;
+        LINE 20,0,$PAGEWIDTH-20, 0;
     
-        LINE 0,0,50, 50;
-        # bottom line under border
-        LINE 0,50,$PAGEWIDTH-20, 50;
+        LINE 0, 0, 50, 50;
         SET VAR MAINROWINDEX=$ROWINDEX;
-        ROWTEMPLATE Count=10 Y=0 BorderSize=3
-            LINETEXT 0,0 HAlign=left VAlign=top Text=("MainIndex="+$MAINROWINDEX+",Index="+$ROWINDEX);
+        ROWTEMPLATE Count=$INNERCOUNT Y=0 BorderSize=3
+            LINETEXT 200,0 HAlign=left VAlign=top Text=("MainIndex="+$MAINROWINDEX+",Index="+$ROWINDEX);
             LINE $ROWINDEX*10 ,0,$ROWINDEX*10+10, 10; 
         ENDROWTEMPLATE
+		# bottom line under border
+		LINE 20,$LASTTEMPLATEHEIGHT,$PAGEWIDTH-20, $LASTTEMPLATEHEIGHT;
     ENDROWTEMPLATE
+ENDUDF
+
+UDF NESTEDTEMPLATE1(TOP)
+	CALL NESTEDTEMPLATE2($TOP, 3,10);
 ENDUDF
