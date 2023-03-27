@@ -8,7 +8,14 @@ namespace PdfSharpDslCore.Drawing
     {
         XRect Rect { get; }
 
-        bool Draw(IPdfDocumentDrawer drawer, double offsetY, double pageOffsetY);
+        /// <summary>
+        /// return pageOffsetY
+        /// </summary>
+        /// <param name="drawer"></param>
+        /// <param name="offsetY"></param>
+        /// <param name="pageOffsetY"></param>
+        /// <returns></returns>
+        double Draw(IPdfDocumentDrawer drawer, double offsetY, double pageOffsetY);
     }
     
     internal interface IInstructionBlock : IInstruction
@@ -31,5 +38,11 @@ namespace PdfSharpDslCore.Drawing
 
         IInstructionBlock? Parent { get; }
         double OffsetY { get; }
+    }
+
+    internal record DrawResult
+    {
+        public XRect DrawingRect;
+        public double PageOffsetY;
     }
 }

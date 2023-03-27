@@ -20,10 +20,10 @@ namespace PdfSharpDslCore.Drawing
             this.Rect = rect;
             _action = action;
         }
-        public bool Draw(IPdfDocumentDrawer drawer, double offsetY, double pageOffsetY)
+        public double Draw(IPdfDocumentDrawer drawer, double offsetY, double pageOffsetY)
         {
             _action();
-            return false;
+            return 0;
         }
     }
 
@@ -65,10 +65,13 @@ namespace PdfSharpDslCore.Drawing
         /// <param name="drawer"></param>
         /// <param name="offsetY"/>
         /// <returns></returns>
-        public bool Draw(IPdfDocumentDrawer drawer, double offsetY, double pageOffsetY)
+        public double Draw(IPdfDocumentDrawer drawer, double offsetY, double pageOffsetY)
         {
-            using var scope = Logger?.ProcessingWorkScope(this.GetHashCode(), $"BeginDraw({offsetY})");
-            var hasNewPage = false;
+            double newPageOffsetY = 0;
+            if (Logger.DebugEnabled())
+            {
+                Logger.WriteDebug(this, $"BeginDraw({offsetY})");
+            }
             _inDraw++;
             try
             {
@@ -86,7 +89,7 @@ namespace PdfSharpDslCore.Drawing
                         {
                             Logger.WriteDebug(this, "drawing height > page height");
                         }
-                        hasNewPage = DrawByChunck(drawer, offsetY, selfOffsetY, pageOffsetY, pageRect) | hasNewPage;
+                        newPageOffsetY = DrawByChunck(drawer, offsetY, selfOffsetY, pageOffsetY, pageRect);
                     }
                     else
                     {
@@ -97,55 +100,55 @@ namespace PdfSharpDslCore.Drawing
                             {
                                 Logger.WriteDebug(this, "drawing bottom is under page bottom");
                             }
-                            hasNewPage = true;
+                            newPageOffsetY = drawer.PageHeight;
                             drawer.NewPage();
                             //offset of each block should set to 0
-                            hasNewPage = DrawInstructions(drawer, offsetY, pageOffsetY, true) | hasNewPage;
+                            newPageOffsetY += DrawInstructions(drawer, offsetY, pageOffsetY, true);
                         }
                         else
                         {
-                            hasNewPage = DrawInstructions(drawer, selfOffsetY + offsetY, pageOffsetY) | hasNewPage;
+                            newPageOffsetY = DrawInstructions(drawer, selfOffsetY + offsetY, pageOffsetY);
                         }
                     }
                 }
                 else
                 {
-                    hasNewPage = DrawByChunck(drawer, offsetY, selfOffsetY, pageOffsetY, pageRect) | hasNewPage;
+                    newPageOffsetY = DrawByChunck(drawer, offsetY, selfOffsetY, pageOffsetY, pageRect);
                 }
             }
             finally
             {
                 _inDraw--;
             }
-            return hasNewPage;
+            return newPageOffsetY;
         }
 
-        private bool DrawByChunck(IPdfDocumentDrawer drawer, double offsetY, double selfOffsetY, double pageOffsetY, XRect pageRect)
+        private double DrawByChunck(IPdfDocumentDrawer drawer, double offsetY, double selfOffsetY, double pageOffsetY, XRect pageRect)
         {
             if (LogEnabled(LogLevel.Debug))
             {
                 Logger.WriteDebug(this, $"DrawByChunck({offsetY},{selfOffsetY},{pageOffsetY})");
             }
-            var hasNewPage = false;
-            var h = this.Rect.Height;
+            double newPageOffsetY = 0;
+            var h = this.Rect.Bottom;
             var drawingOffset = selfOffsetY + offsetY;
             while (h > 0)
             {
-                hasNewPage = DrawInstructions(drawer, drawingOffset, pageOffsetY) | hasNewPage;
+                newPageOffsetY += DrawInstructions(drawer, drawingOffset, pageOffsetY);
                 h = h - (pageRect.Height);
                 if (h > 0)
                 {
                     drawer.NewPage();
-                    hasNewPage = true;
+                    newPageOffsetY = pageRect.Height;
                     pageOffsetY += pageRect.Height;
                     drawingOffset -= pageRect.Height;
                 }
             }
 
-            return hasNewPage;
+            return newPageOffsetY;
         }
 
-        private bool DrawInstructions(IPdfDocumentDrawer drawer, double offsetY, double pageOffsetY, bool newPageOccurs = false)
+        private double DrawInstructions(IPdfDocumentDrawer drawer, double offsetY, double pageOffsetY, bool newPageOccurs = false)
         {
             double negOffset = 0;
             var shouldRestore = offsetY != 0;
@@ -163,7 +166,7 @@ namespace PdfSharpDslCore.Drawing
                         negOffset = -block.OffsetY;
                     }
                 }
-                var hasNewPage = false;
+                double newPageOffsetY = 0;
                 foreach (var item in _instructions)
                 {
                     if (item is IInstructionBlock block)
@@ -180,10 +183,9 @@ namespace PdfSharpDslCore.Drawing
                         }
                     }
                     //offsetY should not be add here because of SetOffsetY above
-                    var newPage = item.Draw(drawer, negOffset, pageOffsetY);
-                    hasNewPage |= newPage;
+                    newPageOffsetY += item.Draw(drawer, negOffset, pageOffsetY);
                 }
-                return hasNewPage;
+                return newPageOffsetY;
             }
             finally
             {

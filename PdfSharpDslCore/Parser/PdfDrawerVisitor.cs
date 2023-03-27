@@ -346,9 +346,18 @@ namespace PdfSharpDslCore.Parser
                     Visit(state, body.ChildNodes);
                     var drawingRect = state.EndDrawRowTemplate(i);
 
-                    drawHeight += drawingRect.Height + borderSize;
-                    offsetY += drawingRect.Height + borderSize;
-
+                    if (drawingRect.PageOffsetY > 0)
+                    {
+                        //new page
+                        var newHeight = drawingRect.DrawingRect.Bottom - drawingRect.PageOffsetY;
+                        offsetY = newHeight + borderSize;
+                        drawHeight = newHeight + borderSize;
+                    }
+                    else
+                    {
+                        drawHeight += drawingRect.DrawingRect.Height+ borderSize;
+                        offsetY += drawingRect.DrawingRect.Height + borderSize;
+                    }
                 }
                 state.EndIterationTemplate(drawHeight);
 

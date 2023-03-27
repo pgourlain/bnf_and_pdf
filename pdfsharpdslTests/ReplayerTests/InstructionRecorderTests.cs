@@ -23,12 +23,12 @@ namespace pdfsharpdslTests.ReplayerTests
             public XRect Rect { get; }
             public XRect DrawingRect { get; private set; }
 
-            public bool Draw(IPdfDocumentDrawer drawer, double offsetY, double pageOffsetY)
+            public double Draw(IPdfDocumentDrawer drawer, double offsetY, double pageOffsetY)
             {
                 var r = Rect;
                 r.Offset(0,offsetY);
                 DrawingRect = r;
-                return false;
+                return 0;
             }
         }
         #endregion
@@ -62,11 +62,11 @@ namespace pdfsharpdslTests.ReplayerTests
             Assert.Equal(r, block.Rect);
 
             var hasNewPage = block.Draw(drawerMock.Object, 0,0);
-            Assert.False(hasNewPage);
+            Assert.Equal(0,hasNewPage);
 
             block.PushInstruction(new DummyInstruction(new XRect(0, 200, 10, 100)));
             hasNewPage = block.Draw(drawerMock.Object, 0, 0);
-            Assert.True(hasNewPage);
+            Assert.True(hasNewPage > 0);
             drawerMock.Verify(x => x.NewPage(null, null), Times.Once);
             recorder.CloseBlock();
             
@@ -75,7 +75,7 @@ namespace pdfsharpdslTests.ReplayerTests
             var instr = new DummyInstruction(new XRect(0, 0, 50, 100));
             block.PushInstruction(instr);
             hasNewPage = block.Draw(drawerMock.Object, 0, 0);
-            Assert.True(hasNewPage);
+            Assert.True(hasNewPage > 0);
             Assert.Equal(new XRect(0,0,50,100), instr.DrawingRect);
             recorder.CloseBlock();
             
@@ -98,7 +98,7 @@ namespace pdfsharpdslTests.ReplayerTests
             drawerMock.Verify(x => x.SetOffsetY(200), Times.Once);
             drawerMock.Verify(x => x.SetOffsetY(-97), Times.Once);
 
-            Assert.True(hasNewPage);
+            Assert.True(hasNewPage > 0);
             recorder.CloseBlock();
 
 
@@ -116,7 +116,7 @@ namespace pdfsharpdslTests.ReplayerTests
 
             AddInstructions(block, 10,60);
             var hasNewPage = block.Draw(drawerMock.Object, 0, 0);
-            Assert.True(hasNewPage);
+            Assert.True(hasNewPage > 0);
             //2 newPage() == 3 pages in total
             drawerMock.Verify(x => x.NewPage(null, null), Times.Exactly(2));
         }
@@ -165,7 +165,7 @@ namespace pdfsharpdslTests.ReplayerTests
             //180 height should be print on second page
             AddInstructions(b2, 3, 60);
             var hasNewPage = block.Draw(drawerMock.Object, 0, 0);
-            Assert.True(hasNewPage);
+            Assert.True(hasNewPage>0);
             drawerMock.Verify(x => x.NewPage(null, null), Times.Exactly(1));
         }
     }

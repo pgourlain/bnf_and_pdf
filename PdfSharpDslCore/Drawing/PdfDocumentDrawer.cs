@@ -707,8 +707,9 @@ namespace PdfSharpDslCore.Drawing
                 XGraphicsUnit.Point, XPageDirection.Downwards);
         }
 
-        public XRect EndDrawRowTemplate(int index)
+        public DrawingResult EndDrawRowTemplate(int index)
         {
+            double newPageOffsetY = 0;
             var result = this._drawingCtx.BlockRect;
             InternalEndRowTemplate(index, result);
             IInstructionBlock block;
@@ -716,17 +717,31 @@ namespace PdfSharpDslCore.Drawing
             (block, _gfx) = this._drawingCtx.RestoreGraphics();
             if (result.IsEmpty)
             {
-                return new XRect(0, block.OffsetY, 0, 0);
+                return new()
+                {
+                    DrawingRect = new XRect(0, block.OffsetY, 0, 0),
+                    PageOffsetY = 0
+                };
             }
 
             if (level <= 1)
             {
                 //should return pageOffsetY
-                block.Draw(this, 0, 0);
+                newPageOffsetY = block.Draw(this, 0, 0);
             }
 
             this._drawingCtx.CloseBlock();
-            return result;
+            // if (newPageOffsetY != 0)
+            // {
+            //     var newHeight = result.Bottom - newPageOffsetY;
+            //     result.Y = 0;
+            //     result.Height = newHeight > 0 ? newHeight : 0;
+            // }
+            return  new()
+            {
+                DrawingRect = result,
+                PageOffsetY = newPageOffsetY
+            };
         }
 
         private void InternalEndRowTemplate(int index, XRect result)

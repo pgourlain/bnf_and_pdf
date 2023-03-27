@@ -147,10 +147,10 @@ namespace PdfSharpDslCore.Generator.DrawingGenerator
             //throw new NotImplementedException();
         }
 
-        public XRect EndDrawRowTemplate(int index)
+        public DrawingResult EndDrawRowTemplate(int index)
         {
             //throw new NotImplementedException();
-            return XRect.Empty;
+            return new DrawingResult();
         }
 
         public void BeginIterationTemplate(int rowCount)
