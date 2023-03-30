@@ -18,13 +18,13 @@ NEWPAGE;
 
 TITLE Margin=10 HAlign=hcenter Text="nested template fit in one page";
 
-# CALL NESTEDTEMPLATE1(100);
+CALL NESTEDTEMPLATE1(100);
 
 NEWPAGE;
 
 TITLE Margin=10 HAlign=hcenter Text="nested template not fit into first page";
 
-# CALL NESTEDTEMPLATE1(450);
+CALL NESTEDTEMPLATE1(450);
 
 NEWPAGE;
 
@@ -49,13 +49,13 @@ CALL NESTEDTEMPLATE2(100, 3, 100);
 
 ####### UDF ######
 UDF NESTEDTEMPLATE2(TOP, COUNT, INNERCOUNT)
-    ROWTEMPLATE Count=$COUNT Y=$TOP BorderSize=5
+    ROWTEMPLATE Count=$COUNT Y=$TOP Name="toptemplate" BorderSize=5
         # top line under border
         LINE 20,0,$PAGEWIDTH-20, 0;
     
         LINE 0, 0, 50, 50;
         SET VAR MAINROWINDEX=$ROWINDEX;
-        ROWTEMPLATE Count=$INNERCOUNT Y=0 BorderSize=3
+        ROWTEMPLATE Count=$INNERCOUNT Y=0 Name="innerTemplate" BorderSize=3
             LINETEXT 200,0 HAlign=left VAlign=top Text=("MainIndex="+$MAINROWINDEX+",Index="+$ROWINDEX);
             LINE $ROWINDEX*10 ,0,$ROWINDEX*10+10, 10; 
         ENDROWTEMPLATE

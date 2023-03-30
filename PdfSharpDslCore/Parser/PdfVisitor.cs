@@ -253,6 +253,7 @@ namespace PdfSharpDslCore.Parser
             ParseTreeNode offsetYNode,
             ParseTreeNode? borderSizeNode,
             ParseTreeNode? newPageTopMarginNode,
+            ParseTreeNode? nameNode,
             ParseTreeNode body)
         { }
 
@@ -288,9 +289,10 @@ namespace PdfSharpDslCore.Parser
             var offset = node.ChildNodes[5];
             var borderSizeNode = GetOptArg(node, "Opt-BorderSize");
             var topMarginNode = GetOptArg(node, "Opt-NewPageTopMargin");
+            var nameNode = GetOptArg(node, "Opt-Name");
 
             var body = node.ChildNode("RowTemplateBlock")?.ChildNode("EmbbededSmtList")!;
-            ExecuteRowTemplateStatement(state, rowCount, offset, borderSizeNode, topMarginNode, body);
+            ExecuteRowTemplateStatement(state, rowCount, offset, borderSizeNode, topMarginNode, nameNode, body);
         }
 
         private void VisitCalludf(TState state, ParseTreeNode node)

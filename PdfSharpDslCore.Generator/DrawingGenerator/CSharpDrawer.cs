@@ -142,7 +142,7 @@ namespace PdfSharpDslCore.Generator.DrawingGenerator
             //throw new NotImplementedException();
         }
 
-        public void BeginDrawRowTemplate(int index, double offsetY, double newPageTopMargin)
+        public void BeginDrawRowTemplate(string name, int index, double offsetY, double newPageTopMargin)
         {
             //throw new NotImplementedException();
         }

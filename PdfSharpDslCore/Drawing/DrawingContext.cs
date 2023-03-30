@@ -74,10 +74,10 @@ namespace PdfSharpDslCore.Drawing
             DrawingRect = xREct;
         }
 
-        public void OpenBlock(double offsetY, XGraphics previousGraphics, double newPageTopMargin)
+        public void OpenBlock(string name, double offsetY, XGraphics previousGraphics, double newPageTopMargin)
         {
             _previousGraphics.Push(previousGraphics);
-            _recorder.OpenBlock(offsetY, true, newPageTopMargin);
+            _recorder.OpenBlock(name, offsetY, true, newPageTopMargin);
         }
 
         public XRect BlockRect => _recorder.CurrentBlock.Rect;

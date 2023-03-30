@@ -30,7 +30,7 @@ namespace PdfSharpDslCore.Drawing
 
         IInstruction PopInstruction();
 
-        IInstructionBlock OpenBlock(double offsetY, bool entirePrint, double newPageTopMargin=0);
+        IInstructionBlock OpenBlock(string name, double offsetY, bool entirePrint, double newPageTopMargin=0);
         void CloseBlock();
         void UpdateRect(XRect rect);
 
@@ -38,6 +38,7 @@ namespace PdfSharpDslCore.Drawing
 
         IInstructionBlock? Parent { get; }
         double OffsetY { get; }
+        string Name { get; }
     }
 
     internal record DrawResult

@@ -323,14 +323,17 @@ namespace PdfSharpDslCore.Parser
         protected override void ExecuteRowTemplateStatement(IPdfDocumentDrawer state,
             ParseTreeNode rowCountNode, ParseTreeNode offsetYNode, ParseTreeNode? borderSizeNode, 
             ParseTreeNode? newPageTopMarginNode,
+            ParseTreeNode? nameNode,
             ParseTreeNode body)
         {
+            string templateName = EvaluateForObject(nameNode)?.ToString()??string.Empty;
             var borderSize = borderSizeNode != null ? EvaluateForDouble(borderSizeNode) ?? 0 : 0;
             
             var rowCount = EvaluateForDouble(rowCountNode)??0;
             var offsetY = (EvaluateForDouble(offsetYNode)??0) + borderSize;
             var newPageTopMargin = newPageTopMarginNode!=null?(EvaluateForDouble(newPageTopMarginNode) ?? 0) : 0;
 
+            double pageOffsetY = 0;
             double drawHeight = borderSize;
             var vars = Variables;
             if (vars is IVariablesDictionary savable) savable.SaveVariables();
@@ -339,7 +342,7 @@ namespace PdfSharpDslCore.Parser
                 state.BeginIterationTemplate((int)rowCount);
                 for (int i = 0; i < rowCount; i++)
                 {
-                    state.BeginDrawRowTemplate(i, offsetY, newPageTopMargin);
+                    state.BeginDrawRowTemplate(templateName, i, offsetY, newPageTopMargin);
                     //set row index
                     vars.Add("ROWINDEX", i);
 
@@ -348,8 +351,9 @@ namespace PdfSharpDslCore.Parser
 
                     if (drawingRect.PageOffsetY > 0)
                     {
+                        pageOffsetY += drawingRect.PageOffsetY;
                         //new page
-                        var newHeight = drawingRect.DrawingRect.Bottom - drawingRect.PageOffsetY;
+                        var newHeight = drawingRect.DrawingRect.Bottom - pageOffsetY;
                         offsetY = newHeight + borderSize;
                         drawHeight = newHeight + borderSize;
                     }
@@ -617,8 +621,9 @@ namespace PdfSharpDslCore.Parser
             return new Evaluator(node, funcs).EvaluateForDouble(variables);
         }
 
-        private object? EvaluateForObject(ParseTreeNode node)
+        private object? EvaluateForObject(ParseTreeNode? node)
         {
+            if (node is null) return null;
             return EvaluateForObject(node, Variables, CustomFunctions);
         }
         

@@ -144,12 +144,12 @@ namespace pdfsharpdslTests
             throw new NotImplementedException();
         }
 
-        public void BeginDrawRowTemplate(int index, double offsetY, double newPageTopMargin)
+        public void BeginDrawRowTemplate(string name, int index, double offsetY, double newPageTopMargin)
         {
             throw new NotImplementedException();
         }
 
-        public XRect EndDrawRowTemplate(int index)
+        public DrawingResult EndDrawRowTemplate(int index)
         {
             throw new NotImplementedException();
         }

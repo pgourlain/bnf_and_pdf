@@ -13,7 +13,7 @@ namespace PdfSharpDslCore.Drawing
     class RootInstructionBlock : InstructionBlock
     {
         public RootInstructionBlock(ILogger? logger)
-            : base (null!, false, 0,0)
+            : base (null!, "_root_", false, 0,0)
         {
             this.Logger = logger;
         }
@@ -32,9 +32,9 @@ namespace PdfSharpDslCore.Drawing
             CurrentBlock = _rootBlock;
         }
 
-        public IInstructionBlock OpenBlock(double offsetY, bool entirePrint, double newPageTopMargin=0)
+        public IInstructionBlock OpenBlock(string name, double offsetY, bool entirePrint, double newPageTopMargin=0)
         {
-            CurrentBlock = CurrentBlock.OpenBlock(offsetY, entirePrint, newPageTopMargin);
+            CurrentBlock = CurrentBlock.OpenBlock(name, offsetY, entirePrint, newPageTopMargin);
             return CurrentBlock;
         }
 

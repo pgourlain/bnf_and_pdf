@@ -48,7 +48,7 @@ namespace pdfsharpdslTests.ReplayerTests
 
             var recorder = new InstructionsRecorder();
 
-            var block = recorder.OpenBlock(0, true,0);
+            var block = recorder.OpenBlock(string.Empty,0, true,0);
             Assert.NotNull(block);
 
             var r = new XRect(0, 0, 50, 50);
@@ -71,7 +71,7 @@ namespace pdfsharpdslTests.ReplayerTests
             recorder.CloseBlock();
             
             //draw at bottom page
-            block = recorder.OpenBlock(200, true,0);
+            block = recorder.OpenBlock(string.Empty,200, true,0);
             var instr = new DummyInstruction(new XRect(0, 0, 50, 100));
             block.PushInstruction(instr);
             hasNewPage = block.Draw(drawerMock.Object, 0, 0);
@@ -89,7 +89,7 @@ namespace pdfsharpdslTests.ReplayerTests
 
             var recorder = new InstructionsRecorder();
             //draw at bottom page
-            var block = recorder.OpenBlock(200, false, 0);
+            var block = recorder.OpenBlock(string.Empty,200, false, 0);
             var instr = new DummyInstruction(new XRect(0, 0, 50, 100));
             block.PushInstruction(instr);
             var hasNewPage = block.Draw(drawerMock.Object, 0, 0);
@@ -111,7 +111,7 @@ namespace pdfsharpdslTests.ReplayerTests
 
             var recorder = new InstructionsRecorder();
 
-            var block = recorder.OpenBlock(0, true);
+            var block = recorder.OpenBlock(string.Empty,0, true);
             Assert.NotNull(block);
 
             AddInstructions(block, 10,60);
@@ -128,14 +128,14 @@ namespace pdfsharpdslTests.ReplayerTests
 
             var recorder = new InstructionsRecorder();
 
-            var block = recorder.OpenBlock(200, true,0);
+            var block = recorder.OpenBlock(string.Empty,200, true,0);
             AddInstructions(block, 1, 100);
             
             Assert.Equal(new XRect(0,200, 50, 100), block.Rect);
             
             recorder.CloseBlock();
-            block = recorder.OpenBlock(100, true);
-            var block1 = recorder.OpenBlock(100, true);
+            block = recorder.OpenBlock(string.Empty,100, true);
+            var block1 = recorder.OpenBlock(string.Empty,100, true);
             AddInstructions(block1, 1, 100);
             Assert.Equal(new XRect(0,200, 50, 100), block.Rect);
             Assert.Equal(new XRect(0,100, 50, 100), block1.Rect);
@@ -159,9 +159,9 @@ namespace pdfsharpdslTests.ReplayerTests
 
             var recorder = new InstructionsRecorder();
 
-            var block = recorder.OpenBlock(0, true);
+            var block = recorder.OpenBlock(string.Empty,0, true);
 
-            var b2 = recorder.OpenBlock(200, true);
+            var b2 = recorder.OpenBlock(string.Empty,200, true);
             //180 height should be print on second page
             AddInstructions(b2, 3, 60);
             var hasNewPage = block.Draw(drawerMock.Object, 0, 0);

@@ -430,9 +430,10 @@ namespace PdfSharpDslCore.Parser
              */
             var rowTemplateContent = new NonTerminal("RowTemplateBlock");
             rowTemplateSmt.Rule = "ROWTEMPLATE" + Arg("Count") + FormulaRoot + Arg("Y") + FormulaRoot 
+                                  + OptArg("Name", FormulaRoot) 
                                   + OptArg("BorderSize", FormulaRoot) 
                                   + OptArg("NewPageTopMargin", FormulaRoot) 
-                                  //+ OptArg("Splitable", FormulaRoot) 
+                                  //+ OptArg("Splitable", FormulaRoot)
                                   +  rowTemplateContent;
             rowTemplateContent.Rule = EmbbededSmtListOpt + "ENDROWTEMPLATE";
         }
