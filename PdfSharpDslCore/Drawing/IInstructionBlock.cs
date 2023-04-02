@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using PdfSharpCore.Drawing;
@@ -7,6 +8,7 @@ namespace PdfSharpDslCore.Drawing
     internal interface IInstruction
     {
         XRect Rect { get; }
+        string Name { get; }
 
         /// <summary>
         /// return pageOffsetY
@@ -26,9 +28,9 @@ namespace PdfSharpDslCore.Drawing
         /// want to print entire if possible (height < pageheight)
         /// </summary>
         bool ShouldBeEntirePrinted { get; }
-        void PushInstruction(IInstruction instruction);
+        void PushInstruction(IInstruction instruction, bool accumulate=true);
 
-        IInstruction PopInstruction();
+        IEnumerable<IInstruction> Instructions { get; }
 
         IInstructionBlock OpenBlock(string name, double offsetY, bool entirePrint, double newPageTopMargin=0);
         void CloseBlock();

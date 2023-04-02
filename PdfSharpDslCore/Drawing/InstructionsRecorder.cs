@@ -18,7 +18,7 @@ namespace PdfSharpDslCore.Drawing
             this.Logger = logger;
         }
 
-        public override void PushInstruction(IInstruction instruction)
+        public override void PushInstruction(IInstruction instruction, bool accumulate)
         {
             //base.PushInstruction(instruction);
         }

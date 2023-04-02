@@ -1,6 +1,7 @@
 ﻿using PdfSharpCore.Drawing;
 using System;
 using System.Collections.Generic;
+using Irony;
 using Microsoft.Extensions.Logging;
 
 namespace PdfSharpDslCore.Drawing
@@ -92,12 +93,12 @@ namespace PdfSharpDslCore.Drawing
         {
             _recorder.CloseBlock();
         }
-        public void PushInstruction(Action action, XRect rect)
+        public void PushInstruction(Action<double> action, XRect rect, bool accumulate=true, string instrName="")
         {
-            _recorder.CurrentBlock.PushInstruction(new InstructionAction(action, rect));
+            _recorder.CurrentBlock.PushInstruction(new InstructionAction(action, rect, instrName),accumulate);
         }
 
-        public void PushInstruction(Action action, XPoint[] ptArray)
+        public void PushInstruction(Action<double> action, XPoint[] ptArray)
         {
             var r = XRect.Empty;
             foreach (var pt in ptArray)   

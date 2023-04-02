@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Irony;
 using Xunit;
 
 namespace pdfsharpdslTests.ReplayerTests
@@ -18,9 +19,14 @@ namespace pdfsharpdslTests.ReplayerTests
         #region private classes
         class DummyInstruction : IInstruction
         {
-            public DummyInstruction(XRect r) { this.Rect = r; }
+            public DummyInstruction(XRect r, string name="")
+            {
+                this.Rect = r;
+                Name = name;
+            }
 
             public XRect Rect { get; }
+            public string Name { get; }
             public XRect DrawingRect { get; private set; }
 
             public double Draw(IPdfDocumentDrawer drawer, double offsetY, double pageOffsetY)

@@ -169,7 +169,7 @@ namespace PdfSharpDslCore.Drawing
         private void InternalDrawLine(XPen pen, double x, double y, double x1, double y1)
         {
             Gfx.DrawLine(pen, x, y, x1, y1);
-            this._drawingCtx.PushInstruction(() => InternalDrawLine(pen, x, y, x1, y1), new XRect(new XPoint(x, y), new XPoint(x1, y1)));
+            this._drawingCtx.PushInstruction((oy) => InternalDrawLine(pen, x, y+oy, x1, y1+oy), new XRect(new XPoint(x, y), new XPoint(x1, y1)));
         }
 
         public void DrawRect(double x, double y, double w, double h, bool isFilled)
@@ -188,7 +188,7 @@ namespace PdfSharpDslCore.Drawing
             {
                 Gfx.DrawRectangle(pen, x, y, w, h);
             }
-            this._drawingCtx.PushInstruction(() => InternalDrawRect(pen, brush, x, y, w, h, isFilled), new XRect(x, y, w, h));
+            this._drawingCtx.PushInstruction((oy) => InternalDrawRect(pen, brush, x, y+oy, w, h, isFilled), new XRect(x, y, w, h));
         }
 
         public void DrawEllipse(double x, double y, double w, double h, bool isFilled)
@@ -208,7 +208,7 @@ namespace PdfSharpDslCore.Drawing
             {
                 Gfx.DrawEllipse(pen, r);
             }
-            this._drawingCtx.PushInstruction(() => InternalDrawEllipse(isFilled, r, pen, brush), r);
+            this._drawingCtx.PushInstruction((oy) => InternalDrawEllipse(isFilled, r.OffsetY(oy), pen, brush), r);
         }
 
         public void DrawText(string text, double x, double y, double? w,
@@ -277,7 +277,7 @@ namespace PdfSharpDslCore.Drawing
             }
 
             this._drawingCtx.PushInstruction(
-                () => InternalDrawLineText(text, x, y, w, h, textOrientation, fmt, font, brush, hb), r);
+                (oy) => InternalDrawLineText(text, x, y+oy, w, h, textOrientation, fmt, font, brush, hb), r, instrName:$"DrawLineText({text})");
         }
 
         private XRect InternalDrawString(string text, double x, double y, double? w, double? h,
@@ -366,7 +366,7 @@ namespace PdfSharpDslCore.Drawing
             XFont font, XBrush brush, XBrush? hb)
         {
             Gfx.DrawString(text, font, brush, r, fmt);
-            this._drawingCtx.PushInstruction(() => InternalDrawText(text, r, fmt, textSize, font, brush, hb), r);
+            this._drawingCtx.PushInstruction((oy) => InternalDrawText(text, r.OffsetY(oy), fmt, textSize, font, brush, hb), r);
             if (_drawingCtx.DebugText)
             {
                 var debugRect = DrawingHelper.RectFromStringFormat(r, textSize, fmt);
@@ -604,7 +604,7 @@ namespace PdfSharpDslCore.Drawing
         private void InternalLineTo(XPoint p1, XPoint p2, XPen pen)
         {
             Gfx.DrawLine(pen, p1, p2);
-            this._drawingCtx.PushInstruction(() => InternalLineTo(p1, p2, pen), new XRect(p1, p2));
+            this._drawingCtx.PushInstruction((oy) => InternalLineTo(p1.OffsetY(oy), p2.OffsetY(oy), pen), new XRect(p1, p2));
             //this._drawingCtx.UpdateDrawingRect(new XRect(p1, p2));
         }
 
@@ -655,7 +655,7 @@ namespace PdfSharpDslCore.Drawing
                     Gfx.DrawImage(image, x, y, w.Value, h.Value);
                 }
             }
-            this._drawingCtx.PushInstruction(() => InternalDrawImage(image, x, y, ow, oh, cropImage), new XRect(x, y, w.Value, h.Value));
+            this._drawingCtx.PushInstruction((oy) => InternalDrawImage(image, x, y+oy, ow, oh, cropImage), new XRect(x, y, w.Value, h.Value));
         }
 
         public void DrawPie(double x, double y, double? w, double? h, double startAngle, double sweepAngle,
@@ -676,7 +676,7 @@ namespace PdfSharpDslCore.Drawing
             {
                 Gfx.DrawPie(pen, x, y, w ?? 0, h ?? 0, startAngle, sweepAngle);
             }
-            this._drawingCtx.PushInstruction(() => InternalDrawPie(x, y, w, h, startAngle, sweepAngle, isFilled, pen, brush),
+            this._drawingCtx.PushInstruction((oy) => InternalDrawPie(x, y+oy, w, h, startAngle, sweepAngle, isFilled, pen, brush),
                 new XRect(x, y, w ?? 0, h ?? 0));
         }
 
@@ -696,7 +696,7 @@ namespace PdfSharpDslCore.Drawing
             {
                 Gfx.DrawPolygon(pen, ptArray);
             }
-            this._drawingCtx.PushInstruction(() => InternalDrawPolygon(isFilled, ptArray, pen, brush), ptArray);
+            this._drawingCtx.PushInstruction((oy) => InternalDrawPolygon(isFilled, ptArray.OffsetY(oy), pen, brush), ptArray);
         }
 
 
@@ -731,12 +731,6 @@ namespace PdfSharpDslCore.Drawing
             }
 
             this._drawingCtx.CloseBlock();
-            // if (newPageOffsetY != 0)
-            // {
-            //     var newHeight = result.Bottom - newPageOffsetY;
-            //     result.Y = 0;
-            //     result.Height = newHeight > 0 ? newHeight : 0;
-            // }
             return  new()
             {
                 DrawingRect = result,
@@ -760,7 +754,7 @@ namespace PdfSharpDslCore.Drawing
 
                 Gfx.DrawString($"{_drawingCtx.Level}.{index}", _debugFont.Value, XBrushes.Red, 10, 10, fmt);
             }
-            this._drawingCtx.PushInstruction(() => InternalEndRowTemplate(index, result), XRect.Empty);
+            this._drawingCtx.PushInstruction((oy) => InternalEndRowTemplate(index, result.OffsetY(oy)), result, false, "EndRowTemplate");
         }
 
         public void BeginIterationTemplate(int rowCount)

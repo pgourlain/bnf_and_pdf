@@ -13,16 +13,18 @@ namespace PdfSharpDslCore.Drawing
     class InstructionAction : IInstruction
     {
         public XRect Rect { get; }
-        private readonly Action _action;
+        private readonly Action<double> _action;
+        public string Name { get; }
 
-        public InstructionAction(Action action, XRect rect)
+        public InstructionAction(Action<double> action, XRect rect, string name)
         {
             this.Rect = rect;
             _action = action;
+            Name = name;
         }
         public double Draw(IPdfDocumentDrawer drawer, double offsetY, double pageOffsetY)
         {
-            _action();
+            _action(offsetY);
             return 0;
         }
     }
@@ -46,6 +48,8 @@ namespace PdfSharpDslCore.Drawing
 
         public ILogger? Logger { get; protected set; }
         public string Name => _name;
+
+        public IEnumerable<IInstruction> Instructions => _instructions.AsReadOnly();
 
         public InstructionBlock(IInstructionBlock? parent, string name, bool entirePrint, double offsetY, double newPageTopMargin)
         {
@@ -128,34 +132,78 @@ namespace PdfSharpDslCore.Drawing
 
         private double DrawByChunck(IPdfDocumentDrawer drawer, double offsetY, double selfOffsetY, double pageOffsetY, XRect pageRect)
         {
+            double newPageOffsetY = 0;
             if (LogEnabled(LogLevel.Debug))
             {
                 Logger.WriteDebug(this, $"DrawByChunck({offsetY},{selfOffsetY},{pageOffsetY})");
             }
-             
-            //get all instructions
-            //split by page
-            // filter instructions across pages to print them multiple times with different offsetY
-            
-            // double newPageOffsetY = 0;
-            // var h = this.Rect.Bottom;
-            // var drawingOffset = selfOffsetY + offsetY;
-            // while (h > 0)
-            // {
-            //     var chunckOffsetY= DrawInstuctionsByChunck(drawer, drawingOffset, pageOffsetY);
-            //     newPageOffsetY += chunckOffsetY;
-            //     h = h - (pageRect.Height);
-            //     if (h > 0)
-            //     {
-            //         drawer.NewPage();
-            //         pageOffsetY += pageRect.Height;
-            //         newPageOffsetY = pageRect.Height + chunckOffsetY;
-            //         
-            //         drawingOffset -= pageRect.Height +chunckOffsetY;
-            //     }
-            // }
 
+            newPageOffsetY = DrawInstructionsByChunk(drawer, _instructions, selfOffsetY, pageOffsetY);
+            
             return newPageOffsetY;
+        }
+
+        private double DrawInstructionsByChunk(IPdfDocumentDrawer drawer,IEnumerable<IInstruction> instructions, 
+            double originalOffsetY, double pageOffsetY)
+        {
+            var currentOffsetY = originalOffsetY;
+            var offsetyResult = 0.0;
+            foreach (var instr in instructions)
+            {
+                if (instr is IInstructionBlock block)
+                {
+                    if (block.Rect.Height + block.OffsetY- pageOffsetY + currentOffsetY > drawer.PageHeight)
+                    {
+                        //le block ne rentre pas entierement sur la page en cours
+                        if (block.Rect.Height <= drawer.PageHeight)
+                        {
+                            drawer.NewPage();
+                            currentOffsetY = 0;
+                            pageOffsetY += drawer.PageHeight;
+                            drawer.SetOffsetY(0);
+                            DrawInstructionsByChunk(drawer, block.Instructions, 0, pageOffsetY);
+                            drawer.ResetOffset();
+                            offsetyResult = block.Rect.Height;
+                        }
+                        //si ne rentre pas du tout, on imprime , puis on créé une page et on réimprime avec un décalage
+                        
+                    }
+                    else
+                    {
+                        //drawer.SetOffsetY(block.OffsetY-pageOffsetY + currentOffsetY);
+                        DrawInstructionsByChunk(drawer, block.Instructions, block.OffsetY-pageOffsetY + currentOffsetY, pageOffsetY /*0?*/);
+                        //drawer.ResetOffset();
+                        offsetyResult = Math.Max(offsetyResult, block.Rect.Bottom - pageOffsetY);
+                    }
+                }
+                else
+                {
+                    //drawer.SetOffsetY(currentOffsetY);
+                    instr.Draw(drawer, currentOffsetY, 0);
+                    //drawer.ResetOffset();
+                }
+            }
+            
+            return offsetyResult;
+        }
+
+        private IEnumerable<FlatInstruction> GenerateInstruction(IEnumerable<IInstruction> instructions, double offsetY)
+        {
+            foreach (var instr in instructions.ToArray())
+            {
+                if (instr is IInstructionBlock block)
+                {
+                    foreach (var flatInstr in GenerateInstruction(block.Instructions, block.OffsetY))
+                    {
+                        flatInstr.OffsetY += offsetY;
+                        yield return flatInstr;
+                    }
+                }
+                else
+                {
+                    yield return new FlatInstruction(instr, offsetY);
+                }
+            }
         }
 
         private double DrawInstructions(IPdfDocumentDrawer drawer, double offsetY, double pageOffsetY, bool newPageOccurs = false, bool drawchunk=false)
@@ -193,61 +241,6 @@ namespace PdfSharpDslCore.Drawing
             }
         }
 
-        private double DrawInstuctionsByChunck(IPdfDocumentDrawer drawer, double offsetY, double pageOffsetY)
-        {
-            double negOffset = 0;
-            var shouldRestore = offsetY != 0;
-            if (shouldRestore)
-            {
-                drawer.SetOffsetY(offsetY);
-            }
-            try
-            {
-                double newPageOffsetY = 0;
-                int index = 0;
-                double gOffsetY = GlobalOffset(this);
-                double localOffsetY = offsetY + pageOffsetY-gOffsetY;
-                foreach (var item in _instructions)
-                {
-                    if (item is IInstructionBlock block)
-                    {
-                        index++;
-                        var r = block.Rect;
-                        r.Offset(0, gOffsetY + pageOffsetY);
-                        //test not good
-                        if (r.Y <= drawer.PageHeight + block.OffsetY+localOffsetY && r.Bottom > drawer.PageHeight+pageOffsetY)
-                        {
-                            var dy = drawer.PageHeight - gOffsetY - block.OffsetY;
-                            newPageOffsetY -= dy;
-                            //return that we break 
-                            return newPageOffsetY;
-                        }
-                        if (block.OffsetY + offsetY > drawer.PageHeight)
-                        {
-                            //avoid drawing under bottom page
-                            break;
-                        }
-                        if (block.OffsetY + block.Rect.Bottom + offsetY < 0)
-                        {
-                            //do not draw block < top page
-                            continue;
-                        }
-                    }
-                    //offsetY should not be add here because of SetOffsetY above
-                    newPageOffsetY += item.Draw(drawer, negOffset, pageOffsetY);
-                }
-                return newPageOffsetY;
-            }
-            finally
-            {
-                if (shouldRestore)
-                {
-                    drawer.ResetOffset();
-                }
-            }
-
-        }
-
         private double GlobalOffset(IInstructionBlock? block)
         {
             double result = 0;
@@ -260,21 +253,17 @@ namespace PdfSharpDslCore.Drawing
             return result;
         }
 
-        public IInstruction PopInstruction()
-        {
-            var result = _instructions.First();
-            _instructions.RemoveAt(0);
-            return result;
-        }
-
-        public virtual void PushInstruction(IInstruction instruction)
+        public virtual void PushInstruction(IInstruction instruction, bool accumulate)
         {
             //instruction at root is not permit
             if (_inDraw > 0) return;
             if (instruction == null) throw new ArgumentNullException(nameof(instruction));
 
             _instructions.Add(instruction);
-            this.UpdateRect(instruction.Rect);
+            if (accumulate)
+            {
+                this.UpdateRect(instruction.Rect);
+            }
         }
 
         public IInstructionBlock OpenBlock(string name, double offsetY, bool entirePrint, double newPageTopMargin = 0)
