@@ -132,15 +132,15 @@ namespace PdfSharpDslCore.Drawing
 
         private double DrawByChunck(IPdfDocumentDrawer drawer, double offsetY, double selfOffsetY, double pageOffsetY, XRect pageRect)
         {
-            double newPageOffsetY = 0;
             if (LogEnabled(LogLevel.Debug))
             {
                 Logger.WriteDebug(this, $"DrawByChunck({offsetY},{selfOffsetY},{pageOffsetY})");
             }
 
-            newPageOffsetY = DrawInstructionsByChunk(drawer, _instructions, selfOffsetY, pageOffsetY);
-
-            newPageOffsetY = this.Rect.Bottom - newPageOffsetY;
+            double drawingHeight = DrawInstructionsByChunk(drawer, _instructions, selfOffsetY, pageOffsetY);
+            
+            //offset relative to bottom of current block
+            var newPageOffsetY = this.Rect.Bottom - drawingHeight;
             return newPageOffsetY;
         }
 
@@ -155,7 +155,8 @@ namespace PdfSharpDslCore.Drawing
             {
                 if (instr is IInstructionBlock block)
                 {
-                    if (block.Rect.Height + block.OffsetY - pageOffsetY + currentOffsetY > drawer.PageHeight)
+                    var blockOffsetY = block.OffsetY - pageOffsetY + originalOffsetY + (hasNewPage ? currentOffsetY : 0);
+                    if (block.Rect.Height + blockOffsetY > drawer.PageHeight)
                     {
                         //the block does not fit in the page
                         if (block.Rect.Height <= drawer.PageHeight)
@@ -168,10 +169,9 @@ namespace PdfSharpDslCore.Drawing
                             if (newY < 0)
                             {
                                 currentOffsetY = -newY;
-                                deltaOnPreviousPage += currentOffsetY;
+                                deltaOnPreviousPage = currentOffsetY;
                             }
-                            DrawInstructionsByChunk(drawer, block.Instructions, 0, pageOffsetY);
-                            //drawer.ResetOffset();
+                            DrawInstructionsByChunk(drawer, block.Instructions, 0, 0);
                             offsetyResult = block.Rect.Height + currentOffsetY;
                         }
                         else
@@ -183,86 +183,35 @@ namespace PdfSharpDslCore.Drawing
                     }
                     else
                     {
-                        var newY = block.OffsetY - pageOffsetY + originalOffsetY + (hasNewPage ? currentOffsetY : 0);
-                        DrawInstructionsByChunk(drawer, block.Instructions, newY, pageOffsetY /*0?*/);
+                        DrawInstructionsByChunk(drawer, block.Instructions, blockOffsetY, 0 /*0?*/);
                         offsetyResult = Math.Max(offsetyResult, block.Rect.Bottom - pageOffsetY + originalOffsetY);
                     }
                 }
                 else
                 {
-                    instr.Draw(drawer, currentOffsetY, 0);
+                    //is not block
+                    instr.Draw(drawer, (hasNewPage ? currentOffsetY : 0) + originalOffsetY-pageOffsetY, 0);
                 }
             }
 
             return offsetyResult + deltaOnPreviousPage;
         }
 
-        private IEnumerable<FlatInstruction> GenerateInstruction(IEnumerable<IInstruction> instructions, double offsetY)
-        {
-            foreach (var instr in instructions.ToArray())
-            {
-                if (instr is IInstructionBlock block)
-                {
-                    foreach (var flatInstr in GenerateInstruction(block.Instructions, block.OffsetY))
-                    {
-                        flatInstr.OffsetY += offsetY;
-                        yield return flatInstr;
-                    }
-                }
-                else
-                {
-                    yield return new FlatInstruction(instr, offsetY);
-                }
-            }
-        }
-
-        private double DrawInstructions(IPdfDocumentDrawer drawer, double offsetY, double pageOffsetY, bool newPageOccurs = false, bool drawchunk = false)
+        private double DrawInstructions(IPdfDocumentDrawer drawer, double offsetY, double pageOffsetY, bool newPageOccurs = false)
         {
             double negOffset = 0;
-            var shouldRestore = offsetY != 0;
-            if (shouldRestore)
+            if (newPageOccurs)
             {
-                drawer.SetOffsetY(offsetY);
-            }
-            try
-            {
-                if (newPageOccurs)
+                var block = _instructions.OfType<IInstructionBlock>().FirstOrDefault();
+                if (block != null)
                 {
-                    var block = _instructions.OfType<IInstructionBlock>().FirstOrDefault();
-                    if (block != null)
-                    {
-                        negOffset = -block.OffsetY;
-                    }
-                }
-                double newPageOffsetY = 0;
-                foreach (var item in _instructions)
-                {
-                    //offsetY should not be add here because of SetOffsetY above
-                    newPageOffsetY += item.Draw(drawer, negOffset, pageOffsetY);
-                }
-                return newPageOffsetY;
-            }
-            finally
-            {
-                if (shouldRestore)
-                {
-                    drawer.ResetOffset();
+                    negOffset = -block.OffsetY;
                 }
             }
+
+            return _instructions.Sum(item => item.Draw(drawer, negOffset + offsetY, pageOffsetY));
         }
-
-        private double GlobalOffset(IInstructionBlock? block)
-        {
-            double result = 0;
-            while (block != null)
-            {
-                result += block.OffsetY;
-                block = block.Parent;
-            }
-
-            return result;
-        }
-
+        
         public virtual void PushInstruction(IInstruction instruction, bool accumulate)
         {
             //instruction at root is not permit
@@ -299,11 +248,8 @@ namespace PdfSharpDslCore.Drawing
             var r = this.Rect;
             r.Union(rect);
             Rect = r;
-            if (_parent != null)
-            {
-                //update parent with current offset
-                _parent.UpdateRect(r);
-            }
+            //update parent with current offset
+            _parent?.UpdateRect(r);
         }
 
         private bool LogEnabled(LogLevel level)
