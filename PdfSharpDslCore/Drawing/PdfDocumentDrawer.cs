@@ -702,7 +702,7 @@ namespace PdfSharpDslCore.Drawing
 
         public void BeginDrawRowTemplate(string name, int index, double offsetY, double newPageTopMargin)
         {
-            this._drawingCtx.OpenBlock(name, offsetY, Gfx, newPageTopMargin);
+            this._drawingCtx.OpenBlock($"{name}:{index}", offsetY, Gfx, newPageTopMargin);
             _gfx = XGraphics.CreateMeasureContext(new XSize(PageWidth, PageHeight),
                 XGraphicsUnit.Point, XPageDirection.Downwards);
         }

@@ -101,7 +101,7 @@ namespace PdfSharpDslCore.Drawing
                     else
                     {
                         //le bas dépasse la page
-                        if ((this.Rect.Bottom-pageOffsetY) > pageRect.Height - offsetY)
+                        if ((this.Rect.Bottom - pageOffsetY) > pageRect.Height - offsetY)
                         {
                             if (LogEnabled(LogLevel.Debug))
                             {
@@ -139,52 +139,62 @@ namespace PdfSharpDslCore.Drawing
             }
 
             newPageOffsetY = DrawInstructionsByChunk(drawer, _instructions, selfOffsetY, pageOffsetY);
-            
+
+            newPageOffsetY = this.Rect.Bottom - newPageOffsetY;
             return newPageOffsetY;
         }
 
-        private double DrawInstructionsByChunk(IPdfDocumentDrawer drawer,IEnumerable<IInstruction> instructions, 
+        private double DrawInstructionsByChunk(IPdfDocumentDrawer drawer, IEnumerable<IInstruction> instructions,
             double originalOffsetY, double pageOffsetY)
         {
             var currentOffsetY = originalOffsetY;
+            var hasNewPage = false;
             var offsetyResult = 0.0;
+            var deltaOnPreviousPage = 0.0;
             foreach (var instr in instructions)
             {
                 if (instr is IInstructionBlock block)
                 {
-                    if (block.Rect.Height + block.OffsetY- pageOffsetY + currentOffsetY > drawer.PageHeight)
+                    if (block.Rect.Height + block.OffsetY - pageOffsetY + currentOffsetY > drawer.PageHeight)
                     {
-                        //le block ne rentre pas entierement sur la page en cours
+                        //the block does not fit in the page
                         if (block.Rect.Height <= drawer.PageHeight)
                         {
                             drawer.NewPage();
+                            hasNewPage = true;
                             currentOffsetY = 0;
                             pageOffsetY += drawer.PageHeight;
-                            drawer.SetOffsetY(0);
+                            var newY = block.OffsetY - pageOffsetY + originalOffsetY;
+                            if (newY < 0)
+                            {
+                                currentOffsetY = -newY;
+                                deltaOnPreviousPage += currentOffsetY;
+                            }
                             DrawInstructionsByChunk(drawer, block.Instructions, 0, pageOffsetY);
-                            drawer.ResetOffset();
-                            offsetyResult = block.Rect.Height;
+                            //drawer.ResetOffset();
+                            offsetyResult = block.Rect.Height + currentOffsetY;
                         }
-                        //si ne rentre pas du tout, on imprime , puis on créé une page et on réimprime avec un décalage
-                        
+                        else
+                        {
+                            //si ne rentre pas du tout, on imprime , puis on créé une page et on réimprime avec un décalage
+                            throw new NotImplementedException("Block higher than one page");
+                        }
+
                     }
                     else
                     {
-                        //drawer.SetOffsetY(block.OffsetY-pageOffsetY + currentOffsetY);
-                        DrawInstructionsByChunk(drawer, block.Instructions, block.OffsetY-pageOffsetY + currentOffsetY, pageOffsetY /*0?*/);
-                        //drawer.ResetOffset();
-                        offsetyResult = Math.Max(offsetyResult, block.Rect.Bottom - pageOffsetY);
+                        var newY = block.OffsetY - pageOffsetY + originalOffsetY + (hasNewPage ? currentOffsetY : 0);
+                        DrawInstructionsByChunk(drawer, block.Instructions, newY, pageOffsetY /*0?*/);
+                        offsetyResult = Math.Max(offsetyResult, block.Rect.Bottom - pageOffsetY + originalOffsetY);
                     }
                 }
                 else
                 {
-                    //drawer.SetOffsetY(currentOffsetY);
                     instr.Draw(drawer, currentOffsetY, 0);
-                    //drawer.ResetOffset();
                 }
             }
-            
-            return offsetyResult;
+
+            return offsetyResult + deltaOnPreviousPage;
         }
 
         private IEnumerable<FlatInstruction> GenerateInstruction(IEnumerable<IInstruction> instructions, double offsetY)
@@ -206,7 +216,7 @@ namespace PdfSharpDslCore.Drawing
             }
         }
 
-        private double DrawInstructions(IPdfDocumentDrawer drawer, double offsetY, double pageOffsetY, bool newPageOccurs = false, bool drawchunk=false)
+        private double DrawInstructions(IPdfDocumentDrawer drawer, double offsetY, double pageOffsetY, bool newPageOccurs = false, bool drawchunk = false)
         {
             double negOffset = 0;
             var shouldRestore = offsetY != 0;

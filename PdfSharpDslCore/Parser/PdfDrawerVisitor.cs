@@ -333,7 +333,7 @@ namespace PdfSharpDslCore.Parser
             var offsetY = (EvaluateForDouble(offsetYNode)??0) + borderSize;
             var newPageTopMargin = newPageTopMarginNode!=null?(EvaluateForDouble(newPageTopMarginNode) ?? 0) : 0;
 
-            double pageOffsetY = 0;
+            //double pageOffsetY = 0;
             double drawHeight = borderSize;
             var vars = Variables;
             if (vars is IVariablesDictionary savable) savable.SaveVariables();
@@ -351,9 +351,9 @@ namespace PdfSharpDslCore.Parser
 
                     if (drawingRect.PageOffsetY > 0)
                     {
-                        pageOffsetY += drawingRect.PageOffsetY;
+                        //pageOffsetY = drawingRect.PageOffsetY;
                         //new page
-                        var newHeight = drawingRect.DrawingRect.Bottom - pageOffsetY;
+                        var newHeight = drawingRect.DrawingRect.Bottom - drawingRect.PageOffsetY;
                         offsetY = newHeight + borderSize;
                         drawHeight = newHeight + borderSize;
                     }
