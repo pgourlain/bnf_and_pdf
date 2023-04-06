@@ -136,16 +136,22 @@ namespace PdfSharpDslCore.Drawing
             {
                 Logger.WriteDebug(this, $"DrawByChunck({offsetY},{selfOffsetY},{pageOffsetY})");
             }
-
-            double drawingHeight = DrawInstructionsByChunk(drawer, _instructions, selfOffsetY, pageOffsetY);
-            
+            double drawingHeight = 0;
+            List <IInstruction> drawOnNextPage = new(_instructions);
+            while (drawOnNextPage.Count > 0)
+            {
+                var instrs = drawOnNextPage.ToArray();
+                drawOnNextPage.Clear();
+                drawingHeight = DrawInstructionsByChunk(drawer, instrs, selfOffsetY, pageOffsetY, drawOnNextPage);
+                break;
+            }
             //offset relative to bottom of current block
             var newPageOffsetY = this.Rect.Bottom - drawingHeight;
             return newPageOffsetY;
         }
 
         private double DrawInstructionsByChunk(IPdfDocumentDrawer drawer, IEnumerable<IInstruction> instructions,
-            double originalOffsetY, double pageOffsetY)
+            double originalOffsetY, double pageOffsetY, List<IInstruction> drawOnNextPage)
         {
             var currentOffsetY = originalOffsetY;
             var hasNewPage = false;
@@ -171,7 +177,7 @@ namespace PdfSharpDslCore.Drawing
                                 currentOffsetY = -newY;
                                 deltaOnPreviousPage = currentOffsetY;
                             }
-                            DrawInstructionsByChunk(drawer, block.Instructions, 0, 0);
+                            DrawInstructionsByChunk(drawer, block.Instructions, 0, 0, new List<IInstruction>());
                             offsetyResult = block.Rect.Height + currentOffsetY;
                         }
                         else
@@ -183,14 +189,19 @@ namespace PdfSharpDslCore.Drawing
                     }
                     else
                     {
-                        DrawInstructionsByChunk(drawer, block.Instructions, blockOffsetY, 0 /*0?*/);
+                        DrawInstructionsByChunk(drawer, block.Instructions, blockOffsetY, 0 /*0?*/, new List<IInstruction>());
                         offsetyResult = Math.Max(offsetyResult, block.Rect.Bottom - pageOffsetY + originalOffsetY);
                     }
                 }
                 else
                 {
+                    var instrY = (hasNewPage ? currentOffsetY : 0) + originalOffsetY - pageOffsetY;
                     //is not block
-                    instr.Draw(drawer, (hasNewPage ? currentOffsetY : 0) + originalOffsetY-pageOffsetY, 0);
+                    instr.Draw(drawer, instrY, 0);
+                    if (instr.Rect.Bottom +instrY > drawer.PageHeight)
+                    {
+                        drawOnNextPage.Add(instr);
+                    }
                 }
             }
 

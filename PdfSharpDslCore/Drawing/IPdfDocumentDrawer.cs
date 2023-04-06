@@ -53,7 +53,7 @@ namespace PdfSharpDslCore.Drawing
         DrawingResult EndDrawRowTemplate(int index);
         void BeginIterationTemplate(int rowCount);
         void EndIterationTemplate(double drawHeight);
-        void SetOffsetY(double offsetY);
-        void ResetOffset();
+        //void SetOffsetY(double offsetY);
+        //void ResetOffset();
     }
 }
