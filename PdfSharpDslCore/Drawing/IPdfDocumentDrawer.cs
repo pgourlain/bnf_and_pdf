@@ -17,6 +17,12 @@ namespace PdfSharpDslCore.Drawing
         public double? Angle { get; set; }
     }
 
+    public record DrawingResult
+    {
+        public XRect DrawingRect { get; set; }
+        public double PageOffsetY { get; set; }
+    }
+
     public interface IPdfDocumentDrawer
     {
         void DrawRect(double x, double y, double w, double h, bool isFilled);
@@ -43,8 +49,8 @@ namespace PdfSharpDslCore.Drawing
         void DrawImage(XImage image, double x, double y, double? w, double? h, bool sizeInPixel, bool cropImage);
         void DrawPie(double x, double y, double? w, double? h, double startAngle, double sweepAngle, bool isFilled);
         void DrawPolygon(IEnumerable<XPoint> points, bool isFilled);
-        void BeginDrawRowTemplate(int index, double offsetY);
-        XRect EndDrawRowTemplate(int index);
+        void BeginDrawRowTemplate(string name, int index, double offsetY, double newPageTopMargin);
+        DrawingResult EndDrawRowTemplate(int index);
         void BeginIterationTemplate(int rowCount);
         void EndIterationTemplate(double drawHeight);
     }

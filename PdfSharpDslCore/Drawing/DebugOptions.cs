@@ -11,6 +11,10 @@ namespace PdfSharpDslCore.Drawing
         DebugRect = 2,
         DebugRowTemplate = 4,
         DebugImage = 8,
+        /// <summary>
+        /// show rule on each newpage
+        /// </summary>
+        DebugRule = 16,
         DebugAll = 8192,
     }
 }

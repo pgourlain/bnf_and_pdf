@@ -32,7 +32,7 @@ namespace PdfSharpDslCore.Generator.DrawingGenerator
         Dictionary<string, IEvaluation<EvaluationResult>[]> _declaredFunctions = new Dictionary<string, IEvaluation<EvaluationResult>[]>();
 
 
-        public CSharpVisitor(string baseDirectory, string prefix) : base(baseDirectory)
+        public CSharpVisitor(string baseDirectory, string prefix) : base(baseDirectory, null)
         {
             this._prefix = prefix;
         }

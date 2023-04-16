@@ -344,6 +344,7 @@ DEBUGOPTIONS Option1 [, Option2];
 
 Available options
 - DEBUG_TEXT : shows red rect around texts
+- DEBUG_RULE : shows rule on each page
 - DEBUG_ROWTEMPLATE : shows red rect around each iteration and index number of each at topleft rectangle
   - text format is "{level}.{index}", where level is > 0 when ROWTEMPLATE is part of another ROWTEMPALTE 
 

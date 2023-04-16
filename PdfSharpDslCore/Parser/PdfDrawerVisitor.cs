@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace PdfSharpDslCore.Parser
 {
@@ -18,8 +19,8 @@ namespace PdfSharpDslCore.Parser
     public class PdfDrawerVisitor : PdfVisitor<IPdfDocumentDrawer>
     {
 
-        public PdfDrawerVisitor() : this(Environment.CurrentDirectory) { }
-        public PdfDrawerVisitor(string baseDirectory) : base(baseDirectory)
+        public PdfDrawerVisitor(ILogger? logger=null) : this(Environment.CurrentDirectory, logger) { }
+        public PdfDrawerVisitor(string baseDirectory, ILogger? logger) : base(baseDirectory, logger)
         {
         }
         public override void Draw(IPdfDocumentDrawer state, ParseTree tree)
@@ -321,13 +322,19 @@ namespace PdfSharpDslCore.Parser
         }
 
         protected override void ExecuteRowTemplateStatement(IPdfDocumentDrawer state,
-            ParseTreeNode rowCountNode, ParseTreeNode offsetYNode, ParseTreeNode? borderSizeNode, ParseTreeNode body)
+            ParseTreeNode rowCountNode, ParseTreeNode offsetYNode, ParseTreeNode? borderSizeNode, 
+            ParseTreeNode? newPageTopMarginNode,
+            ParseTreeNode? nameNode,
+            ParseTreeNode body)
         {
+            string templateName = EvaluateForObject(nameNode)?.ToString()??string.Empty;
             var borderSize = borderSizeNode != null ? EvaluateForDouble(borderSizeNode) ?? 0 : 0;
             
             var rowCount = EvaluateForDouble(rowCountNode)??0;
             var offsetY = (EvaluateForDouble(offsetYNode)??0) + borderSize;
+            var newPageTopMargin = newPageTopMarginNode!=null?(EvaluateForDouble(newPageTopMarginNode) ?? 0) : 0;
 
+            //double pageOffsetY = 0;
             double drawHeight = borderSize;
             var vars = Variables;
             if (vars is IVariablesDictionary savable) savable.SaveVariables();
@@ -336,16 +343,31 @@ namespace PdfSharpDslCore.Parser
                 state.BeginIterationTemplate((int)rowCount);
                 for (int i = 0; i < rowCount; i++)
                 {
-                    state.BeginDrawRowTemplate(i, offsetY);
+                    state.BeginDrawRowTemplate(templateName, i, offsetY, newPageTopMargin);
                     //set row index
                     vars.Add("ROWINDEX", i);
 
                     Visit(state, body.ChildNodes);
                     var drawingRect = state.EndDrawRowTemplate(i);
 
-                    drawHeight += drawingRect.Height + borderSize;
-                    offsetY += drawingRect.Height + borderSize;
-
+                    if (drawingRect.PageOffsetY > 0)
+                    {
+                        //pageOffsetY = drawingRect.PageOffsetY;
+                        //new page
+                        var newHeight = drawingRect.DrawingRect.Bottom - drawingRect.PageOffsetY;
+                        //var newHeight = drawingRect.DrawingRect.Bottom;
+                        offsetY = newHeight + borderSize;
+                        drawHeight = newHeight + borderSize;
+                    }
+                    else
+                    {
+                        drawHeight += drawingRect.DrawingRect.Height+ borderSize;
+                        offsetY += drawingRect.DrawingRect.Height + borderSize;
+                    }
+                }
+                if (Logger?.IsEnabled(LogLevel.Debug)??false)
+                {
+                    Logger?.WriteDebug(this,$"EndIteration, templateName={templateName}, lastheight={drawHeight}, offsetY={offsetY}");
                 }
                 state.EndIterationTemplate(drawHeight);
 
@@ -355,6 +377,7 @@ namespace PdfSharpDslCore.Parser
                 //restore variables before call
                 if (vars is IVariablesDictionary restorable) restorable.RestoreVariables();
             }
+            //only available if no breaking page
             Variables.Add("LASTTEMPLATEHEIGHT", drawHeight);
         }
 
@@ -371,6 +394,7 @@ namespace PdfSharpDslCore.Parser
             "DEBUG_TEXT" => DebugOptions.DebugText,
             "DEBUG_RECT" => DebugOptions.DebugRect,
             "DEBUG_ROWTEMPLATE" => DebugOptions.DebugRowTemplate,
+            "DEBUG_RULE" => DebugOptions.DebugRule,
             "DEBUG_ALL" => DebugOptions.DebugAll,
             _ => DebugOptions.None
         };
@@ -604,8 +628,9 @@ namespace PdfSharpDslCore.Parser
             return new Evaluator(node, funcs).EvaluateForDouble(variables);
         }
 
-        private object? EvaluateForObject(ParseTreeNode node)
+        private object? EvaluateForObject(ParseTreeNode? node)
         {
+            if (node is null) return null;
             return EvaluateForObject(node, Variables, CustomFunctions);
         }
         

@@ -76,10 +76,12 @@ namespace pdfsharpdslTests
         {
             var halign = $"HAlign={ToHAlign(hAlign)}";
             OutputRendering.Append($"LINETEXT ");
-            OutputRendering.Append($"{x},{y}");
+            FormattableString s = $"{x},{y}";
+            OutputRendering.Append(s.ToString(CultureInfo.InvariantCulture));
             if (w is not null)
             {
-                OutputRendering.Append($",{w},{h}");
+                s = $",{w},{h}";
+                OutputRendering.Append(s.ToString(CultureInfo.InvariantCulture));
             }
             OutputRendering.Append($" HAlign={ToHAlign(hAlign)} VAlign={ToVAlign(vAlign)} ");
             OutputRendering.Append($"Text=\"{text}\"");
@@ -142,12 +144,12 @@ namespace pdfsharpdslTests
             throw new NotImplementedException();
         }
 
-        public void BeginDrawRowTemplate(int index, double offsetY)
+        public void BeginDrawRowTemplate(string name, int index, double offsetY, double newPageTopMargin)
         {
             throw new NotImplementedException();
         }
 
-        public XRect EndDrawRowTemplate(int index)
+        public DrawingResult EndDrawRowTemplate(int index)
         {
             throw new NotImplementedException();
         }
@@ -158,6 +160,16 @@ namespace pdfsharpdslTests
         }
 
         public void EndIterationTemplate(double drawHeight)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void SetOffsetY(double offsetY)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ResetOffset()
         {
             throw new NotImplementedException();
         }
