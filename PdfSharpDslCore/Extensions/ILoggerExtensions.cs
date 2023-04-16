@@ -20,7 +20,12 @@ namespace PdfSharpDslCore.Extensions
 
         public static void WriteDebug(this ILogger? logger, object identifier, string message)
         {
-            logger?.LogDebug($"{identifier.GetHashCode()}:{message}");
+            string identifierName = string.Empty;
+            if (identifier is IHasName hasName)
+            {
+                identifierName = $"({hasName.Name})";
+            }
+            logger?.LogDebug($"{identifier.GetHashCode()}{identifierName}:{message}");
         }
     }
 }

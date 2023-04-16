@@ -20,13 +20,17 @@ namespace PdfSharpDslCore.Drawing
 
         public override void PushInstruction(IInstruction instruction, bool accumulate)
         {
-            //base.PushInstruction(instruction);
+            throw new NotSupportedException("PushInstruction on root is not allowed");
         }
     }
-    internal class InstructionsRecorder
+    
+    /// <summary>
+    /// block recorder based on "tree"
+    /// </summary>
+    internal class BlocksRecorder
     {
         private readonly IInstructionBlock _rootBlock;
-        public InstructionsRecorder(ILogger? logger=null)
+        public BlocksRecorder(ILogger? logger=null)
         {
             _rootBlock = new RootInstructionBlock(logger);
             CurrentBlock = _rootBlock;
@@ -52,5 +56,11 @@ namespace PdfSharpDslCore.Drawing
         }
 
         public IInstructionBlock CurrentBlock { get; private set; }
+
+        /// <summary>
+        /// for optimisation to avoid calling PushInstruction
+        /// </summary>
+        public bool CanPushInstruction => CurrentBlock != _rootBlock;
+       
     }
 }

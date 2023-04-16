@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Irony.Parsing;
+using Microsoft.Extensions.Logging;
 using PdfSharpDslCore.Extensions;
 
 namespace PdfSharpDslCore.Parser
@@ -9,6 +10,7 @@ namespace PdfSharpDslCore.Parser
 
     public class PdfVisitor<TState>
     {
+        protected readonly ILogger? Logger;
         protected IDictionary<string, object?> Variables { get; set; } = new Dictionary<string, object?>();
 
         protected IDictionary<string, Func<object[], object>> CustomFunctions { get; set; } = new Dictionary<string, Func<object[], object>>();
@@ -17,10 +19,11 @@ namespace PdfSharpDslCore.Parser
 
         protected string BaseDirectory { get; }
 
-        public PdfVisitor() : this(Environment.CurrentDirectory) { }
+        public PdfVisitor(ILogger? logger) : this(Environment.CurrentDirectory, logger) { }
 
-        protected PdfVisitor(string baseDirectory)
+        protected PdfVisitor(string baseDirectory, ILogger? logger)
         {
+            Logger = logger;
             this.BaseDirectory = baseDirectory;
         }
 

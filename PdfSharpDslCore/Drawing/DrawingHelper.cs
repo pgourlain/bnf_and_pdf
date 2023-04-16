@@ -5,6 +5,13 @@ namespace PdfSharpDslCore.Drawing
 {
     internal static class DrawingHelper
     {
+        /// <summary>
+        /// compute rect from text and his format
+        /// </summary>
+        /// <param name="r"></param>
+        /// <param name="textSize"></param>
+        /// <param name="fmt"></param>
+        /// <returns></returns>
         public static XRect RectFromStringFormat(XRect r, XSize textSize, XStringFormat fmt)
         {
             var result = new XRect(r.TopLeft, textSize);

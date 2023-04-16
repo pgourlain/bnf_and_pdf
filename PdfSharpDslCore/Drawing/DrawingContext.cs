@@ -6,13 +6,10 @@ using Microsoft.Extensions.Logging;
 
 namespace PdfSharpDslCore.Drawing
 {
-    public class DrawingContext
+    internal class DrawingContext
     {
-        private readonly InstructionsRecorder _recorder;
+        private readonly BlocksRecorder _recorder;
         private readonly Stack<XGraphics> _previousGraphics = new();
-
-        Stack<XRect?> history = new Stack<XRect?>();
-        internal XRect? DrawingRect { get; private set; }
         public int Level => _previousGraphics.Count;
 
         public DebugOptions DebugOptions { get; set; }
@@ -23,58 +20,7 @@ namespace PdfSharpDslCore.Drawing
         {
             _recorder = new(logger);
         }
-        internal XRect PopDrawingRect(bool updateRestored)
-        {
-            var result = DrawingRect;
-            DrawingRect = history.Pop();
-            if (updateRestored && result is not null)
-            {
-                UpdateDrawingRect(result.Value);
-            }
-            return result ?? XRect.Empty;
-        }
-
-        internal void PushDrawingRect(XRect xRect)
-        {
-            history.Push(DrawingRect);
-            DrawingRect = xRect;
-        }
-
-        internal void UpdateDrawingRect(XPoint[] ptArray)
-        {
-            if (DrawingRect is null) return;
-            foreach (var pt in ptArray)
-            {
-                DrawingRect.Value.Union(pt);
-            }
-        }
-
-        internal void UpdateDrawingRect(double x, double y, double? w, double? h)
-        {
-            if (DrawingRect is null) return;
-            var src = new XRect(x, y, w ?? 0, h ?? 0);
-            var xREct = DrawingRect.Value;
-            xREct.Union(src);
-            DrawingRect= xREct;
-        }
-
-        internal void UpdateDrawingRect(XRect src)
-        {
-            if (DrawingRect is null) return;
-            var xREct = DrawingRect.Value;
-            xREct.Union(src);
-            DrawingRect = xREct;
-        }
-
-        internal void UpdateDrawingRect(XPoint xPoint1, XPoint xPoint2)
-        {
-            if (DrawingRect is null) return;
-            var src = new XRect(xPoint1, xPoint2);
-            var xREct = DrawingRect.Value;
-            xREct.Union(src);
-            DrawingRect = xREct;
-        }
-
+        
         public void OpenBlock(string name, double offsetY, XGraphics previousGraphics, double newPageTopMargin)
         {
             _previousGraphics.Push(previousGraphics);
@@ -93,9 +39,14 @@ namespace PdfSharpDslCore.Drawing
         {
             _recorder.CloseBlock();
         }
+        
         public void PushInstruction(Action<double> action, XRect rect, bool accumulate=true, string instrName="")
         {
-            _recorder.CurrentBlock.PushInstruction(new InstructionAction(action, rect, instrName),accumulate);
+            if (_recorder.CanPushInstruction)
+            {
+                //only call pushinstruction if an openblock was called
+                _recorder.CurrentBlock.PushInstruction(new InstructionAction(action, rect, instrName), accumulate);
+            }
         }
 
         public void PushInstruction(Action<double> action, XPoint[] ptArray)

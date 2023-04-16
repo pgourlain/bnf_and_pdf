@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace PdfSharpDslCore.Parser
 {
@@ -18,8 +19,8 @@ namespace PdfSharpDslCore.Parser
     public class PdfDrawerVisitor : PdfVisitor<IPdfDocumentDrawer>
     {
 
-        public PdfDrawerVisitor() : this(Environment.CurrentDirectory) { }
-        public PdfDrawerVisitor(string baseDirectory) : base(baseDirectory)
+        public PdfDrawerVisitor(ILogger? logger=null) : this(Environment.CurrentDirectory, logger) { }
+        public PdfDrawerVisitor(string baseDirectory, ILogger? logger) : base(baseDirectory, logger)
         {
         }
         public override void Draw(IPdfDocumentDrawer state, ParseTree tree)
@@ -354,6 +355,7 @@ namespace PdfSharpDslCore.Parser
                         //pageOffsetY = drawingRect.PageOffsetY;
                         //new page
                         var newHeight = drawingRect.DrawingRect.Bottom - drawingRect.PageOffsetY;
+                        //var newHeight = drawingRect.DrawingRect.Bottom;
                         offsetY = newHeight + borderSize;
                         drawHeight = newHeight + borderSize;
                     }
@@ -362,6 +364,10 @@ namespace PdfSharpDslCore.Parser
                         drawHeight += drawingRect.DrawingRect.Height+ borderSize;
                         offsetY += drawingRect.DrawingRect.Height + borderSize;
                     }
+                }
+                if (Logger?.IsEnabled(LogLevel.Debug)??false)
+                {
+                    Logger?.WriteDebug(this,$"EndIteration, templateName={templateName}, lastheight={drawHeight}, offsetY={offsetY}");
                 }
                 state.EndIterationTemplate(drawHeight);
 
@@ -388,6 +394,7 @@ namespace PdfSharpDslCore.Parser
             "DEBUG_TEXT" => DebugOptions.DebugText,
             "DEBUG_RECT" => DebugOptions.DebugRect,
             "DEBUG_ROWTEMPLATE" => DebugOptions.DebugRowTemplate,
+            "DEBUG_RULE" => DebugOptions.DebugRule,
             "DEBUG_ALL" => DebugOptions.DebugAll,
             _ => DebugOptions.None
         };

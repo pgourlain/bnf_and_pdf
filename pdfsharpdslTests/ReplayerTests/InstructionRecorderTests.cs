@@ -52,7 +52,7 @@ namespace pdfsharpdslTests.ReplayerTests
         {
             var drawerMock = defaultDrawerMock();
 
-            var recorder = new InstructionsRecorder();
+            var recorder = new BlocksRecorder();
 
             var block = recorder.OpenBlock(string.Empty,0, true,0);
             Assert.NotNull(block);
@@ -93,7 +93,7 @@ namespace pdfsharpdslTests.ReplayerTests
         {
             var drawerMock = defaultDrawerMock();
 
-            var recorder = new InstructionsRecorder();
+            var recorder = new BlocksRecorder();
             //draw at bottom page
             var block = recorder.OpenBlock(string.Empty,200, true, 0);
             var instr = new DummyInstruction(new XRect(0, 0, 50, 100));
@@ -115,7 +115,7 @@ namespace pdfsharpdslTests.ReplayerTests
         {
             var drawerMock = defaultDrawerMock();
 
-            var recorder = new InstructionsRecorder();
+            var recorder = new BlocksRecorder();
 
             var block = recorder.OpenBlock(string.Empty,0, true);
             Assert.NotNull(block);
@@ -132,7 +132,7 @@ namespace pdfsharpdslTests.ReplayerTests
         {
             var drawerMock = defaultDrawerMock();
 
-            var recorder = new InstructionsRecorder();
+            var recorder = new BlocksRecorder();
 
             var block = recorder.OpenBlock(string.Empty,200, true,0);
             AddInstructions(block, 1, 100);
@@ -163,7 +163,7 @@ namespace pdfsharpdslTests.ReplayerTests
         {
             var drawerMock = defaultDrawerMock();
 
-            var recorder = new InstructionsRecorder();
+            var recorder = new BlocksRecorder();
 
             var block = recorder.OpenBlock(string.Empty,0, true);
 

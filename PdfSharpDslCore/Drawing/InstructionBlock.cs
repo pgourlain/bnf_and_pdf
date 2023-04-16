@@ -10,7 +10,7 @@ using PdfSharpDslCore.Extensions;
 namespace PdfSharpDslCore.Drawing
 {
     [DebuggerDisplay("Rect:{Rect}")]
-    class InstructionAction : IInstruction
+    class InstructionAction : IInstruction, IHasName
     {
         public XRect Rect { get; }
         private readonly Action<double> _action;
@@ -30,7 +30,7 @@ namespace PdfSharpDslCore.Drawing
     }
 
     [DebuggerDisplay("Name:{Name}, Y:{OffsetY}, childCount:{_instructions.Count}, rect:{Rect}")]
-    class InstructionBlock : IInstructionBlock
+    class InstructionBlock : IInstructionBlock, IHasName
     {
         private readonly List<IInstruction> _instructions = new List<IInstruction>();
         private readonly IInstructionBlock? _parent;
@@ -71,6 +71,7 @@ namespace PdfSharpDslCore.Drawing
         /// </summary>
         /// <param name="drawer"></param>
         /// <param name="offsetY"/>
+        /// <param name="pageOffsetY"></param>
         /// <returns></returns>
         public double Draw(IPdfDocumentDrawer drawer, double offsetY, double pageOffsetY)
         {
@@ -96,7 +97,7 @@ namespace PdfSharpDslCore.Drawing
                         {
                             Logger.WriteDebug(this, "drawing height > page height");
                         }
-                        newPageOffsetY = DrawByChunck(drawer, offsetY, selfOffsetY, pageOffsetY, pageRect);
+                        newPageOffsetY = DrawByChunck(drawer, offsetY, selfOffsetY, pageOffsetY);
                     }
                     else
                     {
@@ -120,7 +121,7 @@ namespace PdfSharpDslCore.Drawing
                 }
                 else
                 {
-                    newPageOffsetY = DrawByChunck(drawer, offsetY, selfOffsetY, pageOffsetY, pageRect);
+                    newPageOffsetY = DrawByChunck(drawer, offsetY, selfOffsetY, pageOffsetY);
                 }
             }
             finally
@@ -130,28 +131,51 @@ namespace PdfSharpDslCore.Drawing
             return newPageOffsetY;
         }
 
-        private double DrawByChunck(IPdfDocumentDrawer drawer, double offsetY, double selfOffsetY, double pageOffsetY, XRect pageRect)
+        private double DrawByChunck(IPdfDocumentDrawer drawer, double offsetY, double selfOffsetY, double pageOffsetY)
         {
             if (LogEnabled(LogLevel.Debug))
             {
-                Logger.WriteDebug(this, $"DrawByChunck({offsetY},{selfOffsetY},{pageOffsetY})");
+                Logger.WriteDebug(this, $"BeginDrawByChunck(offsety={offsetY},selfOffsetY={selfOffsetY},pageOffsetY={pageOffsetY})");
             }
             double drawingHeight = 0;
+            double lastSkipHeight = 0;
+            int printedPage = 0;
             List <IInstruction> drawOnNextPage = new(_instructions);
             while (drawOnNextPage.Count > 0)
             {
                 var instrs = drawOnNextPage.ToArray();
                 drawOnNextPage.Clear();
-                drawingHeight = DrawInstructionsByChunk(drawer, instrs, selfOffsetY, pageOffsetY, drawOnNextPage);
-                break;
+                int pageCount = 0;
+                drawingHeight = DrawInstructionsByChunk(drawer, instrs, selfOffsetY, pageOffsetY, drawOnNextPage, ref pageCount, ref lastSkipHeight);
+                printedPage += pageCount;
+                pageOffsetY += pageCount * drawer.PageHeight;
+                //if more instruction to draw on nextpage, selfOffsetY on new page should be 0
+                selfOffsetY = 0;
             }
             //offset relative to bottom of current block
-            var newPageOffsetY = this.Rect.Bottom - drawingHeight;
+            //drawingHeight is height of draw on last page for the block, and lastSkipHeight is the amount of height that algo skip on bottom of last page
+            var newPageOffsetY = this.Rect.Bottom - drawingHeight - lastSkipHeight;
+            if (LogEnabled(LogLevel.Debug))
+            {
+                Logger.WriteDebug(this, $"EndDrawByChunck(printedPage={printedPage}, lastSkipHeight={lastSkipHeight}, newPageOffsetY={newPageOffsetY})");
+            }
             return newPageOffsetY;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="drawer"></param>
+        /// <param name="instructions">instructions to draw</param>
+        /// <param name="originalOffsetY">offsety </param>
+        /// <param name="pageOffsetY"></param>
+        /// <param name="drawOnNextPage"> contains instructions (not blocks) to draw on nextpage</param>
+        /// <param name="pageCount"></param>
+        /// <param name="lastDeltaOnPreviousPage"></param>
+        /// <returns>OffsetY corresponding to bottom of drawing on lastpage</returns>
+        /// <exception cref="NotImplementedException"></exception>
         private double DrawInstructionsByChunk(IPdfDocumentDrawer drawer, IEnumerable<IInstruction> instructions,
-            double originalOffsetY, double pageOffsetY, List<IInstruction> drawOnNextPage)
+            double originalOffsetY, double pageOffsetY, List<IInstruction> drawOnNextPage, ref int pageCount, ref double lastDeltaOnPreviousPage)
         {
             var currentOffsetY = originalOffsetY;
             var hasNewPage = false;
@@ -168,6 +192,7 @@ namespace PdfSharpDslCore.Drawing
                         if (block.Rect.Height <= drawer.PageHeight)
                         {
                             drawer.NewPage();
+                            pageCount++;
                             hasNewPage = true;
                             currentOffsetY = 0;
                             pageOffsetY += drawer.PageHeight;
@@ -176,8 +201,9 @@ namespace PdfSharpDslCore.Drawing
                             {
                                 currentOffsetY = -newY;
                                 deltaOnPreviousPage = currentOffsetY;
+                                lastDeltaOnPreviousPage = currentOffsetY;
                             }
-                            DrawInstructionsByChunk(drawer, block.Instructions, 0, 0, new List<IInstruction>());
+                            DrawInstructionsByChunk(drawer, block.Instructions, 0, 0, new List<IInstruction>(), ref pageCount, ref lastDeltaOnPreviousPage);
                             offsetyResult = block.Rect.Height + currentOffsetY;
                         }
                         else
@@ -189,7 +215,7 @@ namespace PdfSharpDslCore.Drawing
                     }
                     else
                     {
-                        DrawInstructionsByChunk(drawer, block.Instructions, blockOffsetY, 0 /*0?*/, new List<IInstruction>());
+                        DrawInstructionsByChunk(drawer, block.Instructions, blockOffsetY, 0 /*0?*/, new List<IInstruction>(), ref pageCount, ref lastDeltaOnPreviousPage);
                         offsetyResult = Math.Max(offsetyResult, block.Rect.Bottom - pageOffsetY + originalOffsetY);
                     }
                 }
@@ -201,6 +227,10 @@ namespace PdfSharpDslCore.Drawing
                     if (instr.Rect.Bottom +instrY > drawer.PageHeight)
                     {
                         drawOnNextPage.Add(instr);
+                    }
+                    else
+                    {
+                        offsetyResult = Math.Max(offsetyResult, instr.Rect.Bottom + instrY);
                     }
                 }
             }

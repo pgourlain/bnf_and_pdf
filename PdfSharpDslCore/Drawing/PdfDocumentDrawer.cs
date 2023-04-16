@@ -28,8 +28,6 @@ namespace PdfSharpDslCore.Drawing
         private XPoint _currentPoint = new XPoint(0, 0);
         private PageSize _defaultPageSize = PageSize.A4;
         private PageOrientation _defaultPageOrientation = PageOrientation.Portrait;
-        private readonly List<Action> _actionOnBeforeNewPage = new();
-        private readonly List<Action> _actionOnAfterNewPage = new();
 
         private readonly DrawingContext _drawingCtx;
 
@@ -229,7 +227,6 @@ namespace PdfSharpDslCore.Drawing
                 var r = new XRect(x, y, size.Width, size.Height);
 
                 sizeFormatter.DrawString(text, CurrentFont, CurrentBrush, r);
-                this._drawingCtx.UpdateDrawingRect(r);
                 if (_drawingCtx.DebugText)
                 {
                     DebugRect(r);
@@ -241,7 +238,6 @@ namespace PdfSharpDslCore.Drawing
                 var r = new XRect(x, y, w.Value, h.Value);
                 var formatter = new XTextFormatter(Gfx);
                 formatter.DrawString(text, CurrentFont, CurrentBrush, r);
-                this._drawingCtx.UpdateDrawingRect(r);
                 if (_drawingCtx.DebugText)
                 {
                     DebugRect(r);
@@ -556,7 +552,6 @@ namespace PdfSharpDslCore.Drawing
         {
             var formatter = new XTextFormatter(Gfx);
             formatter.DrawString(text, xFont, xBrush, r);
-            this._drawingCtx.UpdateDrawingRect(r);
         }
 
         public void SetViewSize(double w, double h)
@@ -571,17 +566,30 @@ namespace PdfSharpDslCore.Drawing
         {
             _defaultPageSize = pageSize ?? _defaultPageSize;
             _defaultPageOrientation = pageOrientation ?? _defaultPageOrientation;
-
-            _actionOnBeforeNewPage.ForEach(fn => fn());
+            
             CurrentPage = AddPage();
-            _actionOnAfterNewPage.ForEach(fn => fn());
+            if ((DebugOptions & DebugOptions.DebugRule) == DebugOptions.DebugRule)
+            {
+                var mm5 = 25;
+                var start = mm5;
+                while (start < PageHeight)
+                {
+                    var ten = (start % (mm5+mm5)) == 0;
+                    this.Gfx.DrawLine(XPens.Red, 0, start, ten ? 50 : 25, start);
+                    if (ten)
+                    {
+                        DebugText($"{start}", 50, start);
+                    }
+                    start += mm5;
+                }
+            }
         }
 
         private PdfPage AddPage()
         {
             if (_logger.DebugEnabled())
             {
-                _logger.WriteDebug(this, $"AddPage: before={_actionOnBeforeNewPage.Count}, after={_actionOnAfterNewPage.Count}");
+                _logger.WriteDebug(this, $"AddPage");
             }
             var page = _document.AddPage();
             page.Size = _defaultPageSize;
@@ -667,7 +675,6 @@ namespace PdfSharpDslCore.Drawing
         private void InternalDrawPie(double x, double y, double? w, double? h, double startAngle, double sweepAngle,
             bool isFilled, XPen pen, XBrush brush)
         {
-            this._drawingCtx.UpdateDrawingRect(x, y, w, h);
             if (isFilled)
             {
                 Gfx.DrawPie(pen, brush, x, y, w ?? 0, h ?? 0, startAngle, sweepAngle);
@@ -702,7 +709,9 @@ namespace PdfSharpDslCore.Drawing
 
         public void BeginDrawRowTemplate(string name, int index, double offsetY, double newPageTopMargin)
         {
+            //open virtual block
             this._drawingCtx.OpenBlock($"{name}:{index}", offsetY, Gfx, newPageTopMargin);
+            //drawing is only to measure
             _gfx = XGraphics.CreateMeasureContext(new XSize(PageWidth, PageHeight),
                 XGraphicsUnit.Point, XPageDirection.Downwards);
         }
@@ -726,11 +735,16 @@ namespace PdfSharpDslCore.Drawing
 
             if (level <= 1)
             {
-                //should return pageOffsetY
+                //draw only if rowTemplate if at root level
                 newPageOffsetY = block.Draw(this, 0, 0);
+                if (_logger?.IsEnabled(LogLevel.Debug) ?? false)
+                {
+                    _logger.WriteDebug(this, $"EndDrawing block #{index} Rect={block.Rect}, newPageOffsetY={newPageOffsetY}");
+                }
             }
 
             this._drawingCtx.CloseBlock();
+
             return  new()
             {
                 DrawingRect = result,
@@ -746,87 +760,32 @@ namespace PdfSharpDslCore.Drawing
                 Gfx.DrawLine(_debugPen, 0, 0, 5, 2);
                 Gfx.DrawLine(_debugPen, 0, 0, 2, 5);
                 Gfx.DrawLine(_debugPen, 0, 0, 10, 10);
-                var fmt = new XStringFormat()
-                {
-                    Alignment = XStringAlignment.Near,
-                    LineAlignment = XLineAlignment.Near
-                };
-
-                Gfx.DrawString($"{_drawingCtx.Level}.{index}", _debugFont.Value, XBrushes.Red, 10, 10, fmt);
+                DebugText($"{_drawingCtx.Level}.{index}", 10, 10);
             }
             this._drawingCtx.PushInstruction((oy) => InternalEndRowTemplate(index, result.OffsetY(oy)), result, false, "EndRowTemplate");
         }
 
         public void BeginIterationTemplate(int rowCount)
         {
-            //should I, Save Brushes, Pens and Fonts for replayer ?
         }
 
         public void EndIterationTemplate(double drawHeight)
         {
-            //clean up instruction if at root level
-            // var r = _drawingCtx.DrawingRect;
-            // if (r is not null)
-            // {
-            //     //update height of last ROWTEMPLATE (including bordersize)
-            //     this._drawingCtx.UpdateDrawingRect(r.Value.X, r.Value.Y, r.Value.Width, drawHeight);
-            // }
         }
 
-        public void SetOffsetY(double offsetY)
+        private void DebugText(string text, double x, double y)
         {
-            if (_logger.DebugEnabled())
+            var fmt = new XStringFormat()
             {
-                _logger.WriteDebug(this, $"SetOffsetY({offsetY}, GFX:{Gfx.GetHashCode()})");
-            }
-            Gfx.Save();
-            Gfx.TranslateTransform(0, offsetY);
-            DoBeforeNewPage(RestoreOnNewPage);
-            DoAfterNewPage(SaveOnNewPage);
-        }
+                Alignment = XStringAlignment.Near,
+                LineAlignment = XLineAlignment.Near
+            };
 
-        public void ResetOffset()
-        {
-            if (_logger.DebugEnabled())
-            {
-                _logger.WriteDebug(this, $"ResetOffset(GFX:{Gfx.GetHashCode()})");
-            }
-            _actionOnBeforeNewPage.RemoveAt(_actionOnBeforeNewPage.Count - 1);
-            _actionOnAfterNewPage.RemoveAt(_actionOnAfterNewPage.Count - 1);
-            Gfx.Restore();
+            Gfx.DrawString(text, _debugFont.Value, XBrushes.Red, x, y, fmt);
         }
-
-        private void RestoreOnNewPage()
-        {
-            if (_logger.DebugEnabled())
-            {
-                _logger.WriteDebug(this, $"RestoreOnNewPage(GFX:{Gfx.GetHashCode()})");
-            }
-            Gfx.Restore();
-        }
-
-        private void SaveOnNewPage()
-        {
-            if (_logger.DebugEnabled())
-            {
-                _logger.WriteDebug(this, $"SaveOnNewPage(GFX:{Gfx.GetHashCode()})");
-            }
-            Gfx.Save();
-        }
-
         private void DebugRect(XRect rect)
         {
             Gfx.DrawRectangle(_debugPen, rect);
-        }
-
-        private void DoBeforeNewPage(Action action)
-        {
-            _actionOnBeforeNewPage.Add(action);
-        }
-
-        private void DoAfterNewPage(Action action)
-        {
-            _actionOnAfterNewPage.Add(action);
         }
     }
 }

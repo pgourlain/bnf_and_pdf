@@ -1,20 +1,28 @@
-﻿using PdfSharpCore.Fonts;
+﻿using System.Globalization;
+using PdfSharpCore.Fonts;
 using PdfSharpCore.Pdf;
 using PdfSharpDslConsole.Fonts;
 using PdfSharpDslCore.Drawing;
 using PdfSharpDslCore.Parser;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Console;
 
 ServiceProvider serviceProvider = new ServiceCollection()
     .AddLogging((loggingBuilder) => loggingBuilder
         .SetMinimumLevel(LogLevel.Trace)
-        .AddConsole()
+        .AddSystemdConsole(options =>
+        {
+            options.IncludeScopes = true;
+            options.TimestampFormat = "HH:mm:ss.fff ";
+        })
     )
     .BuildServiceProvider();
 
 var logger = serviceProvider.GetService<ILoggerFactory>()?.CreateLogger<PdfDocumentDrawer>();
-
+//to print decimal number with '.'
+CultureInfo.CurrentCulture = CultureInfo.CurrentUICulture = CultureInfo.InvariantCulture;
 //Now both are working
 logger.LogDebug("Debug World");         
 logger.LogInformation("Hello World");
@@ -109,7 +117,7 @@ else
     var document = new PdfDocument();
     //draw parsing result
     using var drawer = new PdfDocumentDrawer(document, logger);
-    var visitor = new PdfDrawerVisitor();
+    var visitor = new PdfDrawerVisitor(logger);
 
     visitor.RegisterFormulaFunction("GetFontCount", (_) => LocalFontNames().Count());
     visitor.RegisterFormulaFunction("GetFont", GetFontNameByIndex);
