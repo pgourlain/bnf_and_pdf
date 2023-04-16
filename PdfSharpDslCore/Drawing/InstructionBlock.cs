@@ -151,6 +151,12 @@ namespace PdfSharpDslCore.Drawing
                 pageOffsetY += pageCount * drawer.PageHeight;
                 //if more instruction to draw on nextpage, selfOffsetY on new page should be 0
                 selfOffsetY = 0;
+                if (pageCount == 0 && drawOnNextPage.Count > 0)
+                {
+                    drawer.NewPage();
+                    printedPage++;
+                    pageOffsetY += drawer.PageHeight;
+                }
             }
             //offset relative to bottom of current block
             //drawingHeight is height of draw on last page for the block, and lastSkipHeight is the amount of height that algo skip on bottom of last page
@@ -234,7 +240,6 @@ namespace PdfSharpDslCore.Drawing
                     }
                 }
             }
-
             return offsetyResult + deltaOnPreviousPage;
         }
 
@@ -249,7 +254,6 @@ namespace PdfSharpDslCore.Drawing
                     negOffset = -block.OffsetY;
                 }
             }
-
             return _instructions.Sum(item => item.Draw(drawer, negOffset + offsetY, pageOffsetY));
         }
         
