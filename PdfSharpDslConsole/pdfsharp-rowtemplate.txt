@@ -33,6 +33,15 @@ TITLE Margin=10 HAlign=hcenter Text="nested template is higher than one page";
 CALL NESTEDTEMPLATE2(100, 3, 10, 100);
 
 
+NEWPAGE;
+TITLE Margin=10 HAlign=hcenter Text="Simple template";
+
+CALL SIMPLETEMPLATE(10, 20);
+
+NEWPAGE;
+TITLE Margin=10 HAlign=hcenter Text="Simple template with breaking page";
+
+CALL SIMPLETEMPLATE(40, 20);
 
 #ROWTEMPLATE Count=getGlobalCommentsCount() Y=100 BorderSize=15
 #    LINETEXT 50, 5 HAlign=hcenter VAlign=top Text=getGlobalCommentDate($ROWINDEX);
@@ -66,4 +75,11 @@ ENDUDF
 
 UDF NESTEDTEMPLATE1(TOP)
 	CALL NESTEDTEMPLATE2($TOP, 3,10,10);
+ENDUDF
+
+UDF SIMPLETEMPLATE(COUNT, H)
+    ROWTEMPLATE Count=$COUNT Y=50 Name="" BorderSize=3
+        LINETEXT 200,0 HAlign=left VAlign=top Text=("Index="+$ROWINDEX);
+        LINE $ROWINDEX*10 ,0,$ROWINDEX*10+10, $H; 
+    ENDROWTEMPLATE
 ENDUDF

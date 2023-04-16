@@ -1,5 +1,9 @@
 
 # Change log
+## Version 1.0.3 (April 16, 2023)
+* Add DEBUG_RULE, in order to show area rule on each page
+* Add automatic breaking page if needed in ROWTEMPLATE
+
 ## Version 1.0.2 (March 5, 2023)
 * Add DEBUGOPTIONS, in order to show area of each figure
 
