@@ -110,8 +110,13 @@ namespace PdfSharpDslCore.Drawing
                             }
                             newPageOffsetY = drawer.PageHeight;
                             drawer.NewPage();
+                            double deltaOnPreviousPage = this.OffsetY - newPageOffsetY + offsetY;
                             //offset of each block should set to 0
                             newPageOffsetY += DrawInstructions(drawer, offsetY, pageOffsetY, true);
+                            if (deltaOnPreviousPage < 0)
+                            {
+                                newPageOffsetY += deltaOnPreviousPage;
+                            }
                         }
                         else
                         {
@@ -209,7 +214,8 @@ namespace PdfSharpDslCore.Drawing
                                 deltaOnPreviousPage = currentOffsetY;
                                 lastDeltaOnPreviousPage = currentOffsetY;
                             }
-                            DrawInstructionsByChunk(drawer, block.Instructions, 0, 0, new List<IInstruction>(), ref pageCount, ref lastDeltaOnPreviousPage);
+                            DrawInstructionsByChunk(drawer, block.Instructions, 0, 0, 
+                                new List<IInstruction>(), ref pageCount, ref lastDeltaOnPreviousPage);
                             offsetyResult = block.Rect.Height + currentOffsetY;
                         }
                         else
