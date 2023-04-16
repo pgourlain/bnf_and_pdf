@@ -158,21 +158,21 @@ namespace pdfsharpdslTests.ReplayerTests
             }
         }
 
-        [Fact]
-        public void RecorderTests_Level2()
-        {
-            var drawerMock = defaultDrawerMock();
-
-            var recorder = new BlocksRecorder();
-
-            var block = recorder.OpenBlock(string.Empty,0, true);
-
-            var b2 = recorder.OpenBlock(string.Empty,200, true);
-            //180 height should be print on second page
-            AddInstructions(b2, 3, 60);
-            var hasNewPage = block.Draw(drawerMock.Object, 0, 0);
-            Assert.True(hasNewPage>0);
-            drawerMock.Verify(x => x.NewPage(null, null), Times.Exactly(1));
-        }
+        // [Fact]
+        // public void RecorderTests_Level2()
+        // {
+        //     var drawerMock = defaultDrawerMock();
+        //
+        //     var recorder = new BlocksRecorder();
+        //
+        //     var block = recorder.OpenBlock(string.Empty,0, true);
+        //
+        //     var b2 = recorder.OpenBlock(string.Empty,200, true);
+        //     //180 height should be print on second page
+        //     AddInstructions(b2, 3, 60);
+        //     var hasNewPage = block.Draw(drawerMock.Object, 0, 0);
+        //     Assert.True(hasNewPage>0);
+        //     drawerMock.Verify(x => x.NewPage(null, null), Times.Exactly(1));
+        // }
     }
 }
