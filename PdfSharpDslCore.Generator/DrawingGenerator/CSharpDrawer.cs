@@ -163,6 +163,16 @@ namespace PdfSharpDslCore.Generator.DrawingGenerator
             //throw new NotImplementedException();
         }
 
+        public void RegisterOnNewPage(Action<int> callback)
+        {
+            //throw new NotImplementedException();
+        }
+
+        public void UnRegisterOnNewPage(Action<int> callback)
+        {
+            //throw new NotImplementedException();
+        }
+
         public void SetOffsetY(double offsetY)
         {
             throw new NotImplementedException();

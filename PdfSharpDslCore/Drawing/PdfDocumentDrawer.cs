@@ -28,6 +28,7 @@ namespace PdfSharpDslCore.Drawing
         private XPoint _currentPoint = new XPoint(0, 0);
         private PageSize _defaultPageSize = PageSize.A4;
         private PageOrientation _defaultPageOrientation = PageOrientation.Portrait;
+        private readonly List<Action<int>> _onNewPageHooks = new();
 
         private readonly DrawingContext _drawingCtx;
 
@@ -568,6 +569,7 @@ namespace PdfSharpDslCore.Drawing
             _defaultPageOrientation = pageOrientation ?? _defaultPageOrientation;
             
             CurrentPage = AddPage();
+            _onNewPageHooks.ForEach( x=> x(_document.PageCount));
             if ((DebugOptions & DebugOptions.DebugRule) == DebugOptions.DebugRule)
             {
                 var mm5 = 25;
@@ -786,6 +788,19 @@ namespace PdfSharpDslCore.Drawing
         private void DebugRect(XRect rect)
         {
             Gfx.DrawRectangle(_debugPen, rect);
+        }
+
+        public void RegisterOnNewPage(Action<int> callback)
+        {
+            if (callback != null && !_onNewPageHooks.Contains(callback))
+            {
+                _onNewPageHooks.Add(callback);
+            }
+        }
+
+        public void UnRegisterOnNewPage(Action<int> callback)
+        {
+            _onNewPageHooks.Remove(callback);
         }
     }
 }

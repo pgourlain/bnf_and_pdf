@@ -26,6 +26,7 @@ namespace PdfSharpDslCore.Parser
         public override void Draw(IPdfDocumentDrawer state, ParseTree tree)
         {
             Variables = new VariablesDictionary(k => SystemVariableGet(state, k));
+            state.RegisterOnNewPage(pageIndex => OnNewPage(state, pageIndex));
             base.Draw(state, tree);
         }
 
@@ -285,7 +286,7 @@ namespace PdfSharpDslCore.Parser
             ParseTreeNode defArgs,
             ParseTreeNode defBody)
         {
-            var evaluatedArgs = args.ChildNodes.Select(EvaluateForObject).ToArray();
+            var evaluatedArgs = args?.ChildNodes.Select(EvaluateForObject).ToArray() ?? Array.Empty<object>();
 
             if (defArgs != null)
             {
@@ -402,6 +403,15 @@ namespace PdfSharpDslCore.Parser
         #endregion
 
 
+        protected virtual void OnNewPage(IPdfDocumentDrawer drawer, int page)
+        {
+            Variables.Add("PAGEINDEX", page);
+            if (UserDefinedFunctions.ContainsKey("__ONNEWPAGE"))
+            {
+                ExecuteUdfByName(drawer, "__ONNEWPAGE", null);
+            }
+        }
+        
         protected virtual bool UdfCustomCall(IPdfDocumentDrawer drawer, string udfName, object?[] arguments)
         {
             return false;
