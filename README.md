@@ -327,6 +327,18 @@ LINETEXT $X,$Y Text="Horizontal text"
 ENDUDF
 ```
 
+### Reserved user function
+
+introduce in 1.0.4
+
+```text
+UDF __ONENEWPAGE()
+# called on each new page
+# add here your custom draw (example draw PageIndex)
+    LINETEXT ($PAGEWIDTH/2),$PAGEHEIGHT HAlign=hcenter VAlign=bottom Text=$PAGEINDEX;
+ENDUDF
+```
+
 ### Call an User Define Function
 
 ```text

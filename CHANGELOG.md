@@ -1,5 +1,9 @@
 
 # Change log
+
+## Version 1.0.4 (April 23, 2023)
+* Add callback onNewpage in order to draw a custom template on each page
+
 ## Version 1.0.3 (April 16, 2023)
 * Add DEBUG_RULE, in order to show area rule on each page
 * Add automatic breaking page if needed in ROWTEMPLATE
