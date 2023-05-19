@@ -11,6 +11,11 @@ namespace PdfSharpDslCore.Parser
     {
         void SaveVariables();
         void RestoreVariables();
+
+        /// <summary>
+        /// if true Save/restore will be disable
+        /// </summary>
+        bool GlobalScope { get; set; }
     }
 
     internal class VariablesDictionary : IDictionary<string, object?>, IVariablesDictionary
@@ -19,6 +24,8 @@ namespace PdfSharpDslCore.Parser
         private ConcurrentDictionary<string, object?> _inner = new ConcurrentDictionary<string, object?>();
         private readonly Stack<ConcurrentDictionary<string, object?>> _savedVariables = new Stack<ConcurrentDictionary<string, object?>>();
 
+        public bool GlobalScope { get; set; } = false;
+        
         public VariablesDictionary(Func<string, object> systemVariablesGet)
         {
             _systemVariablesGet = systemVariablesGet;
@@ -104,13 +111,16 @@ namespace PdfSharpDslCore.Parser
 
         public void SaveVariables()
         {
+            if (GlobalScope) return;
             _savedVariables.Push(_inner);
             _inner = new ConcurrentDictionary<string, object?>(_inner);
         }
 
         public void RestoreVariables()
         {
+            if (GlobalScope) return;
             _inner = _savedVariables.Pop();
         }
+        
     }
 }

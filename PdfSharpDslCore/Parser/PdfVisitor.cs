@@ -247,9 +247,9 @@ namespace PdfSharpDslCore.Parser
 
         protected virtual void ExecuteUdfInvokeStatement(TState drawer,
             string fnName,
-            ParseTreeNode args,
+            ParseTreeNode? args,
             ParseTreeNode defArgs,
-            ParseTreeNode defBody)
+            ParseTreeNode? defBody)
         { }
         protected virtual void ExecuteRowTemplateStatement(TState drawer,
             ParseTreeNode rowCountNode,
@@ -302,16 +302,27 @@ namespace PdfSharpDslCore.Parser
         {
             var fnName = node.ChildNodes[1].Token.ValueString;
             var arguments = node.ChildNode("CallInvokeArgumentslist")!;
-            ParseTreeNode defArgs = null!;
-            ParseTreeNode defBody = null!;
+            ExecuteUdfByName(state, fnName, arguments);
+        }
+
+        protected void ExecuteUdfByName(TState state, string fnName, ParseTreeNode? arguments)
+        {
+            ParseTreeNode? defArgs = null!;
+            ParseTreeNode? defBody = null!;
 
             if (UserDefinedFunctions.TryGetValue(fnName, out var defNode))
             {
                 defArgs = defNode.ChildNode("UdfArgumentslist")!;
                 defBody = defNode.ChildNode("UdfBlock")?.ChildNode("EmbbededSmtList")!;
-                if (defArgs.ChildNodes.Count != arguments.ChildNodes.Count)
+                if (defArgs!= null && arguments!=null && defArgs.ChildNodes.Count != arguments.ChildNodes.Count)
                 {
                     throw new PdfParserException($"UDF '{fnName}' arguments count not match, provided ${arguments.ChildNodes.Count}, expected ${defArgs.ChildNodes.Count}.");
+                }
+
+                if (defArgs == null)
+                {
+                    //to avoid calling udfCustom
+                    defArgs = new ParseTreeNode(new NonTerminal("noArg"), new SourceSpan(new SourceLocation(0,0,0),1 ));
                 }
             }
             ExecuteUdfInvokeStatement(state, fnName, arguments, defArgs, defBody);

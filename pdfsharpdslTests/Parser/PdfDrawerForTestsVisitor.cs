@@ -6,6 +6,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Irony.Parsing;
+using PdfSharpCore.Drawing;
 
 namespace pdfsharpdslTests
 {
@@ -14,17 +16,14 @@ namespace pdfsharpdslTests
     {
         public IDictionary<string, object?> Vars => Variables;
 
-        public IDictionary<string, object?[]> UDFs = new Dictionary<string, object?[]>();
+        public readonly IDictionary<string, object?[]> UDFs = new Dictionary<string, object?[]>();
         public PdfDrawerForTestsVisitor()
+        { }
+
+        protected override void UdfCall(IPdfDocumentDrawer drawer, string fnName, string[]? parameterNames, object?[] parameterValues,
+            ParseTreeNode? udfBody)
         {
-
-        }
-
-
-        protected override bool UdfCustomCall(IPdfDocumentDrawer drawer, string udfName, object?[] arguments)
-        {
-            UDFs.Add(udfName, arguments);
-            return true;
+            UDFs.Add(fnName, parameterValues);
         }
     }
 }

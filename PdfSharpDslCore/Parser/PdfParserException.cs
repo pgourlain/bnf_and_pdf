@@ -8,5 +8,8 @@ namespace PdfSharpDslCore.Parser
     {
         public PdfParserException(string message) : base(message) 
         { }
+        
+        public PdfParserException(string message, Exception? innerException) : base(message, innerException)
+        { }
     }
 }

@@ -1,0 +1,17 @@
+
+# call back on new page
+UDF __ONNEWPAGE()
+    LINETEXT ($PAGEWIDTH/2),$PAGEHEIGHT HAlign=hcenter VAlign=bottom Text=$PAGEINDEX;
+    # define variables that are visible outside this UDF
+    SET VAR MYPAGEHEIGHT=$PAGEHEIGHT-40;
+    SET VAR MYPAGEWIDTH=$PAGEWIDTH-20;
+    SET VAR VMARGIN=20;
+    SET VAR HMARGIN=10;
+ENDUDF
+
+
+FOR P=1 TO 5 DO
+NEWPAGE;
+RECT $HMARGIN,$VMARGIN, $MYPAGEWIDTH, $MYPAGEHEIGHT
+
+ENDFOR

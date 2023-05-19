@@ -48,13 +48,16 @@
     <None Update="imageTest.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="pdfsharp.txt" IsPdfSharpDsl="true">
+    <None Update="pdfsharp.ipdf" IsPdfSharpDsl="true">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="sample1.txt">
+    <None Update="sample1.ipdf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="pdfsharp-rowtemplate.txt">
+    <None Update="pdfsharp-rowtemplate.ipdf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>    
+    <None Update="pdfsharp-newpage.ipdf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <!-- <None Update="pdfsharp.txt">

@@ -1,5 +1,6 @@
 ﻿
 
+using System;
 using PdfSharpCore;
 using PdfSharpCore.Drawing;
 using System.Collections.Generic;
@@ -53,5 +54,8 @@ namespace PdfSharpDslCore.Drawing
         DrawingResult EndDrawRowTemplate(int index);
         void BeginIterationTemplate(int rowCount);
         void EndIterationTemplate(double drawHeight);
+
+        void RegisterOnNewPage(Action<int> callback);
+        void UnRegisterOnNewPage(Action<int> callback);
     }
 }
