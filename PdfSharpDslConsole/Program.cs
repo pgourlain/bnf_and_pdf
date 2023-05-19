@@ -24,8 +24,8 @@ var logger = serviceProvider.GetService<ILoggerFactory>()?.CreateLogger<PdfDocum
 //to print decimal number with '.'
 CultureInfo.CurrentCulture = CultureInfo.CurrentUICulture = CultureInfo.InvariantCulture;
 //Now both are working
-logger.LogDebug("Debug World");         
-logger.LogInformation("Hello World");
+logger?.LogDebug("Debug World");         
+logger?.LogInformation("Hello World");
 
 //GlobalFontSettings.FontResolver = new FontResolver();
 GlobalFontSettings.DefaultFontEncoding = PdfFontEncoding.Unicode;
@@ -92,7 +92,7 @@ var globalComments = new[]
 
 
 var parser = new Irony.Parsing.Parser(new PdfGrammar());
-var fileName = "pdfsharp-rowtemplate.txt";
+var fileName = "pdfsharp-newpage.ipdf";
 if (args.Length > 0)
 {
     fileName = args[0];

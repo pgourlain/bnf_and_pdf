@@ -70,7 +70,7 @@ All coordinates are specified in 'points'
 - 1 millimeter = 72.0 points / 25.4 ~=> 2.84 points
 - 1 centimeter = 72.0 points / 2.54 ~=> 28.34 points
 
-## Formula feature
+## Formula features
 
 - a formula result can be string or double
 - aritmetic/boolean operations are : +, -, /, *, %, >, <, >=, <=,==, <>, and, or
@@ -91,9 +91,10 @@ Formula can be used in :
 - in IF condition
 
 Formula support also customFunction
-1)
+
+1) Register a formula function in your code
 ```CSharp
-var visitor = ew PdfDrawerVisitor();
+var visitor = new PdfDrawerVisitor();
 visitor.RegisterFormulaFunction("SUM", (args) => args.Sum(x => Convert.ToDouble(x)));
 ```
 
@@ -211,7 +212,15 @@ FILLPOLYGON 100,100, 150,120, 130,150, 240,40;
 
 ## MoveTo, LineTo
 
-TODO
+```text
+# MOVETO PointLocation
+# LINETO PointLocation
+
+MOVETO 300, 200;
+LINETO 400, 200;
+LINETO 400, 220;
+LINETO 300, 200;
+```
 
 ## New page
 
@@ -311,9 +320,9 @@ This statement is like a table, but only for row
 - is to add space between each loop
 - a space is added on top and at bottom when specified
 
-TODO
-
 ## User Define Function
+
+Udf is like a method in C#, where you can group instructions and reuse multiple times
 
 ### define function
 
@@ -327,6 +336,27 @@ LINETEXT $X,$Y Text="Horizontal text"
 ENDUDF
 ```
 
+udf with parameters
+```text
+UDF HEXAGONE(X, Y, T)
+	SET VAR SQRT3=1.7320;
+	LINETEXT $X-$T/2, $Y-$T*$SQRT3/2 HAlign=left VAlign=bottom Text="MOVETO/LINETO";
+	MOVETO $X-$T/2, $Y-$T*$SQRT3/2;
+	LINETO $X+$T/2, $Y-$T*$SQRT3/2;
+	LINETEXT $X+$T/2,$Y-$T*$SQRT3/2 HAlign=left VAlign=bottom Orientation=60 Text="LINETO";
+	LINETO $X+$T, $Y+0;
+	LINETEXT $X+$T, $Y+0 HAlign=left VAlign=bottom Orientation=120 Text="LINETO";
+	LINETO $X+$T/2, $Y+$T*$SQRT3/2;
+	LINETEXT $X+$T/2, $Y+$T*$SQRT3/2 HAlign=left VAlign=bottom Orientation=$PI Text="LINETO";
+
+	LINETO $X-$T/2, $Y+$T*$SQRT3/2;
+	LINETEXT $X-$T/2, $Y+$T*$SQRT3/2 HAlign=left VAlign=bottom Orientation=240 Text="LINETO";
+	LINETO $X-$T, $Y+0;
+	LINETEXT $X-$T, $Y+0 HAlign=left VAlign=bottom Orientation=300 Text="LINETO";
+	LINETO $X-$T/2, $Y-$T*$SQRT3/2;
+ENDUDF
+```
+
 ### Reserved user function
 
 introduce in 1.0.4
@@ -337,6 +367,22 @@ UDF __ONENEWPAGE()
 # add here your custom draw (example draw PageIndex)
     LINETEXT ($PAGEWIDTH/2),$PAGEHEIGHT HAlign=hcenter VAlign=bottom Text=$PAGEINDEX;
 ENDUDF
+```
+
+### Override UDF in C#
+
+if you redefine 'MyUdf' in C# you can control 
+```CSharp
+var visitor = new PdfDrawerVisitor();
+visitor.RegisterCustomUdf("MyUdf", (drawer, argNames, argValues) => {
+    //....
+    //this udf is called before udf define in '.ipdf' file
+    drawer.DrawLineText("Horizontal Text", 100,100,null,null,
+        XStringAlignment.Near, XLineAlignment.Far, 
+        new TextOrientation(){Orientation=TextOrientationEnum.Horizontal, Angle = 0});
+    //return true to override, false to execute also udf define un .ipdf 
+    return true;
+    });
 ```
 
 ### Call an User Define Function

@@ -247,9 +247,9 @@ namespace PdfSharpDslCore.Parser
 
         protected virtual void ExecuteUdfInvokeStatement(TState drawer,
             string fnName,
-            ParseTreeNode args,
+            ParseTreeNode? args,
             ParseTreeNode defArgs,
-            ParseTreeNode defBody)
+            ParseTreeNode? defBody)
         { }
         protected virtual void ExecuteRowTemplateStatement(TState drawer,
             ParseTreeNode rowCountNode,
@@ -305,10 +305,10 @@ namespace PdfSharpDslCore.Parser
             ExecuteUdfByName(state, fnName, arguments);
         }
 
-        protected void ExecuteUdfByName(TState state, string fnName, ParseTreeNode arguments)
+        protected void ExecuteUdfByName(TState state, string fnName, ParseTreeNode? arguments)
         {
-            ParseTreeNode defArgs = null!;
-            ParseTreeNode defBody = null!;
+            ParseTreeNode? defArgs = null!;
+            ParseTreeNode? defBody = null!;
 
             if (UserDefinedFunctions.TryGetValue(fnName, out var defNode))
             {
