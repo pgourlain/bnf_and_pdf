@@ -1,3 +1,7 @@
 
 TITLE Margin=-28.34 HAlign=hcenter Text="center text";
 
+
+TEXT 50,50  MaxWidth=50 Text="je voudrais un texte très long pour aller à la ligne automatiquement. A voir si cela fonctionne correctement."
+
+RECT 50,50,50,100
