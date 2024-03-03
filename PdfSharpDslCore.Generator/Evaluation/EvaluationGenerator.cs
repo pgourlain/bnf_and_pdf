@@ -105,17 +105,6 @@ namespace PdfSharpDslCore.Generator.Evaluation
         }
     }
 
-    //internal class ConstantEvaluationGenerator : EvaluationGenerator
-    //{
-    //    public override EvaluationResult Value
-    //    {
-    //        get
-    //        {
-    //            return EvaluationResult.Null;
-    //        }
-    //    }
-    //}
-
     internal class CustomFunctionEvaluationGenerator : EvaluationGenerator
     {
         readonly string _fnName;

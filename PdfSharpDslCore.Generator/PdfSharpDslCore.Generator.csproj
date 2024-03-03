@@ -13,16 +13,37 @@
 		<RepositoryUrl>https://github.com/pgourlain/bnf_and_pdf</RepositoryUrl>
 		<PackageIcon>Icon.jpg</PackageIcon>
 		<PackageLicenseFile>LICENSE.md</PackageLicenseFile>
-		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-		<IncludeBuildOutput>false</IncludeBuildOutput>
-		<NoPackageAnalysis>true</NoPackageAnalysis>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+		<CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
 		<IsRoslynComponent>true</IsRoslynComponent>
-	</PropertyGroup>
+		<EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+		<LangVersion>10.0</LangVersion>
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<!-- Generates a package at build -->
+		<IncludeBuildOutput>false</IncludeBuildOutput>
+		<!-- Do not include the generator as a lib dependency -->
 
+	</PropertyGroup>
+	<ItemGroup>
+		<None Include="..\LICENSE.md">
+	      <Pack>True</Pack>
+	      <PackagePath>\</PackagePath>
+	    </None>
+		<None Update="Icon.jpg">
+	    	<Pack>True</Pack>
+	    	<PackagePath>\</PackagePath>
+	  	</None>
+	  	<None Update="Readme.md">
+	    	<Pack>True</Pack>
+	    	<PackagePath>\</PackagePath>
+	  	</None>		
+	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="Irony" Version="1.2.0" GeneratePathProperty="true" />
-		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.4.0" PrivateAssets="all" />
-		<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.3" PrivateAssets="all" />
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.7.0" PrivateAssets="all" />
+		<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" PrivateAssets="all" />
 		<PackageReference Include="PdfSharpCore" Version="1.3.47" GeneratePathProperty="true" />
 		<PackageReference Include="SixLabors.Fonts" Version="1.0.0-beta19" GeneratePathProperty="true" />
 		<PackageReference Include="SixLabors.ImageSharp" Version="2.1.3" GeneratePathProperty="true" />

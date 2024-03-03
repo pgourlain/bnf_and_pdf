@@ -70,14 +70,15 @@ namespace PdfSharpDslCore.Generator
 
         private bool IsTaggedTextFile(IncrementalGeneratorInitializationContext context, (AdditionalText file, AnalyzerConfigOptionsProvider options) file)
         {
-            if (Path.GetExtension(file.file.Path).Equals(".txt", StringComparison.OrdinalIgnoreCase))
+            if (Path.GetExtension(file.file.Path).Equals(".ipdf", StringComparison.OrdinalIgnoreCase))
             {
                 //
-                var options = file.options.GetOptions(file.file);
-                if (options.TryGetValue("build_metadata.additionalfiles.IsPdfSharpDsl", out string loadTimeString))
-                {
-                    return true;
-                }
+                // var options = file.options.GetOptions(file.file);
+                // if (options.TryGetValue("build_metadata.additionalfiles.IsPdfSharpDsl", out string loadTimeString))
+                // {
+                //     return true;
+                // }
+                return true;
 
             }
             return false;
@@ -86,13 +87,10 @@ namespace PdfSharpDslCore.Generator
         private void Execute(Compilation left, SourceProductionContext context, ImmutableArray<AdditionalText> right)
         {
             var nameCodeSequence = SourceFilesFromAdditionalFiles(right);
-            if (nameCodeSequence != null)
+            foreach ((string name, string code) in nameCodeSequence)
             {
-                foreach ((string name, string code) in nameCodeSequence)
-                {
-                    var sourceText = SourceText.From(code, Encoding.UTF8);
-                    context.AddSource($"{name}.g.cs", sourceText);
-                }
+                var sourceText = SourceText.From(code, Encoding.UTF8);
+                context.AddSource($"{name}.g.cs", sourceText);
             }
         }
 
@@ -108,22 +106,21 @@ namespace PdfSharpDslCore.Generator
         }
 
         static IEnumerable<(string, string)> SourceFilesFromAdditionalFiles(IEnumerable<AdditionalText> pathsData)
-            => pathsData.SelectMany(f => SourceFilesFromAdditionalFile(f));
+            => pathsData.SelectMany(SourceFilesFromAdditionalFile);
 
 
         static IEnumerable<AdditionalText> GetTaggedTextFile(GeneratorExecutionContext context)
         {
             foreach (AdditionalText file in context.AdditionalFiles)
             {
-                if (Path.GetExtension(file.Path).Equals(".txt", StringComparison.OrdinalIgnoreCase))
+                if (Path.GetExtension(file.Path).Equals(".ipdf", StringComparison.OrdinalIgnoreCase))
                 {
                     //
                     var options = context.AnalyzerConfigOptions.GetOptions(file);
-                    if (options.TryGetValue("build_metadata.additionalfiles.IsPdfSharpDsl", out string loadTimeString))
-                    {
+                    //if (options.TryGetValue("build_metadata.additionalfiles.IsPdfSharpDsl", out string loadTimeString))
+                    //{
                         yield return file;
-                    }
-
+                    //}
                 }
             }
         }
