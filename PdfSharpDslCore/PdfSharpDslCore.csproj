@@ -7,7 +7,7 @@
 		<Nullable>enable</Nullable>
 		<Title>Generate PDF using DSL</Title>
 		<PackageId>PdfSharpDslCore</PackageId>
-		<Version>1.0.4</Version>
+		<Version>1.0.5</Version>
 		<Authors>Pierrick Gourlain</Authors>
 		<Company></Company>
 		<Description>A DSL using PdfSharpCore to generate PDF</Description>
@@ -24,9 +24,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Irony" Version="1.2.0" />
-		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.3" />
-		<PackageReference Include="PdfSharpCore" Version="1.3.47" />
+		<PackageReference Include="Irony" Version="1.5.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+		<PackageReference Include="PdfSharpCore" Version="1.3.63" />
 	</ItemGroup>
 	<ItemGroup>
 	  <None Update="Icon.jpg">

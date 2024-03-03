@@ -63,7 +63,7 @@ namespace pdfsharpdslTests
             var f = drawer.CurrentFont;
             //because font names change on different OS
             var pi = typeof(XFont).GetProperty("FamilyName", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            Assert.StartsWith((string)expected, (string)pi.GetValue(drawer.CurrentFont)!);
+            Assert.StartsWith((string)expected, (string)pi?.GetValue(drawer.CurrentFont)!);
             Assert.Equal(size, drawer.CurrentFont.Size);
         }
 
