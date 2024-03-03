@@ -11,7 +11,7 @@ This is a sample library that use [Irony.Net](https://github.com/IronyProject/Ir
 ```csharp
 var parser = new Irony.Parsing.Parser(new PdfGrammar());
 
-var parsingResult = parser.Parse(File.ReadAllText("pdfsharp.txt"));
+var parsingResult = parser.Parse(File.ReadAllText("pdfsharp.ipdf"));
 
 if (parsingResult.HasErrors())
 {
