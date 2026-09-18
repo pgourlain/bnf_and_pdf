@@ -94,7 +94,8 @@ var globalComments = new[]
 var parser = new Irony.Parsing.Parser(new PdfGrammar());
 //var fileName = "pdfsharp-newpage.ipdf";
 //var fileName = "pdfsharp.ipdf";
-var fileName = "sample1.ipdf";
+//var fileName = "sample1.ipdf";
+var fileName = "demo.ipdf";
 if (args.Length > 0)
 {
     fileName = args[0];
