@@ -136,6 +136,264 @@ SET BRUSH crimson;
 LINETEXT 30,450 Text="Negative width and height use the remaining page area";
 
 # -----------------------------------------------------------------------------
+# Page 3: concrete charts built from the drawing primitives
+# -----------------------------------------------------------------------------
+NEWPAGE A4 landscape;
+CALL SECTION("Concrete charts from drawing primitives");
+SET FONT Name="Arial" Size=9 regular;
+SET BRUSH black;
+
+# Bar chart: monthly sales in thousands.
+LINETEXT 45,82 Text="Monthly sales (kEUR)";
+SET PEN lightgray 0.5 dash;
+LINE 70,145,390,145;
+LINE 70,195,390,195;
+LINE 70,245,390,245;
+LINE 70,295,390,295;
+SET PEN darkslategray 1 solid;
+LINE 70,320,390,320;
+LINE 70,120,70,320;
+SET BRUSH steelblue;
+FILLRECT 92,235,32,85;
+FILLRECT 142,200,32,120;
+FILLRECT 192,220,32,100;
+FILLRECT 242,160,32,160;
+FILLRECT 292,180,32,140;
+FILLRECT 342,135,32,185;
+SET BRUSH black;
+LINETEXT 96,330 Text="Jan";
+LINETEXT 146,330 Text="Feb";
+LINETEXT 196,330 Text="Mar";
+LINETEXT 246,330 Text="Apr";
+LINETEXT 296,330 Text="May";
+LINETEXT 346,330 Text="Jun";
+LINETEXT 52,320 HAlign=right Text="0";
+LINETEXT 52,270 HAlign=right Text="20";
+LINETEXT 52,220 HAlign=right Text="40";
+LINETEXT 52,170 HAlign=right Text="60";
+LINETEXT 52,120 HAlign=right Text="80";
+SET FONT Name="Arial" Size=8 regular;
+SET BRUSH darkslategray;
+LINETEXT 92,225 Text="34";
+LINETEXT 142,190 Text="48";
+LINETEXT 192,210 Text="40";
+LINETEXT 242,150 Text="64";
+LINETEXT 292,170 Text="56";
+LINETEXT 342,125 Text="74";
+
+# Line chart: support response time, lower is better.
+SET FONT Name="Arial" Size=9 regular;
+SET BRUSH black;
+LINETEXT 440,82 Text="Average response time (ms)";
+SET PEN lightgray 0.5 dash;
+LINE 470,145,755,145;
+LINE 470,195,755,195;
+LINE 470,245,755,245;
+LINE 470,295,755,295;
+SET PEN darkslategray 1 solid;
+LINE 470,320,755,320;
+LINE 470,120,470,320;
+SET PEN tomato 2 solid;
+LINE 490,170,540,210;
+LINE 540,210,590,185;
+LINE 590,185,640,250;
+LINE 640,250,690,230;
+LINE 690,230,740,285;
+SET BRUSH tomato;
+FILLELLIPSE 485,165,10,10;
+FILLELLIPSE 535,205,10,10;
+FILLELLIPSE 585,180,10,10;
+FILLELLIPSE 635,245,10,10;
+FILLELLIPSE 685,225,10,10;
+FILLELLIPSE 735,280,10,10;
+SET BRUSH black;
+LINETEXT 485,330 Text="Jan";
+LINETEXT 535,330 Text="Feb";
+LINETEXT 585,330 Text="Mar";
+LINETEXT 635,330 Text="Apr";
+LINETEXT 685,330 Text="May";
+LINETEXT 735,330 Text="Jun";
+LINETEXT 452,320 HAlign=right Text="0";
+LINETEXT 452,270 HAlign=right Text="100";
+LINETEXT 452,220 HAlign=right Text="200";
+LINETEXT 452,170 HAlign=right Text="300";
+LINETEXT 452,120 HAlign=right Text="400";
+SET FONT Name="Arial" Size=8 regular;
+SET BRUSH tomato;
+LINETEXT 480,155 Text="300";
+LINETEXT 530,195 Text="220";
+LINETEXT 580,170 Text="270";
+LINETEXT 630,235 Text="140";
+LINETEXT 680,215 Text="180";
+LINETEXT 730,270 Text="70";
+
+# Additional series demonstrate the available dash styles.
+SET PEN steelblue 1.5 dash;
+LINE 490,190,540,160;
+LINE 540,160,590,220;
+LINE 590,220,640,205;
+LINE 640,205,690,260;
+LINE 690,260,740,240;
+SET PEN darkgreen 1.5 dot;
+LINE 490,230,540,250;
+LINE 540,250,590,235;
+LINE 590,235,640,270;
+LINE 640,270,690,255;
+LINE 690,255,740,295;
+SET PEN purple 1.5 dashdot;
+LINE 490,150,540,180;
+LINE 540,180,590,165;
+LINE 590,165,640,195;
+LINE 640,195,690,175;
+LINE 690,175,740,215;
+SET BRUSH black;
+LINETEXT 470,355 Text="API p95";
+LINETEXT 555,355 Text="API p50";
+LINETEXT 640,355 Text="Cache";
+SET PEN tomato 3 solid;
+LINE 515,352,535,352;
+SET PEN steelblue 3 dash;
+LINE 600,352,620,352;
+SET PEN darkgreen 3 dot;
+LINE 680,352,700,352;
+SET PEN purple 3 dashdot;
+LINE 750,352,770,352;
+LINETEXT 775,355 Text="DB";
+
+# Pie chart: traffic sources, using filled sectors.
+SET PEN black 1;
+SET FONT Name="Arial" Size=9 regular;
+SET BRUSH black;
+LINETEXT 45,390 Text="Traffic sources";
+SET BRUSH steelblue;
+FILLPIE 130,410,130,130 Start=0 Angle=180;
+SET BRUSH lightgreen;
+FILLPIE 130,410,130,130 Start=180 Angle=108;
+SET BRUSH gold;
+FILLPIE 130,410,130,130 Start=288 Angle=72;
+SET BRUSH black;
+LINETEXT 285,435 Text="Direct 50%";
+LINETEXT 285,465 Text="Search 30%";
+LINETEXT 285,495 Text="Referral 20%";
+SET PEN steelblue 8 solid;
+LINE 270,430,280,430;
+SET PEN lightgreen 8 solid;
+LINE 270,460,280,460;
+SET PEN gold 8 solid;
+LINE 270,490,280,490;
+
+# -----------------------------------------------------------------------------
+# Page 4: a compact business report combining metrics, chart and table
+# -----------------------------------------------------------------------------
+NEWPAGE A4 portrait;
+CALL SECTION("Monthly business report");
+SET VAR REVENUE=1284;
+SET VAR ORDERS=342;
+SET VAR SATISFACTION=94;
+SET FONT Name="Arial" Size=9 regular;
+SET BRUSH black;
+
+# KPI cards.
+SET BRUSH 0xffe8f1fb;
+FILLRECT 45,85,155,68;
+SET BRUSH 0xffe8f7ee;
+FILLRECT 220,85,155,68;
+SET BRUSH 0xfffff3d6;
+FILLRECT 395,85,155,68;
+SET FONT Name="Arial" Size=9 bold;
+SET BRUSH darkslategray;
+LINETEXT 60,101 Text="REVENUE";
+LINETEXT 235,101 Text="ORDERS";
+LINETEXT 410,101 Text="CUSTOMER SATISFACTION";
+SET FONT Name="Arial" Size=20 bold;
+SET BRUSH darkblue;
+LINETEXT 60,118 Text=($REVENUE+" kEUR");
+SET BRUSH darkgreen;
+LINETEXT 235,118 Text=$ORDERS;
+SET BRUSH orange;
+LINETEXT 410,118 Text=($SATISFACTION+"%");
+
+# Revenue trend.
+SET FONT Name="Arial" Size=11 bold;
+SET BRUSH black;
+LINETEXT 45,190 Text="Revenue trend (kEUR)";
+SET PEN lightgray 0.5 dash;
+LINE 70,250,525,250;
+LINE 70,300,525,300;
+LINE 70,350,525,350;
+LINE 70,400,525,400;
+SET PEN darkslategray 1 solid;
+LINE 70,425,525,425;
+LINE 70,225,70,425;
+SET PEN steelblue 2.5 solid;
+LINE 90,375,160,340;
+LINE 160,340,230,355;
+LINE 230,355,300,305;
+LINE 300,305,370,285;
+LINE 370,285,440,250;
+LINE 440,250,510,235;
+SET BRUSH steelblue;
+FILLELLIPSE 85,370,10,10;
+FILLELLIPSE 155,335,10,10;
+FILLELLIPSE 225,350,10,10;
+FILLELLIPSE 295,300,10,10;
+FILLELLIPSE 365,280,10,10;
+FILLELLIPSE 435,245,10,10;
+FILLELLIPSE 505,230,10,10;
+SET FONT Name="Arial" Size=8 regular;
+SET BRUSH black;
+LINETEXT 82,440 Text="Jan";
+LINETEXT 152,440 Text="Feb";
+LINETEXT 222,440 Text="Mar";
+LINETEXT 292,440 Text="Apr";
+LINETEXT 362,440 Text="May";
+LINETEXT 432,440 Text="Jun";
+LINETEXT 52,425 HAlign=right Text="0";
+LINETEXT 52,375 HAlign=right Text="250";
+LINETEXT 52,325 HAlign=right Text="500";
+LINETEXT 52,275 HAlign=right Text="750";
+LINETEXT 52,225 HAlign=right Text="1000";
+
+# Summary table.
+SET FONT Name="Arial" Size=11 bold;
+SET BRUSH black;
+LINETEXT 45,490 Text="Channel summary";
+SET PEN steelblue 1;
+SET BRUSH 0xffdce8f5;
+FILLRECT 45,510,505,30;
+SET BRUSH black;
+LINETEXT 58,520 Text="Channel";
+LINETEXT 230,520 Text="Revenue";
+LINETEXT 335,520 Text="Target";
+LINETEXT 440,520 Text="Variance";
+SET BRUSH white;
+FILLRECT 45,540,505,30;
+FILLRECT 45,600,505,30;
+SET BRUSH black;
+LINETEXT 58,550 Text="Online";
+LINETEXT 230,550 Text="620 kEUR";
+LINETEXT 335,550 Text="580 kEUR";
+LINETEXT 440,550 Text="+40";
+LINETEXT 58,580 Text="Retail";
+LINETEXT 230,580 Text="410 kEUR";
+LINETEXT 335,580 Text="450 kEUR";
+LINETEXT 440,580 Text="-40";
+LINETEXT 58,610 Text="Partners";
+LINETEXT 230,610 Text="254 kEUR";
+LINETEXT 335,610 Text="220 kEUR";
+LINETEXT 440,610 Text="+34";
+SET PEN lightgray 0.5;
+LINE 45,540,550,540;
+LINE 45,570,550,570;
+LINE 45,600,550,600;
+LINE 45,630,550,630;
+LINE 215,510,215,630;
+LINE 320,510,320,630;
+LINE 425,510,425,630;
+SET BRUSH darkgreen;
+LINETEXT 45,675 Text="Positive variance indicates performance above target.";
+
+# -----------------------------------------------------------------------------
 # Text, alignment, orientation, highlighting and every font style
 # -----------------------------------------------------------------------------
 NEWPAGE A4 portrait;
@@ -287,17 +545,25 @@ NEWPAGE A4 landscape;
 CALL SECTION("Images from files and embedded data");
 SET FONT Name="Consolas" Size=9 regular;
 SET BRUSH black;
+# Images use 96 DPI: one pixel is 72/96 points.
+SET VAR PIXEL_TO_POINT=72/96;
 LINETEXT 45,82 Text="Natural size from Source";
 IMAGE 45,105 Source="./imageTest.jpg";
 
+SET PEN lightgray 1;
+RECT 45,105,200*$PIXEL_TO_POINT,200*$PIXEL_TO_POINT;
+
 LINETEXT 300,82 Text="Point rectangle, fit";
 IMAGE 300,105,180,120 point fit Source="./imageTest.jpg";
+RECT 300,105,180,120;
 
 LINETEXT 520,82 Text="Pixel rectangle, crop";
 IMAGE 520,105,180,120 pixel crop Source="./imageTest.jpg";
+RECT 520,105,180*$PIXEL_TO_POINT,120*$PIXEL_TO_POINT;
 
 LINETEXT 45,330 Text="Embedded one-pixel PNG using Data";
 IMAGE 45,355,160,100 point fit Data="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+
 
 # -----------------------------------------------------------------------------
 # Host formula functions and custom bundled fonts
@@ -343,3 +609,118 @@ LINE 50,0,50,140;
 LINE 0,70,100,70;
 RECT 2,2,96,136;
 LINETEXT 50,70 HAlign=hcenter VAlign=vcenter Text="VIEWSIZE 100 x 140";
+
+# -----------------------------------------------------------------------------
+# Page 13: advanced typography and annotations
+# -----------------------------------------------------------------------------
+NEWPAGE A4 portrait;
+CALL SECTION("Advanced typography and annotations");
+SET FONT Name="Arial" Size=12 regular;
+SET BRUSH black;
+LINETEXT 45,90 Text="Text can be aligned, rotated, highlighted and wrapped.";
+SET PEN lightgray 0.7 solid;
+RECT 45,125,505,105;
+SET HBRUSH 0x60fff176;
+SET FONT Name="Arial" Size=11 bold;
+LINETEXT 60,140,215,70 HAlign=left VAlign=vcenter Text="Left aligned\r\nwith highlight";
+SET HBRUSH 0x00000000;
+SET FONT Name="Arial" Size=11 italic;
+LINETEXT 275,140,215,70 HAlign=hcenter VAlign=vcenter Text="Centered\r\nitalic text";
+SET FONT Name="Arial" Size=10 regular;
+LINETEXT 60,270,490,70 Text="A bounded text area wraps automatically. This is useful for paragraphs, notes, explanations and generated report content without manually calculating every line.";
+SET FONT Name="Arial" Size=10 underline;
+LINETEXT 60,390 Text="Underline annotation";
+SET FONT Name="Arial" Size=10 strikeout;
+LINETEXT 230,390 Text="Strikeout annotation";
+SET FONT Name="Arial" Size=10 regular;
+LINETEXT 100,500 Orientation=30 Text="30 degrees";
+LINETEXT 300,500 Orientation=vertical Text="Vertical label";
+SET BRUSH 0xffe8eef7;
+FILLRECT 45,570,505,95;
+SET BRUSH darkblue;
+SET FONT Name="Arial" Size=11 bold;
+LINETEXT 65,590 Text="Annotation block";
+SET FONT Name="Arial" Size=10 regular;
+SET BRUSH black;
+TEXT 65,615,465,35 Text="Use TEXT for a bounded paragraph and LINETEXT for precise alignment.";
+
+# -----------------------------------------------------------------------------
+# Page 14: shapes, transparency and visual composition
+# -----------------------------------------------------------------------------
+NEWPAGE A4 landscape;
+CALL SECTION("Shapes, transparency and composition");
+SET FONT Name="Arial" Size=10 regular;
+SET BRUSH black;
+LINETEXT 45,85 Text="Layered shapes can create panels, badges and visual emphasis.";
+SET PEN steelblue 1.5 solid;
+SET BRUSH 0x405f9ed1;
+FILLRECT 60,120,260,180;
+SET BRUSH 0x5094d36b;
+FILLRECT 180,180,260,180;
+SET BRUSH 0x50f5b642;
+FILLRECT 300,120,260,180;
+SET BRUSH black;
+LINETEXT 110,205 Text="panel A";
+LINETEXT 230,265 Text="panel B";
+LINETEXT 430,205 Text="panel C";
+SET PEN darkslategray 2 solid;
+SET BRUSH 0x80ffffff;
+FILLPOLYGON 610,130,700,110,770,180,735,280,640,300,585,220;
+SET BRUSH black;
+LINETEXT 625,205 Text="polygon";
+SET PEN purple 3 dashdot;
+SET BRUSH 0x60ff7f50;
+FILLPIE 90,390,130,130 Start=20 Angle=220;
+SET BRUSH 0x6050c878;
+FILLPIE 270,390,130,130 Start=140 Angle=220;
+SET BRUSH 0x60f5b642;
+FILLPIE 450,390,130,130 Start=260 Angle=220;
+SET BRUSH black;
+LINETEXT 95,535 Text="transparency";
+LINETEXT 275,535 Text="overlapping arcs";
+LINETEXT 455,535 Text="alpha colors";
+
+# -----------------------------------------------------------------------------
+# Page 15: reusable layout patterns
+# -----------------------------------------------------------------------------
+NEWPAGE A4 portrait;
+CALL SECTION("Reusable layout patterns");
+SET FONT Name="Arial" Size=10 regular;
+SET BRUSH black;
+SET PEN lightgray 0.8 solid;
+RECT 45,85,505,600;
+SET BRUSH 0xffe8eef7;
+FILLRECT 45,85,505,70;
+SET BRUSH darkblue;
+SET FONT Name="Arial" Size=16 bold;
+LINETEXT 65,105 Text="Document header";
+SET FONT Name="Arial" Size=9 regular;
+LINETEXT 65,133 Text="A reusable page frame built from rectangles, text and lines.";
+SET BRUSH 0xfff5f8fb;
+FILLRECT 65,185,225,150;
+FILLRECT 305,185,225,150;
+SET BRUSH black;
+SET FONT Name="Arial" Size=11 bold;
+LINETEXT 85,205 Text="Left column";
+LINETEXT 325,205 Text="Right column";
+SET FONT Name="Arial" Size=10 regular;
+LINETEXT 85,240 Text="Use columns for summaries";
+LINETEXT 85,265 Text="and explanatory notes.";
+LINETEXT 325,240 Text="Keep repeated content";
+LINETEXT 325,265 Text="inside a UDF component.";
+SET PEN steelblue 1 solid;
+LINE 65,365,530,365;
+SET BRUSH black;
+SET FONT Name="Arial" Size=12 bold;
+LINETEXT 65,390 Text="Content section";
+SET FONT Name="Arial" Size=10 regular;
+TEXT 65,425,465,90 MaxWidth=465 Text="A page can combine a fixed frame, reusable UDFs, measured row templates and automatic pagination. This pattern is suitable for invoices, reports and generated documentation.";
+SET PEN steelblue 0.8 solid;
+LINE 45,715,550,715;
+SET BRUSH 0xffe8f7ee;
+FILLRECT 65,730,465,55;
+SET BRUSH darkgreen;
+SET FONT Name="Arial" Size=11 bold;
+LINETEXT 85,740 Text="Footer status";
+SET FONT Name="Arial" Size=10 regular;
+LINETEXT 85,765 Text="Generated successfully | ready for review";
