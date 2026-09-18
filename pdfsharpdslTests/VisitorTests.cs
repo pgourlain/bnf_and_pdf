@@ -116,6 +116,25 @@ namespace pdfsharpdslTests
                 drawer.Object.DebugOptions);
         }
 
+            [Theory]
+            [InlineData("", TextOrientationEnum.Horizontal, null)]
+            [InlineData("Orientation=horizontal", TextOrientationEnum.Horizontal, null)]
+            [InlineData("Orientation=vertical", TextOrientationEnum.Vertical, null)]
+            [InlineData("Orientation=30", TextOrientationEnum.Horizontal, 30.0)]
+            [InlineData("Orientation=(-15*2)", TextOrientationEnum.Horizontal, -30.0)]
+            public void LineTextPreservesOrientation(string orientation, TextOrientationEnum expectedMode, double? expectedAngle)
+            {
+                var tree = ParseText($"LINETEXT 220,235 HAlign=left VAlign=vcenter {orientation} Text=\"label\";");
+                Assert.False(tree.HasErrors());
+                var drawer = new Mock<IPdfDocumentDrawer>();
+
+                new PdfDrawerVisitor().Draw(drawer.Object, tree);
+
+                drawer.Verify(target => target.DrawLineText("label", 220, 235, null, null,
+                PdfHorizontalAlignment.Near, PdfVerticalAlignment.Center,
+                It.Is<TextOrientation>(value => value.Orientation == expectedMode && value.Angle == expectedAngle)), Times.Once);
+            }
+
         [Fact]
         public void DrawResolvesPageSystemVariables()
         {

@@ -131,9 +131,27 @@ namespace PdfSharpDslCore.Drawing
 
         private void InternalDrawLine(PdfPen pen, double x, double y, double x1, double y1)
         {
-            AddCommand(canvas => canvas.Line(x, y, x1, y1, pen.Color.Hex, pen.Width, pen.Color.Opacity));
+            AddCommand(canvas => DrawStyledLine(canvas, pen, x, y, x1, y1));
             _drawingCtx.PushInstruction(offset => InternalDrawLine(pen, x, y + offset, x1, y1 + offset),
                 new PdfRect(new PdfPoint(x, y), new PdfPoint(x1, y1)));
+        }
+
+        private static void DrawStyledLine(VectorCanvas canvas, PdfPen pen, double x, double y, double x1, double y1)
+        {
+            canvas.Line(x, y, x1, y1, pen.Color.Hex, pen.Width, pen.Color.Opacity, GetDashPattern(pen));
+        }
+
+        private static double[]? GetDashPattern(PdfPen pen)
+        {
+            var width = Math.Max(pen.Width, 0.1);
+            return pen.DashStyle switch
+            {
+                PdfDashStyle.Dash => new[] { 4 * width, 3 * width },
+                PdfDashStyle.Dot => new[] { width, 2 * width },
+                PdfDashStyle.DashDot => new[] { 4 * width, 3 * width, width, 3 * width },
+                PdfDashStyle.DashDotDot => new[] { 4 * width, 3 * width, width, 2 * width, width, 2 * width },
+                _ => null,
+            };
         }
 
         public void DrawRect(double x, double y, double w, double h, bool isFilled)
@@ -145,10 +163,11 @@ namespace PdfSharpDslCore.Drawing
 
         private void InternalDrawRect(PdfPen pen, PdfBrush brush, double x, double y, double w, double h, bool isFilled)
         {
+            var dashPattern = GetDashPattern(pen);
             AddCommand(canvas =>
             {
                 if (isFilled) canvas.FillRect(x, y, w, h, brush.Color.Hex, brush.Color.Opacity);
-                canvas.StrokeRect(x, y, w, h, pen.Color.Hex, pen.Width, pen.Color.Opacity);
+                canvas.StrokeRect(x, y, w, h, pen.Color.Hex, pen.Width, pen.Color.Opacity, dashPattern);
             });
             _drawingCtx.PushInstruction(offset => InternalDrawRect(pen, brush, x, y + offset, w, h, isFilled),
                 new PdfRect(x, y, w, h));
@@ -188,19 +207,28 @@ namespace PdfSharpDslCore.Drawing
             var page = CurrentPage;
             (x, y, w, h) = DrawingHelper.CoordRectToPage(page.Width, page.Height, x, y, w, h);
             InternalDrawText(text, ScaleX(x, page), ScaleY(y, page), w.HasValue ? ScaleX(w.Value, page) : null,
-                h.HasValue ? ScaleY(h.Value, page) : null, hAlign, vAlign, CurrentFont, CurrentBrush, HighlightBrush);
+                h.HasValue ? ScaleY(h.Value, page) : null, hAlign, vAlign, CurrentFont, CurrentBrush, HighlightBrush,
+                textOrientation?.Angle ?? textOrientation?.Orientation switch
+                {
+                    TextOrientationEnum.Vertical => 90,
+                    TextOrientationEnum.HorizontalInvert => 180,
+                    TextOrientationEnum.VerticalInvert => 270,
+                    _ => 0,
+                });
         }
 
         private void InternalDrawText(string text, double x, double y, double? w, double? h, PdfHorizontalAlignment hAlign,
-            PdfVerticalAlignment vAlign, PdfFont font, PdfBrush brush, PdfBrush? highlight)
+            PdfVerticalAlignment vAlign, PdfFont font, PdfBrush brush, PdfBrush? highlight, double angle = 0)
         {
             var lines = WrapText(text, w, font);
             var lineHeight = font.Size * 1.2;
             var measuredWidth = lines.Count == 0 ? 0 : lines.Max(line => MeasureText(line, font));
             var measuredHeight = lines.Count * lineHeight;
             var rect = new PdfRect(x, y, w ?? measuredWidth, h ?? measuredHeight);
-            var textRect = DrawingHelper.RectFromStringFormat(rect,
-                new PdfSize(Math.Min(measuredWidth, rect.Width), Math.Min(measuredHeight, rect.Height)), hAlign, vAlign);
+            var textSize = new PdfSize(Math.Min(measuredWidth, rect.Width), Math.Min(measuredHeight, rect.Height));
+            var textRect = w.HasValue
+                ? DrawingHelper.RectFromStringFormat(rect, textSize, hAlign, vAlign)
+                : DrawingHelper.RectFromStringFormat(x, y, textSize, hAlign, vAlign);
 
             AddCommand(canvas =>
             {
@@ -212,18 +240,26 @@ namespace PdfSharpDslCore.Drawing
                     var line = lines[index];
                     if (string.IsNullOrWhiteSpace(line)) continue;
                     var lineWidth = MeasureText(line, font);
-                    var lineX = hAlign switch
-                    {
-                        PdfHorizontalAlignment.Center => rect.X + (rect.Width - lineWidth) / 2,
-                        PdfHorizontalAlignment.Far => rect.Right - lineWidth,
-                        _ => rect.X,
-                    };
+                    var lineX = w.HasValue
+                        ? hAlign switch
+                        {
+                            PdfHorizontalAlignment.Center => rect.X + (rect.Width - lineWidth) / 2,
+                            PdfHorizontalAlignment.Far => rect.Right - lineWidth,
+                            _ => rect.X,
+                        }
+                        : hAlign switch
+                        {
+                            PdfHorizontalAlignment.Center => x - lineWidth / 2,
+                            PdfHorizontalAlignment.Far => x - lineWidth,
+                            _ => x,
+                        };
                     canvas.Text(line, lineX, textRect.Y + font.Size + index * lineHeight, brush.Color.Hex, font.Size,
-                        font.FamilyName, font.Style.HasFlag(PdfFontStyle.Bold), font.Style.HasFlag(PdfFontStyle.Italic), brush.Color.Opacity);
+                            font.FamilyName, font.Style.HasFlag(PdfFontStyle.Bold), font.Style.HasFlag(PdfFontStyle.Italic), brush.Color.Opacity,
+                            angle);
                 }
             });
 
-            _drawingCtx.PushInstruction(offset => InternalDrawText(text, x, y + offset, w, h, hAlign, vAlign, font, brush, highlight),
+            _drawingCtx.PushInstruction(offset => InternalDrawText(text, x, y + offset, w, h, hAlign, vAlign, font, brush, highlight, angle),
                 textRect, instrName: $"DrawText({text})");
         }
 
@@ -244,13 +280,25 @@ namespace PdfSharpDslCore.Drawing
             for (var index = 0; index < table.Columns.Count; index++)
             {
                 var column = table.Columns[index];
-                column.DesiredWidth ??= Math.Min(MeasureText(column.ColumnHeaderName, fonts[index]) + margins.Left + margins.Right,
+                var contentWidth = table.Rows
+                    .Select(row => MeasureCellWidth(index < row.Data.Length ? row.Data[index] : string.Empty, fonts[index]))
+                    .DefaultIfEmpty(0)
+                    .Max();
+                var desiredWidth = Math.Max(MeasureCellWidth(column.ColumnHeaderName, fonts[index]), contentWidth)
+                    + margins.Left + margins.Right;
+                column.DesiredWidth ??= Math.Min(desiredWidth,
                     table.ColMaxWidth(index, availableWidth));
                 table.HeaderHeight ??= fonts[index].Size * 1.2 + margins.Top + margins.Bottom;
             }
 
             foreach (var row in table.Rows)
-                row.DesiredHeight ??= fonts.Select(font => font.Size * 1.2 + margins.Top + margins.Bottom).Max();
+            {
+                var contentHeight = fonts.Select((font, index) =>
+                    MeasureCellLineCount(index < row.Data.Length ? row.Data[index] : string.Empty,
+                        table.Columns[index].DrawWidth - margins.Left - margins.Right, font)
+                    * font.Size * 1.2 + margins.Top + margins.Bottom).Max();
+                row.DesiredHeight ??= contentHeight;
+            }
 
             if (y + (table.HeaderHeight ?? 0) > PageHeight) { NewPage(); y = 1; }
             var offsetY = 0d;
@@ -319,21 +367,55 @@ namespace PdfSharpDslCore.Drawing
         {
             var page = CurrentPage;
             var endPoint = new PdfPoint(x, y);
-            AddCommand(canvas => canvas.Line(ScaleX(_currentPoint.X, page), ScaleY(_currentPoint.Y, page), ScaleX(endPoint.X, page), ScaleY(endPoint.Y, page),
-                CurrentPen.Color.Hex, CurrentPen.Width, CurrentPen.Color.Opacity));
-            _drawingCtx.PushInstruction(offset => LineTo(endPoint.X, endPoint.Y), new PdfRect(_currentPoint, endPoint));
+            InternalDrawLine(CurrentPen, ScaleX(_currentPoint.X, page), ScaleY(_currentPoint.Y, page),
+                ScaleX(endPoint.X, page), ScaleY(endPoint.Y, page));
             _currentPoint = endPoint;
         }
 
         public void DrawImage(PdfImage image, double x, double y, double? w, double? h, bool sizeInPixel, bool cropImage)
         {
-            _logger?.WriteDebug(this, "TerraPDF does not support absolute image placement; image skipped.");
+            ArgumentNullException.ThrowIfNull(image);
+            var page = CurrentPage;
+            (x, y, w, h) = DrawingHelper.CoordRectToPage(page.Width, page.Height, x, y, w, h);
+            var data = image.Data.ToArray();
+            var naturalSize = VectorCanvas.GetImageSizeInPoints(data);
+            var width = w.HasValue ? (sizeInPixel ? w.Value * 72d / 96d : w.Value) : naturalSize.Width;
+            var height = h.HasValue ? (sizeInPixel ? h.Value * 72d / 96d : h.Value) : naturalSize.Height;
+            if (width <= 0 || height <= 0)
+                throw new ArgumentOutOfRangeException(nameof(w), "Image dimensions must be positive.");
+
+            var fit = cropImage ? ImageFit.CropTopLeft : ImageFit.Stretch;
+            AddCommand(canvas => canvas.Image(data, ScaleX(x, page), ScaleY(y, page),
+                ScaleX(width, page), ScaleY(height, page), fit));
+            _drawingCtx.PushInstruction(offset => DrawImage(image, x, y + offset, w, h, sizeInPixel, cropImage),
+                new PdfRect(x, y, width, height), instrName: "DrawImage");
         }
 
         public void DrawPie(double x, double y, double? w, double? h, double startAngle, double sweepAngle, bool isFilled)
         {
             var page = CurrentPage;
-            InternalDrawEllipse(CurrentPen, CurrentBrush, ScaleX(x, page), ScaleY(y, page), ScaleX(w ?? 0, page), ScaleY(h ?? 0, page), isFilled);
+            var width = w ?? 0;
+            var height = h ?? 0;
+            if (width <= 0 || height <= 0)
+                throw new ArgumentOutOfRangeException(nameof(w), "Pie dimensions must be positive.");
+            InternalDrawPie(CurrentPen, CurrentBrush, ScaleX(x, page), ScaleY(y, page),
+                ScaleX(width, page), ScaleY(height, page), startAngle, sweepAngle, isFilled);
+        }
+
+        private void InternalDrawPie(PdfPen pen, PdfBrush brush, double x, double y, double width, double height,
+            double startAngle, double sweepAngle, bool isFilled)
+        {
+            AddCommand(canvas =>
+            {
+                if (isFilled)
+                    canvas.DrawPie(x, y, width, height, startAngle, sweepAngle,
+                        brush.Color.Hex, pen.Color.Hex, pen.Width, brush.Color.Opacity);
+                else
+                    canvas.StrokePie(x, y, width, height, startAngle, sweepAngle,
+                        pen.Color.Hex, pen.Width, pen.Color.Opacity);
+            });
+            _drawingCtx.PushInstruction(offset => InternalDrawPie(pen, brush, x, y + offset, width, height, startAngle, sweepAngle, isFilled),
+                new PdfRect(x, y, width, height), instrName: "DrawPie");
         }
 
         public void DrawPolygon(IEnumerable<PdfPoint> points, bool isFilled)
@@ -341,13 +423,18 @@ namespace PdfSharpDslCore.Drawing
             var page = CurrentPage;
             var transformed = points.Select(point => new PdfPoint(ScaleX(point.X, page), ScaleY(point.Y, page))).ToArray();
             if (transformed.Length < 3) throw new ArgumentException("A polygon requires at least three points.", nameof(points));
-            var tuples = transformed.Select(point => (point.X, point.Y)).ToArray();
+            InternalDrawPolygon(CurrentPen, CurrentBrush, transformed, isFilled);
+        }
+
+        private void InternalDrawPolygon(PdfPen pen, PdfBrush brush, PdfPoint[] points, bool isFilled)
+        {
+            var tuples = points.Select(point => (point.X, point.Y)).ToArray();
             AddCommand(canvas => canvas.Path(path =>
             {
-                path.Polygon(tuples).Stroke(CurrentPen.Color.Hex, CurrentPen.Width).Opacity(CurrentPen.Color.Opacity);
-                if (isFilled) path.Fill(CurrentBrush.Color.Hex).Opacity(CurrentBrush.Color.Opacity);
+                path.Polygon(tuples).Stroke(pen.Color.Hex, pen.Width).Opacity(pen.Color.Opacity);
+                if (isFilled) path.Fill(brush.Color.Hex).Opacity(brush.Color.Opacity);
             }));
-            _drawingCtx.PushInstruction(offset => DrawPolygon(transformed.Select(point => point.OffsetY(offset)), isFilled), transformed);
+            _drawingCtx.PushInstruction(offset => InternalDrawPolygon(pen, brush, points.Select(point => point.OffsetY(offset)).ToArray(), isFilled), points);
         }
 
         public void BeginDrawRowTemplate(string name, int index, double offsetY, double newPageTopMargin)
@@ -389,6 +476,12 @@ namespace PdfSharpDslCore.Drawing
             if (string.IsNullOrWhiteSpace(text)) return 0;
             return VectorCanvas.MeasureTextWidth(text, font.Size, font.FamilyName, font.Style.HasFlag(PdfFontStyle.Bold), font.Style.HasFlag(PdfFontStyle.Italic));
         }
+
+        private static double MeasureCellWidth(string text, PdfFont font) =>
+            text.Replace("\r\n", "\n").Split('\n').Select(line => MeasureText(line, font)).DefaultIfEmpty(0).Max();
+
+        private static int MeasureCellLineCount(string text, double width, PdfFont font) =>
+            WrapText(text, width, font).Count;
 
         private static List<string> WrapText(string text, double? maxWidth, PdfFont font)
         {
