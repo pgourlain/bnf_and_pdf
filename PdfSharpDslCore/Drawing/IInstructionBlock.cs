@@ -1,14 +1,13 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
-using PdfSharpCore.Drawing;
 using PdfSharpDslCore.Extensions;
 
 namespace PdfSharpDslCore.Drawing
 {
     internal interface IInstruction
     {
-        XRect Rect { get; }
+        PdfRect Rect { get; }
         string Name { get; }
 
         /// <summary>
@@ -51,7 +50,7 @@ namespace PdfSharpDslCore.Drawing
         /// <returns></returns>
         IInstructionBlock OpenBlock(string name, double offsetY, bool entirePrint, double newPageTopMargin=0);
         void CloseBlock();
-        void UpdateRect(XRect rect);
+        void UpdateRect(PdfRect rect);
 
         void Clear();
 

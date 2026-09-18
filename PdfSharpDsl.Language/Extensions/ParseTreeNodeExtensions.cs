@@ -1,5 +1,5 @@
 ﻿using Irony.Parsing;
-using PdfSharpCore.Drawing;
+using PdfSharpDslCore.Drawing;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -41,22 +41,22 @@ namespace PdfSharpDslCore.Extensions
             return node.ChildNodes.FirstOrDefault(n => n.Term != null && n.Term.Name == termName);
         }
 
-        public static XFontStyle ParseFontStyle(this ParseTreeNode? node)
+        public static PdfFontStyle ParseFontStyle(this ParseTreeNode? node)
         {
             if (node != null && node.Token != null)
             {
                 var styleName = (string?)node.Token.Value;
-                if (Enum.TryParse<XFontStyle>(styleName, true, out var fontStyle))
+                if (Enum.TryParse<PdfFontStyle>(styleName, true, out var fontStyle))
                 {
                     return fontStyle;
                 }
             }
-            return XFontStyle.Regular;
+            return PdfFontStyle.Regular;
         }
 
-        public static XColor ParseColor(this ParseTreeNode node)
+        public static PdfColor ParseColor(this ParseTreeNode node)
         {
-            var executor = (Func<ParseTreeNode, XColor>)(node.ChildNodes[0].Term.Name switch
+            var executor = (Func<ParseTreeNode, PdfColor>)(node.ChildNodes[0].Term.Name switch
             {
                 "NamedColor" => ParseNamedColor,
                 _ => ParseHexColor,
@@ -64,36 +64,32 @@ namespace PdfSharpDslCore.Extensions
 
             return executor(node.ChildNodes[0]);
         }
-        private static XColor ParseNamedColor(ParseTreeNode node)
+        private static PdfColor ParseNamedColor(ParseTreeNode node)
         {
             var color = (string)node.ChildNodes[0].Token.Value;
-
-            var staticColor = typeof(XColors)
-                .GetProperties(BindingFlags.Public | BindingFlags.Static)
-                .FirstOrDefault(x => string.Compare(x.Name, color, StringComparison.OrdinalIgnoreCase) == 0);
-            return ((XColor?)staticColor?.GetValue(null)) ?? XColors.Black;
+            return PdfColors.FromName(color);
         }
 
-        private static XColor ParseHexColor(ParseTreeNode node)
+        private static PdfColor ParseHexColor(ParseTreeNode node)
         {
             var colorValue = node.ChildNodes[0].Token.Value;
             if (colorValue is double)
             {
-                return XColor.FromGrayScale(Convert.ToDouble(colorValue));
+                return PdfColor.FromGrayScale(Convert.ToDouble(colorValue));
             }
             else
             {
                 if (node.ChildNodes[0].Token.Length == 8)
                 {
                     uint argb = ((uint)0xff000000) | Convert.ToUInt32(colorValue);
-                    return XColor.FromArgb(argb);
+                    return PdfColor.FromArgb(argb);
                 }
                 else if (node.ChildNodes[0].Token.Length == 10)
                 {
-                    int argb = Convert.ToInt32(colorValue);
-                    return XColor.FromArgb(argb);
+                    uint argb = unchecked((uint)Convert.ToInt32(colorValue));
+                    return PdfColor.FromArgb(argb);
                 }
-                return XColor.FromArgb(Convert.ToInt32(colorValue));
+                return PdfColor.FromArgb(unchecked((uint)Convert.ToInt32(colorValue)));
             }
         }
 

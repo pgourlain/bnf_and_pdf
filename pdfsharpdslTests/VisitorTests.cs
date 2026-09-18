@@ -1,7 +1,6 @@
 ﻿using Castle.Components.DictionaryAdapter.Xml;
 using Irony.Parsing;
 using Moq;
-using PdfSharpCore.Drawing;
 using PdfSharpDslCore.Drawing;
 using PdfSharpDslCore.Parser;
 using System;
@@ -25,7 +24,7 @@ namespace pdfsharpdslTests
             mock.SetupProperty(x => x.CurrentBrush);
             new PdfDrawerVisitor().Draw(mock.Object, res);
 
-            Assert.Equal(XColors.Black, ((XSolidBrush)mock.Object.CurrentBrush).Color);
+            Assert.Equal(PdfColor.Black, mock.Object.CurrentBrush.Color);
         }
 
         [Theory]
@@ -54,16 +53,14 @@ namespace pdfsharpdslTests
         {
             var res = ParseText(input);
             var mock = new Mock<IPdfDocumentDrawer>();
-            mock.SetupProperty(x => x.CurrentFont, new XFont("Consolas", 8));
+            mock.SetupProperty(x => x.CurrentFont, new PdfFont("Consolas", 8));
 
             var visitor = new PdfDrawerForTestsVisitor();
             visitor.RegisterFormulaFunction("getFontName", (_) => expected);
             var drawer = mock.Object;
             visitor.Draw(drawer, res);
             var f = drawer.CurrentFont;
-            //because font names change on different OS
-            var pi = typeof(XFont).GetProperty("FamilyName", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            Assert.StartsWith((string)expected, (string)pi?.GetValue(drawer.CurrentFont)!);
+            Assert.StartsWith((string)expected, drawer.CurrentFont.FamilyName);
             Assert.Equal(size, drawer.CurrentFont.Size);
         }
 
@@ -145,14 +142,14 @@ namespace pdfsharpdslTests
             var calls = new List<(double X, double Y, double? Width, double? Height, bool Pixel, bool Crop)>();
             var drawer = new Mock<IPdfDocumentDrawer>();
             drawer.Setup(x => x.DrawImage(
-                    It.IsAny<XImage>(),
+                    It.IsAny<PdfImage>(),
                     It.IsAny<double>(),
                     It.IsAny<double>(),
                     It.IsAny<double?>(),
                     It.IsAny<double?>(),
                     It.IsAny<bool>(),
                     It.IsAny<bool>()))
-                .Callback<XImage, double, double, double?, double?, bool, bool>((_, x, y, width, height, pixel, crop) =>
+                .Callback<PdfImage, double, double, double?, double?, bool, bool>((_, x, y, width, height, pixel, crop) =>
                     calls.Add((x, y, width, height, pixel, crop)));
 
             new PdfDrawerVisitor().Draw(drawer.Object, tree);
@@ -295,8 +292,8 @@ namespace pdfsharpdslTests
             var tree = ParseText("ROWTEMPLATE Count=2 Y=10 Name=\"row\" BorderSize=2 NewPageTopMargin=5 LINE 0,0,10,10; ENDROWTEMPLATE");
             var drawer = new Mock<IPdfDocumentDrawer>();
             drawer.SetupSequence(x => x.EndDrawRowTemplate(It.IsAny<int>()))
-                .Returns(new DrawingResult { DrawingRect = new XRect(0, 0, 10, 20), PageOffsetY = 0 })
-                .Returns(new DrawingResult { DrawingRect = new XRect(0, 20, 10, 30), PageOffsetY = 10 });
+                .Returns(new DrawingResult { DrawingRect = new PdfRect(0, 0, 10, 20), PageOffsetY = 0 })
+                .Returns(new DrawingResult { DrawingRect = new PdfRect(0, 20, 10, 30), PageOffsetY = 10 });
             var visitor = new InspectablePdfDrawerVisitor();
 
             visitor.Draw(drawer.Object, tree);

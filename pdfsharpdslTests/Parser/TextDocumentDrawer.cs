@@ -1,6 +1,4 @@
-﻿using PdfSharpCore;
-using PdfSharpCore.Drawing;
-using PdfSharpDslCore.Drawing;
+﻿using PdfSharpDslCore.Drawing;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -16,10 +14,10 @@ namespace pdfsharpdslTests
     internal class TextDocumentDrawer : IPdfDocumentDrawer
     {
         public StringBuilder OutputRendering { get; private set; } = new StringBuilder();
-        public XPen CurrentPen { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public XBrush CurrentBrush { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public XBrush? HighlightBrush { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public XFont CurrentFont
+        public PdfPen CurrentPen { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public PdfBrush CurrentBrush { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public PdfBrush? HighlightBrush { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public PdfFont CurrentFont
         {
             get => throw new NotImplementedException();
             set
@@ -38,7 +36,7 @@ namespace pdfsharpdslTests
             throw new NotImplementedException();
         }
 
-        public void DrawImage(XImage image, double x, double y, double? w, double? h, bool sizeInPixel, bool cropImage)
+        public void DrawImage(PdfImage image, double x, double y, double? w, double? h, bool sizeInPixel, bool cropImage)
         {
             throw new NotImplementedException();
         }
@@ -53,7 +51,7 @@ namespace pdfsharpdslTests
             throw new NotImplementedException();
         }
 
-        public void DrawPolygon(IEnumerable<XPoint> points, bool isFilled)
+        public void DrawPolygon(IEnumerable<PdfPoint> points, bool isFilled)
         {
             throw new NotImplementedException();
         }
@@ -72,7 +70,7 @@ namespace pdfsharpdslTests
         {
             throw new NotImplementedException();
         }
-        public void DrawLineText(string text, double x, double y, double? w, double? h, XStringAlignment hAlign, XLineAlignment vAlign, TextOrientation textOrientation)
+        public void DrawLineText(string text, double x, double y, double? w, double? h, PdfHorizontalAlignment hAlign, PdfVerticalAlignment vAlign, TextOrientation textOrientation)
         {
             var halign = $"HAlign={ToHAlign(hAlign)}";
             OutputRendering.Append($"LINETEXT ");
@@ -89,35 +87,35 @@ namespace pdfsharpdslTests
 
         }
 
-        public void DrawTitle(string text, double margin, XStringAlignment hAlign, XLineAlignment vAlign)
+        public void DrawTitle(string text, double margin, PdfHorizontalAlignment hAlign, PdfVerticalAlignment vAlign)
         {
             var halign = $"HAlign={ToHAlign(hAlign)}";
             OutputRendering.AppendLine($"TITLE Margin={margin.ToString(CultureInfo.InvariantCulture)} {halign} Text=\"{text}\";");
         }
 
-        private string ToHAlign(XStringAlignment hAlign)
+        private string ToHAlign(PdfHorizontalAlignment hAlign)
         {
             switch (hAlign)
             {
-                case XStringAlignment.Near:
+                case PdfHorizontalAlignment.Near:
                     return "left";
-                case XStringAlignment.Center:
+                case PdfHorizontalAlignment.Center:
                     return "hcenter";
-                case XStringAlignment.Far:
+                case PdfHorizontalAlignment.Far:
                     return "right";
                 default:
                     return "left";
             }
         }
-        private string ToVAlign(XLineAlignment vAlign)
+        private string ToVAlign(PdfVerticalAlignment vAlign)
         {
             switch (vAlign)
             {
-                case XLineAlignment.Near:
+                case PdfVerticalAlignment.Near:
                     return "top";
-                case XLineAlignment.Center:
+                case PdfVerticalAlignment.Center:
                     return "vcenter";
-                case XLineAlignment.Far:
+                case PdfVerticalAlignment.Far:
                     return "bottom";
                 default:
                     return "top";
@@ -134,7 +132,7 @@ namespace pdfsharpdslTests
             throw new NotImplementedException();
         }
 
-        public void NewPage(PageSize? pageSize = null, PageOrientation? pageOrientation = null)
+        public void NewPage(PdfPageSize? pageSize = null, PdfPageOrientation? pageOrientation = null)
         {
             throw new NotImplementedException();
         }

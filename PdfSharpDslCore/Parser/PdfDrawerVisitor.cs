@@ -1,6 +1,4 @@
 ﻿using Irony.Parsing;
-using PdfSharpCore;
-using PdfSharpCore.Drawing;
 using PdfSharpDslCore.Drawing;
 using PdfSharpDslCore.Evaluation;
 using PdfSharpDslCore.Extensions;
@@ -84,13 +82,13 @@ namespace PdfSharpDslCore.Parser
         {
             var width = EvaluateForDouble(widthNode) ?? 0;
             var color = colorNode.ParseColor();
-            XDashStyle style = XDashStyle.Solid;
+            PdfDashStyle style = PdfDashStyle.Solid;
             if (styleNode != null)
             {
-                Enum.TryParse<XDashStyle>(styleNode.Token.ValueString, true, out style);
+                Enum.TryParse<PdfDashStyle>(styleNode.Token.ValueString, true, out style);
             }
 
-            var pen = new XPen(color, width)
+            var pen = new PdfPen(color, width)
             {
                 DashStyle = style
             };
@@ -100,7 +98,7 @@ namespace PdfSharpDslCore.Parser
         protected override void ExecuteHBrush(IPdfDocumentDrawer drawer, ParseTreeNode colorNode)
         {
             var color = colorNode.ParseColor();
-            drawer.HighlightBrush = color.A == 0 ? null : new XSolidBrush(color);
+            drawer.HighlightBrush = color.A == 0 ? null : new PdfBrush(color);
         }
 
         protected override void ExecuteFont(IPdfDocumentDrawer drawer, ParseTreeNode fontNode)
@@ -114,15 +112,15 @@ namespace PdfSharpDslCore.Parser
         {
             var nSize = sizeNode;
             var nOrientation = orientationNode;
-            PageSize? pageSize = null;
-            if (nSize != null && Enum.TryParse<PageSize>(nSize.Token.Text, out var size))
+            PdfPageSize? pageSize = null;
+            if (nSize != null && Enum.TryParse<PdfPageSize>(nSize.Token.Text, out var size))
             {
                 pageSize = size;
             }
 
-            PageOrientation? pageOrientation = null;
+            PdfPageOrientation? pageOrientation = null;
             if (nOrientation != null &&
-                Enum.TryParse<PageOrientation>(nOrientation.Token.Text, true, out var orientation))
+                Enum.TryParse<PdfPageOrientation>(nOrientation.Token.Text, true, out var orientation))
             {
                 pageOrientation = orientation;
             }
@@ -169,7 +167,7 @@ namespace PdfSharpDslCore.Parser
             ParseTreeNode alignmentsNode,
             ParseTreeNode contentNode)
         {
-            var text = Convert.ToString(EvaluateForObject(contentNode));
+            var text = Convert.ToString(EvaluateForObject(contentNode)) ?? string.Empty;
             var margin = ParseMargin(marginNode);
             var (hAlign, vAlign) = ParseTextAlignment(alignmentsNode);
 
@@ -179,11 +177,11 @@ namespace PdfSharpDslCore.Parser
         protected override void ExecutePolygon(IPdfDocumentDrawer state,
             IEnumerable<ParseTreeNode> pointNodes, bool isFilled)
         {
-            var points = new List<XPoint>();
+            var points = new List<PdfPoint>();
             foreach (var ptNode in pointNodes)
             {
                 var (x, y) = ParsePointLocation(ptNode);
-                points.Add(new XPoint(x, y));
+                points.Add(new PdfPoint(x, y));
             }
 
             state.DrawPolygon(points, isFilled);
@@ -298,7 +296,7 @@ namespace PdfSharpDslCore.Parser
                     string.Equals(x.Token?.Text, "crop", StringComparison.OrdinalIgnoreCase)) == true;
             }
 
-            XImage image;
+            PdfImage image;
             if (isEmbedded && !string.IsNullOrWhiteSpace(imagePath))
             {
                 if (imagePath.StartsWith("data:image"))
@@ -306,8 +304,7 @@ namespace PdfSharpDslCore.Parser
                     imagePath = imagePath.Split(',')[1];
                 }
 
-                using var stream = new MemoryStream(System.Convert.FromBase64String(imagePath));
-                image = XImage.FromStream(() => stream);
+                image = new PdfImage(System.Convert.FromBase64String(imagePath));
             }
             else
             {
@@ -316,13 +313,10 @@ namespace PdfSharpDslCore.Parser
                     imagePath = Path.Combine(this.BaseDirectory, imagePath);
                 }
 
-                image = XImage.FromFile(imagePath);
+                image = new PdfImage(File.ReadAllBytes(imagePath));
             }
 
-            using (image)
-            {
-                drawer.DrawImage(image, x, y, w, h, unit == "pixel", crop);
-            }
+            drawer.DrawImage(image, x, y, w, h, unit == "pixel", crop);
         }
 
         protected override void ExecuteUdfInvokeStatement(IPdfDocumentDrawer state, string fnName,
@@ -393,7 +387,7 @@ namespace PdfSharpDslCore.Parser
         protected override void ExecuteBrush(IPdfDocumentDrawer state, ParseTreeNode colorNode)
         {
             var color = colorNode.ParseColor();
-            state.CurrentBrush = new XSolidBrush(color);
+            state.CurrentBrush = new PdfBrush(color);
         }
 
         protected override void ExecuteRowTemplateStatement(IPdfDocumentDrawer state,
@@ -539,7 +533,7 @@ namespace PdfSharpDslCore.Parser
             if (headStyle != null && headStyle.ChildNodes.Count > 0)
             {
                 var color = headStyle.ChildNodes[0].ParseColor();
-                result.HeaderBackColor = new XSolidBrush(color);
+                result.HeaderBackColor = new PdfBrush(color);
             }
 
             GenerateTableHead(node.ChildNodes("TableHeadCol"), result);
@@ -644,8 +638,8 @@ namespace PdfSharpDslCore.Parser
                 var colors = col.ChildNode("TableColColors");
                 if (colors?.ChildNodes.Count > 0)
                 {
-                    colDef.Brush = new XSolidBrush(colors.ChildNodes[0].ParseColor());
-                    colDef.BackColor = new XSolidBrush(colors.ChildNodes[1].ParseColor());
+                    colDef.Brush = new PdfBrush(colors.ChildNodes[0].ParseColor());
+                    colDef.BackColor = new PdfBrush(colors.ChildNodes[1].ParseColor());
                 }
 
                 //name
@@ -655,17 +649,17 @@ namespace PdfSharpDslCore.Parser
             }
         }
 
-        private static (XStringAlignment, XLineAlignment) ParseTextAlignment(ParseTreeNode alignNode)
+        private static (PdfHorizontalAlignment, PdfVerticalAlignment) ParseTextAlignment(ParseTreeNode alignNode)
         {
             var hNode = alignNode.Term.Name == "HAlign" ? alignNode : null;
             var vNode = alignNode.Term.Name == "VAlign" ? alignNode : null;
             return ParseTextAlignment(hNode, vNode);
         }
 
-        private static (XStringAlignment, XLineAlignment) ParseTextAlignment(ParseTreeNode? hNode, ParseTreeNode? vNode)
+        private static (PdfHorizontalAlignment, PdfVerticalAlignment) ParseTextAlignment(ParseTreeNode? hNode, ParseTreeNode? vNode)
         {
-            var hAlign = XStringAlignment.Near;
-            var vAlign = XLineAlignment.Near;
+            var hAlign = PdfHorizontalAlignment.Near;
+            var vAlign = PdfVerticalAlignment.Near;
             if (hNode != null && hNode.ChildNodes.Count > 2)
             {
                 switch (hNode.ChildNodes[2].Token.Value)
@@ -673,10 +667,10 @@ namespace PdfSharpDslCore.Parser
                     case "left":
                         break;
                     case "hcenter":
-                        hAlign = XStringAlignment.Center;
+                        hAlign = PdfHorizontalAlignment.Center;
                         break;
                     case "right":
-                        hAlign = XStringAlignment.Far;
+                        hAlign = PdfHorizontalAlignment.Far;
                         break;
                 }
             }
@@ -687,10 +681,10 @@ namespace PdfSharpDslCore.Parser
                 case "top":
                     break;
                 case "vcenter":
-                    vAlign = XLineAlignment.Center;
+                    vAlign = PdfVerticalAlignment.Center;
                     break;
                 case "bottom":
-                    vAlign = XLineAlignment.Far;
+                    vAlign = PdfVerticalAlignment.Far;
                     break;
             }
 
@@ -772,7 +766,7 @@ namespace PdfSharpDslCore.Parser
             return InternalSetVar(node.ChildNodes[1], node.ChildNodes[3]);
         }
 
-        private XFont ExtractFont(ParseTreeNode node)
+        private PdfFont ExtractFont(ParseTreeNode node)
         {
             ParseTreeNode styleNode = null!;
             string fontName = string.Empty;
@@ -791,7 +785,7 @@ namespace PdfSharpDslCore.Parser
             }
 
             var style = styleNode.ParseFontStyle();
-            return new XFont(fontName, fontSize, style, XPdfFontOptions.UnicodeDefault);
+            return new PdfFont(fontName, fontSize, style);
         }
     }
 }

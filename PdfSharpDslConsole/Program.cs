@@ -1,13 +1,9 @@
 ﻿using System.Globalization;
-using PdfSharpCore.Fonts;
-using PdfSharpCore.Pdf;
-using PdfSharpDslConsole.Fonts;
 using PdfSharpDslCore.Drawing;
 using PdfSharpDslCore.Parser;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Logging.Console;
+using TerraPDF.Helpers;
 
 ServiceProvider serviceProvider = new ServiceCollection()
     .AddLogging((loggingBuilder) => loggingBuilder
@@ -26,10 +22,6 @@ CultureInfo.CurrentCulture = CultureInfo.CurrentUICulture = CultureInfo.Invarian
 //Now both are working
 logger?.LogDebug("Debug World");         
 logger?.LogInformation("Hello World");
-
-//GlobalFontSettings.FontResolver = new FontResolver();
-GlobalFontSettings.DefaultFontEncoding = PdfFontEncoding.Unicode;
-
 
 #region global variables
 var globalComments = new[]
@@ -115,11 +107,13 @@ if (parsingResult.HasErrors())
 }
 else
 {
-    GlobalFontSettings.FontResolver = new MyFontResolver(LocalFontFiles());
-    //PdfSharpCore cclasses
-    var document = new PdfDocument();
+    foreach (var font in LocalFontNames().Zip(LocalFontFiles()))
+    {
+        FontFamily.Register(font.First, font.Second);
+    }
+
     //draw parsing result
-    using var drawer = new PdfDocumentDrawer(document, logger);
+    using var drawer = new PdfDocumentDrawer(logger);
     var visitor = new PdfDrawerVisitor(logger);
 
     visitor.RegisterFormulaFunction("GetFontCount", (_) => LocalFontNames().Count());
@@ -132,7 +126,7 @@ else
     visitor.RegisterFormulaFunction("GETCOMMENTAUTHOR", getCommentAuthor);
 
     visitor.Draw(drawer, parsingResult);
-    document.Save("helloworld.pdf");
+    drawer.PublishPdf("helloworld.pdf");
 
     //var a = new PDfDsl.pdfsharp();
     //a.WritePdf(drawer);

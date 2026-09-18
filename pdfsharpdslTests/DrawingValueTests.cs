@@ -1,4 +1,3 @@
-using PdfSharpCore.Drawing;
 using PdfSharpDslCore.Drawing;
 using PdfSharpDslCore.Extensions;
 
@@ -9,8 +8,8 @@ namespace pdfsharpdslTests
         [Fact]
         public void OffsetYMovesRectanglesAndPointsWithoutChangingInputs()
         {
-            var rectangle = new XRect(10, 20, 30, 40);
-            var point = new XPoint(5, 6);
+            var rectangle = new PdfRect(10, 20, 30, 40);
+            var point = new PdfPoint(5, 6);
 
             var movedRectangle = rectangle.OffsetY(7);
             var movedPoint = point.OffsetY(8);
@@ -26,7 +25,7 @@ namespace pdfsharpdslTests
         [Fact]
         public void OffsetYMovesPointArraysOnlyWhenNeeded()
         {
-            var points = new[] { new XPoint(1, 2), new XPoint(3, 4) };
+            var points = new[] { new PdfPoint(1, 2), new PdfPoint(3, 4) };
 
             var unchanged = points.OffsetY(0);
             var moved = points.OffsetY(10);
@@ -50,7 +49,7 @@ namespace pdfsharpdslTests
             {
                 DesiredWidth = 80,
                 MaxWidth = 50,
-                Alignment = XStringAlignment.Center
+                Alignment = PdfHorizontalAlignment.Center
             });
             table.Columns.Add(new ColumnDefinition());
             table.Rows.Add(new RowDefinition
@@ -64,7 +63,7 @@ namespace pdfsharpdslTests
             Assert.Equal(0, table.ColWidth(1));
             Assert.Equal(50, table.ColMaxWidth(0, 100));
             Assert.Equal(40, table.ColMaxWidth(1, 40));
-            Assert.Equal(XStringAlignment.Center, table.Alignment(0));
+            Assert.Equal(PdfHorizontalAlignment.Center, table.Alignment(0));
             Assert.Equal(50, table.Columns[0].DrawWidth);
             Assert.Equal(0, table.Columns[1].DrawWidth);
             Assert.Equal(12, table.TopMarginOnPageBreak);
@@ -78,7 +77,7 @@ namespace pdfsharpdslTests
         [Fact]
         public void DrawingResultStoresRectangleAndPageOffset()
         {
-            var rectangle = new XRect(1, 2, 3, 4);
+            var rectangle = new PdfRect(1, 2, 3, 4);
             var result = new DrawingResult
             {
                 DrawingRect = rectangle,
@@ -92,28 +91,23 @@ namespace pdfsharpdslTests
         [Fact]
         public void TextRectangleAlignmentUsesRelativeBounds()
         {
-            var bounds = new XRect(10, 20, 100, 50);
-            var textSize = new XSize(30, 10);
-            var centered = DrawingHelper.RectFromStringFormat(bounds, textSize, new XStringFormat
-            {
-                Alignment = XStringAlignment.Center,
-                LineAlignment = XLineAlignment.Center
-            });
-            var far = DrawingHelper.RectFromStringFormat(bounds, textSize, new XStringFormat
-            {
-                Alignment = XStringAlignment.Far,
-                LineAlignment = XLineAlignment.Far
-            });
+            var bounds = new PdfRect(10, 20, 100, 50);
+            var textSize = new PdfSize(30, 10);
+            var centered = DrawingHelper.RectFromStringFormat(bounds, textSize,
+                PdfHorizontalAlignment.Center, PdfVerticalAlignment.Center);
+            var far = DrawingHelper.RectFromStringFormat(bounds, textSize,
+                PdfHorizontalAlignment.Far, PdfVerticalAlignment.Far);
 
-            Assert.Equal(new XRect(45, 40, 30, 10), centered);
-            Assert.Equal(new XRect(80, 60, 30, 10), far);
+            Assert.Equal(new PdfRect(45, 40, 30, 10), centered);
+            Assert.Equal(new PdfRect(80, 60, 30, 10), far);
         }
 
         [Fact]
         public void TextRectangleIsClippedToProvidedBounds()
         {
-            var bounds = new XRect(10, 20, 100, 50);
-            var result = DrawingHelper.RectFromStringFormat(bounds, new XSize(200, 100), XStringFormats.TopLeft);
+            var bounds = new PdfRect(10, 20, 100, 50);
+            var result = DrawingHelper.RectFromStringFormat(bounds, new PdfSize(200, 100),
+                PdfHorizontalAlignment.Near, PdfVerticalAlignment.Near);
 
             Assert.Equal(bounds, result);
         }

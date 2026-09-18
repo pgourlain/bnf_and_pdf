@@ -1,9 +1,9 @@
 ﻿
 # Introduction
 
-Package to print PDF using a specific DSL, using Irony.Net and PdfSharpCore
+Package to print PDF using a specific DSL, using Irony.Net and TerraPDF.
 
-The reusable library targets `netstandard2.0`. The source generator package also targets `netstandard2.0` and can be consumed by a `net10.0` application. The repository's test and console projects target `net10.0`.
+The renderer targets `net8.0`. `PdfSharpDsl.Language` and the source generator target `netstandard2.0` and can be consumed by modern .NET applications.
 
 The repository enforces at least 90% line coverage for `PdfSharpDslCore` through `scripts\coverage.ps1`.
 

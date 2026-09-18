@@ -21,6 +21,14 @@ namespace pdfsharpdslTests
             Assert.Empty(p.Language.Errors);
         }
 
+        [Theory]
+        [InlineData("SET FONT Name=\"Arial\" Size=11 bolditalic;")]
+        [InlineData("SET BRUSH lightsalmon;")]
+        public void ParsesSupportedStyleAndColorKeywords(string input)
+        {
+            ParseText(input);
+        }
+
 
         [Theory()]
         [InlineData("pdf1.txt")]

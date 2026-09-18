@@ -1,8 +1,7 @@
 
 using Irony;
 using Irony.Parsing;
-using PdfSharpCore;
-using PdfSharpCore.Drawing;
+using PdfSharpDslCore.Drawing;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -258,9 +257,9 @@ namespace PdfSharpDslCore.Parser
             VarSmt.Rule = ToTerm("VAR") + variableLiteral + "=" + FormulaExpression + semi;
 
             ColorExp.Rule = NamedColor | HexColor;
-            foreach (var prop in typeof(XColors).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static))
+            foreach (var colorName in PdfColors.Names)
             {
-                var name = prop.Name.ToLowerInvariant();
+                var name = colorName.ToLowerInvariant();
                 if (NamedColor.Rule == null)
                 {
                     NamedColor.Rule = ToTerm(name, $"color-{name}");
@@ -274,14 +273,14 @@ namespace PdfSharpDslCore.Parser
 
             HexColor.Rule = colorNumber;
             styleExpr.Rule = Empty;
-            foreach (var enumName in Enum.GetNames(typeof(XFontStyle)))
+            foreach (var enumName in Enum.GetNames(typeof(PdfFontStyle)))
             {
                 var styleName = enumName.ToLowerInvariant();
                 styleExpr.Rule |= ToTerm(styleName, $"style-{styleName}");
             }
 
 
-            //TextAlignment is not yet supported on multiline text (only top left is provided by pdfsharpcore)
+            //Multiline alignment is implemented by the TerraPDF canvas adapter.
             //multiline
             TextSmt.Rule = ToInstructionTerm("TEXT") + RectOrPointLocation + OptArg("MaxWidth", FormulaExpression) + Arg("Text") + FormulaExpression;
 
@@ -303,7 +302,7 @@ namespace PdfSharpDslCore.Parser
 
             PageSize.Rule = Empty;
 
-            var names = Enum.GetNames(typeof(PageSize));
+            var names = Enum.GetNames(typeof(PdfPageSize));
             var firstSize = names.First();
             PageSize.Rule |= ToTerm(firstSize, $"pagesize-{firstSize}");
             foreach (var prop in names.Skip(1))

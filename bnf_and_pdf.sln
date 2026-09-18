@@ -18,6 +18,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PdfSharpDslCore.Generator", "PdfSharpDslCore.Generator\PdfSharpDslCore.Generator.csproj", "{A6092AA9-EC00-4C4F-AF43-E039E400CC3B}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PdfSharpDsl.Language", "PdfSharpDsl.Language\PdfSharpDsl.Language.csproj", "{2373085B-7611-43B6-A4A1-F2DE608817C4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -40,6 +42,10 @@ Global
 		{A6092AA9-EC00-4C4F-AF43-E039E400CC3B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A6092AA9-EC00-4C4F-AF43-E039E400CC3B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A6092AA9-EC00-4C4F-AF43-E039E400CC3B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2373085B-7611-43B6-A4A1-F2DE608817C4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2373085B-7611-43B6-A4A1-F2DE608817C4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2373085B-7611-43B6-A4A1-F2DE608817C4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2373085B-7611-43B6-A4A1-F2DE608817C4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

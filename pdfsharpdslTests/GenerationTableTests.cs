@@ -1,6 +1,4 @@
-﻿using PdfSharpCore.Pdf.IO;
-using PdfSharpCore.Pdf;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -18,10 +16,11 @@ namespace pdfsharpdslTests
         {
             var input = File.ReadAllText($"./ValidInputFiles/{file}");
             using var memStm = GeneratePdf(input);
-            memStm.Position = 0;
-            using PdfDocument pdfDocument = PdfReader.Open(memStm, PdfDocumentOpenMode.Import);
-            //generation and import not failed
-            Assert.True(true);
+            var pdf = new PdfBinaryInspector(memStm);
+
+            Assert.True(pdf.HasPdfHeader);
+            Assert.True(pdf.PageCount > 0);
+            Assert.True(pdf.ContentStreamCount > 0);
         }
     }
 }

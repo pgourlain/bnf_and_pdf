@@ -1,5 +1,3 @@
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
 using System;
 using System.Collections.Generic;
 
@@ -13,8 +11,8 @@ namespace PdfSharpDslCore.Drawing
         public double TopMarginOnPageBreak { get; set; }
         //header height, should be measure if not specified
         public double? HeaderHeight { get; set; }
-        public TrimMargins CellMargin { get; set; } = new TrimMargins() { All = 1 };
-        public XBrush? HeaderBackColor { get; set; }
+        public PdfMargins CellMargin { get; set; } = new PdfMargins() { All = 1 };
+        public PdfBrush? HeaderBackColor { get; set; }
 
 
         public List<RowDefinition> Rows { get; private set; } = new();
@@ -36,7 +34,7 @@ namespace PdfSharpDslCore.Drawing
             return Math.Min(Columns[i].MaxWidth ?? pageWidth, pageWidth);
         }
 
-        public XStringAlignment Alignment(int i)
+        public PdfHorizontalAlignment Alignment(int i)
         {
             return Columns[i].Alignment;
         }
@@ -49,10 +47,10 @@ namespace PdfSharpDslCore.Drawing
         public double? DesiredWidth { get; set; } = null;
         public double? MaxWidth { get; set; } = null;
 
-        public XStringAlignment Alignment { get; set; } = XStringAlignment.Near;
-        public XFont? Font { get; set; }
-        public XBrush? Brush { get; set; }
-        public XBrush? BackColor { get; set; }
+        public PdfHorizontalAlignment Alignment { get; set; } = PdfHorizontalAlignment.Near;
+        public PdfFont? Font { get; set; }
+        public PdfBrush? Brush { get; set; }
+        public PdfBrush? BackColor { get; set; }
 
         public double DrawWidth
         {

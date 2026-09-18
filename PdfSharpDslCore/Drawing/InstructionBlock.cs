@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
-using PdfSharpCore.Drawing;
 using PdfSharpDslCore.Extensions;
 
 namespace PdfSharpDslCore.Drawing
@@ -12,11 +11,11 @@ namespace PdfSharpDslCore.Drawing
     [DebuggerDisplay("Rect:{Rect}")]
     class InstructionAction : IInstruction, IHasName
     {
-        public XRect Rect { get; }
+        public PdfRect Rect { get; }
         private readonly Action<double> _action;
         public string Name { get; }
 
-        public InstructionAction(Action<double> action, XRect rect, string name)
+        public InstructionAction(Action<double> action, PdfRect rect, string name)
         {
             this.Rect = rect;
             _action = action;
@@ -41,7 +40,7 @@ namespace PdfSharpDslCore.Drawing
 
         public bool ShouldBeEntirePrinted { get; }
 
-        public XRect Rect { get; private set; } = XRect.Empty;
+        public PdfRect Rect { get; private set; } = PdfRect.Empty;
 
         public IInstructionBlock? Parent => _parent;
         public double OffsetY => _offsetY;
@@ -85,7 +84,7 @@ namespace PdfSharpDslCore.Drawing
             {
                 var selfOffsetY = _offsetY;
 
-                XRect pageRect = new XRect(0, 0, drawer.PageWidth, drawer.PageHeight);
+                PdfRect pageRect = new PdfRect(0, 0, drawer.PageWidth, drawer.PageHeight);
                 //2 cas : l'instruction ne rentre pas dans la page actuelle, il faut une nouvelle page
                 // ça ne rentre dans aucune page, il faut "imprimé" par morceau
                 if (ShouldBeEntirePrinted)
@@ -292,7 +291,7 @@ namespace PdfSharpDslCore.Drawing
             //
         }
 
-        public void UpdateRect(XRect rect)
+        public void UpdateRect(PdfRect rect)
         {
             if (rect.IsEmpty) return;
             rect.Offset(0, _offsetY);

@@ -16,6 +16,7 @@
 		<IncludeBuildOutput>false</IncludeBuildOutput>
 		<NoPackageAnalysis>true</NoPackageAnalysis>
 		<IsRoslynComponent>true</IsRoslynComponent>
+		<EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -23,10 +24,6 @@
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.9.2" PrivateAssets="all" />
 		<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" PrivateAssets="all" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" GeneratePathProperty="true" />
-		<PackageReference Include="PdfSharpCore" Version="1.3.63" GeneratePathProperty="true" />
-		<PackageReference Include="SixLabors.Fonts" Version="1.0.1" GeneratePathProperty="true" />
-		<PackageReference Include="SixLabors.ImageSharp" Version="2.1.12" GeneratePathProperty="true" />
-		<PackageReference Include="SharpZipLib" Version="1.4.2" GeneratePathProperty="true" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -36,19 +33,18 @@
 	<ItemGroup>
 		<!-- Package the generator in the analyzer directory of the nuget package -->
 		<None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
-		<None Include="$(MSBuildProjectDirectory)\..\PdfSharpDslCore\bin\$(Configuration)\netstandard2.0\PdfSharpDslCore.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+		<None Include="$(MSBuildProjectDirectory)\..\PdfSharpDsl.Language\bin\$(Configuration)\netstandard2.0\PdfSharpDsl.Language.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
 
 		<!-- Package the Irony dependency alongside the generator assembly -->
 		<None Include="$(PKGIrony)\lib\netstandard2.0\*.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
-		<None Include="$(PKGPdfSharpCore)\lib\netstandard2.0\*.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
-		<None Include="$(PKGSixLabors_Fonts)\lib\netstandard2.0\*.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
-		<None Include="$(PKGSixLabors_ImageSharp)\lib\netstandard2.0\*.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
-		<None Include="$(PKGSharpZipLib)\lib\netstandard2.0\*.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
 		<None Include="$(PKGMicrosoft_Extensions_Logging_Abstractions)\lib\netstandard2.0\*.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\PdfSharpDslCore\PdfSharpDslCore.csproj" GeneratePathProperty="true" />
+		<ProjectReference Include="..\PdfSharpDsl.Language\PdfSharpDsl.Language.csproj" PrivateAssets="all" GeneratePathProperty="true" />
+	</ItemGroup>
+	<ItemGroup>
+		<Compile Remove="DrawingGenerator\CSharpDrawer.cs" />
 	</ItemGroup>
 
 	<PropertyGroup>
@@ -58,11 +54,7 @@
 	<Target Name="GetDependencyTargetPaths">
 		<ItemGroup>
 			<TargetPathWithTargetPlatformMoniker Include="$(PKGIrony)\lib\netstandard2.0\*.dll" IncludeRuntimeDependency="false" />
-			<TargetPathWithTargetPlatformMoniker Include="$(MSBuildProjectDirectory)\..\PdfSharpDslCore\bin\$(Configuration)\$(TargetFramework)\PdfSharpDslCore.dll" IncludeRuntimeDependency="false" />
-			<TargetPathWithTargetPlatformMoniker Include="$(PKGPdfSharpCore)\lib\netstandard2.0\*.dll" IncludeRuntimeDependency="true" />
-			<TargetPathWithTargetPlatformMoniker Include="$(PKGSixLabors_Fonts)\lib\netstandard2.0\*.dll" IncludeRuntimeDependency="false" />
-			<TargetPathWithTargetPlatformMoniker Include="$(PKGSixLabors_ImageSharp)\lib\netstandard2.0\*.dll" IncludeRuntimeDependency="false" />
-			<TargetPathWithTargetPlatformMoniker Include="$(PKGSharpZipLib)\lib\netstandard2.0\*.dll" IncludeRuntimeDependency="false" />
+			<TargetPathWithTargetPlatformMoniker Include="$(MSBuildProjectDirectory)\..\PdfSharpDsl.Language\bin\$(Configuration)\$(TargetFramework)\PdfSharpDsl.Language.dll" IncludeRuntimeDependency="false" />
 		</ItemGroup>
 	</Target>
 </Project>

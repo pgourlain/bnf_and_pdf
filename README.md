@@ -3,11 +3,11 @@
 [![NuGet Version](https://img.shields.io/nuget/v/PdfSharpDslCore.svg)](https://www.nuget.org/packages/PdfSharpDslCore/)
 [![CI](https://github.com/pgourlain/bnf_and_pdf/actions/workflows/build.yml/badge.svg)](https://github.com/pgourlain/bnf_and_pdf/actions/workflows/build.yml)
 
-This is a sample library that use [Irony.Net](https://github.com/IronyProject/Irony) to define a grammar to print PDF using [PdfSharpCore](https://github.com/ststeiger/PdfSharpCore/)
+This is a sample library that uses [Irony.Net](https://github.com/IronyProject/Irony) to define a grammar and [TerraPDF](https://www.nuget.org/packages/TerraPDF) to print PDF.
 
 ## Current support
 
-- `PdfSharpDslCore` and `PdfSharpDslCore.Generator` target `netstandard2.0`.
+- `PdfSharpDslCore` targets `net8.0`; `PdfSharpDsl.Language` and `PdfSharpDslCore.Generator` target `netstandard2.0`.
 - `PdfSharpDslConsole` and the test project target `net10.0`.
 - The repository is pinned to SDK `10.0.400` in `global.json`.
 - The generator package includes its analyzer dependencies and supports clean NuGet consumer builds.
@@ -40,12 +40,9 @@ if (parsingResult.HasErrors())
 }
 else
 {
-    //PdfSharpCore cclasses
-    var document = new PdfDocument();
-    //draw parsing result
-    using var drawer = new PdfDocumentDrawer(document);
+    using var drawer = new PdfDocumentDrawer();
     new PdfDrawerVisitor().Draw(drawer, parsingResult);
-    document.Save("helloworld.pdf");
+    drawer.PublishPdf("helloworld.pdf");
 }
 ```
 
@@ -61,14 +58,14 @@ sequenceDiagram
     participant yourprogram
     participant PdfSharpDslCore
     participant Irony
-    participant PdfSharp
+    participant TerraPDF
     yourprogram->>Irony: Parse file or text.
     Irony -->> PdfSharpDslCore: use PdfGrammar.
     Irony-->>yourprogram: Parsing result.
     
     yourprogram->>PdfSharpDslCore: Define callback for Formula functions.
     yourprogram->>PdfSharpDslCore: Draw()
-    PdfSharpDslCore -->>PdfSharp: use Document to draw.
+    PdfSharpDslCore -->>TerraPDF: publish recorded canvas commands.
     PdfSharpDslCore->>yourprogram: call registered formula functions.
     yourprogram-->>PdfSharpDslCore: function result.
     PdfSharpDslCore->>PdfSharpDslCore: execute all instructions from source file.
@@ -573,7 +570,7 @@ yellowgreen
 this package is build on top of 
 
 - PDF :
-	- pdfSharpCore : https://github.com/ststeiger/PdfSharpCore
+    - TerraPDF : https://www.nuget.org/packages/TerraPDF
 	
 - Parsers : 
 	- Irony : https://github.com/IronyProject/Irony

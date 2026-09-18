@@ -1,7 +1,4 @@
-﻿using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-
-namespace PdfSharpDslCore.Drawing
+﻿namespace PdfSharpDslCore.Drawing
 {
     internal static class DrawingHelper
     {
@@ -12,30 +9,31 @@ namespace PdfSharpDslCore.Drawing
         /// <param name="textSize"></param>
         /// <param name="fmt"></param>
         /// <returns></returns>
-        public static XRect RectFromStringFormat(XRect r, XSize textSize, XStringFormat fmt)
+        public static PdfRect RectFromStringFormat(PdfRect r, PdfSize textSize,
+            PdfHorizontalAlignment horizontalAlignment, PdfVerticalAlignment verticalAlignment)
         {
-            var result = new XRect(r.TopLeft, textSize);
+            var result = new PdfRect(r.TopLeft, textSize);
 
-            switch (fmt.Alignment)
+            switch (horizontalAlignment)
             {
-                case XStringAlignment.Center:
+                case PdfHorizontalAlignment.Center:
                     result.Offset((r.Width - textSize.Width) / 2, 0);
                     break;
-                case XStringAlignment.Near:
+                case PdfHorizontalAlignment.Near:
                     break;
-                case XStringAlignment.Far:
+                case PdfHorizontalAlignment.Far:
                     result.Offset(r.Width - textSize.Width, 0);
                     break;
             }
 
-            switch (fmt.LineAlignment)
+            switch (verticalAlignment)
             {
-                case XLineAlignment.Center:
+                case PdfVerticalAlignment.Center:
                     result.Offset(0, (r.Height - textSize.Height) / 2);
                     break;
-                case XLineAlignment.Near:
+                case PdfVerticalAlignment.Near:
                     break;
-                case XLineAlignment.Far:
+                case PdfVerticalAlignment.Far:
                     result.Offset(0, r.Height - textSize.Height);
                     break;
             }
@@ -45,32 +43,33 @@ namespace PdfSharpDslCore.Drawing
             return result;
         }
 
-        public static XRect RectFromStringFormat(double x, double y, XSize textSize, XStringFormat fmt)
+        public static PdfRect RectFromStringFormat(double x, double y, PdfSize textSize,
+            PdfHorizontalAlignment horizontalAlignment, PdfVerticalAlignment verticalAlignment)
         {
-            var result = new XRect(x, y, textSize.Width, textSize.Height);
+            var result = new PdfRect(x, y, textSize.Width, textSize.Height);
 
             var xOffset = 0.0;
             var yOffset = 0.0;
-            switch (fmt.Alignment)
+            switch (horizontalAlignment)
             {
-                case XStringAlignment.Center:
+                case PdfHorizontalAlignment.Center:
                     xOffset -= textSize.Width / 2;
                     break;
-                case XStringAlignment.Near:
+                case PdfHorizontalAlignment.Near:
                     break;
-                case XStringAlignment.Far:
+                case PdfHorizontalAlignment.Far:
                     xOffset -= textSize.Width;
                     break;
             }
 
-            switch (fmt.LineAlignment)
+            switch (verticalAlignment)
             {
-                case XLineAlignment.Center:
+                case PdfVerticalAlignment.Center:
                     yOffset -= textSize.Height / 2;
                     break;
-                case XLineAlignment.Near:
+                case PdfVerticalAlignment.Near:
                     break;
-                case XLineAlignment.Far:
+                case PdfVerticalAlignment.Far:
                     yOffset -= textSize.Height;
                     break;
             }
@@ -79,51 +78,53 @@ namespace PdfSharpDslCore.Drawing
 
             return result;
         }
-        public static (double, double, double, double) CoordRectToPage(this PdfPage page, double x, double y, double w, double h)
+        public static (double, double, double, double) CoordRectToPage(double pageWidth, double pageHeight,
+            double x, double y, double w, double h)
         {
             if (x < 0)
             {
-                x = page.Width + x;
+                x = pageWidth + x;
             }
 
             if (y < 0)
             {
-                y = page.Height + y;
+                y = pageHeight + y;
             }
 
             if (w < 0)
             {
-                w = page.Width + w - x;
+                w = pageWidth + w - x;
             }
 
             if (h < 0)
             {
-                h = page.Height + h - y;
+                h = pageHeight + h - y;
             }
 
             return (x, y, w, h);
         }
 
-        public static (double, double, double?, double?) CoordRectToPage(this PdfPage page, double x, double y, double? w, double? h)
+        public static (double, double, double?, double?) CoordRectToPage(double pageWidth, double pageHeight,
+            double x, double y, double? w, double? h)
         {
             if (x < 0)
             {
-                x = page.Width + x;
+                x = pageWidth + x;
             }
 
             if (y < 0)
             {
-                y = page.Height + y;
+                y = pageHeight + y;
             }
 
             if (w is < 0)
             {
-                w = page.Width + w - x;
+                w = pageWidth + w - x;
             }
 
             if (h is < 0)
             {
-                h = page.Height + h - y;
+                h = pageHeight + h - y;
             }
 
             return (x, y, w, h);
