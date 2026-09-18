@@ -294,7 +294,8 @@ namespace PdfSharpDslCore.Parser
             {
                 //try to parse unit and cropping
                 unit = unitNode.Term.Name;
-                crop = cropNode?.ChildNodes.Count > 0;
+                crop = cropNode?.ChildNodes.Any(x =>
+                    string.Equals(x.Token?.Text, "crop", StringComparison.OrdinalIgnoreCase)) == true;
             }
 
             XImage image;
@@ -471,6 +472,7 @@ namespace PdfSharpDslCore.Parser
             "DEBUG_TEXT" => DebugOptions.DebugText,
             "DEBUG_RECT" => DebugOptions.DebugRect,
             "DEBUG_ROWTEMPLATE" => DebugOptions.DebugRowTemplate,
+            "DEBUG_IMAGE" => DebugOptions.DebugImage,
             "DEBUG_RULE" => DebugOptions.DebugRule,
             "DEBUG_ALL" => DebugOptions.DebugAll,
             _ => DebugOptions.None

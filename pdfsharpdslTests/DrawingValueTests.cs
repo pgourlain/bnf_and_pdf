@@ -65,6 +65,8 @@ namespace pdfsharpdslTests
             Assert.Equal(50, table.ColMaxWidth(0, 100));
             Assert.Equal(40, table.ColMaxWidth(1, 40));
             Assert.Equal(XStringAlignment.Center, table.Alignment(0));
+            Assert.Equal(50, table.Columns[0].DrawWidth);
+            Assert.Equal(0, table.Columns[1].DrawWidth);
             Assert.Equal(12, table.TopMarginOnPageBreak);
             Assert.False(table.ShowHeader);
             Assert.Equal(20, table.HeaderHeight);
@@ -85,6 +87,35 @@ namespace pdfsharpdslTests
 
             Assert.Equal(rectangle, result.DrawingRect);
             Assert.Equal(25, result.PageOffsetY);
+        }
+
+        [Fact]
+        public void TextRectangleAlignmentUsesRelativeBounds()
+        {
+            var bounds = new XRect(10, 20, 100, 50);
+            var textSize = new XSize(30, 10);
+            var centered = DrawingHelper.RectFromStringFormat(bounds, textSize, new XStringFormat
+            {
+                Alignment = XStringAlignment.Center,
+                LineAlignment = XLineAlignment.Center
+            });
+            var far = DrawingHelper.RectFromStringFormat(bounds, textSize, new XStringFormat
+            {
+                Alignment = XStringAlignment.Far,
+                LineAlignment = XLineAlignment.Far
+            });
+
+            Assert.Equal(new XRect(45, 40, 30, 10), centered);
+            Assert.Equal(new XRect(80, 60, 30, 10), far);
+        }
+
+        [Fact]
+        public void TextRectangleIsClippedToProvidedBounds()
+        {
+            var bounds = new XRect(10, 20, 100, 50);
+            var result = DrawingHelper.RectFromStringFormat(bounds, new XSize(200, 100), XStringFormats.TopLeft);
+
+            Assert.Equal(bounds, result);
         }
     }
 }

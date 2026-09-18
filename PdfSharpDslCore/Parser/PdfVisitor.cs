@@ -314,9 +314,11 @@ namespace PdfSharpDslCore.Parser
             {
                 defArgs = defNode.ChildNode("UdfArgumentslist")!;
                 defBody = defNode.ChildNode("UdfBlock")?.ChildNode("EmbbededSmtList")!;
-                if (defArgs!= null && arguments!=null && defArgs.ChildNodes.Count != arguments.ChildNodes.Count)
+                var expectedArgumentCount = defArgs?.ChildNodes.Count ?? 0;
+                var providedArgumentCount = arguments?.ChildNodes.Count ?? 0;
+                if (expectedArgumentCount != providedArgumentCount)
                 {
-                    throw new PdfParserException($"UDF '{fnName}' arguments count not match, provided ${arguments.ChildNodes.Count}, expected ${defArgs.ChildNodes.Count}.");
+                    throw new PdfParserException($"UDF '{fnName}' arguments count does not match, provided {providedArgumentCount}, expected {expectedArgumentCount}.");
                 }
 
                 if (defArgs == null)

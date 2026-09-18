@@ -1,4 +1,6 @@
-﻿using PdfSharpDslCore.Evaluation;
+﻿using Moq;
+using PdfSharpDslCore.Drawing;
+using PdfSharpDslCore.Evaluation;
 using PdfSharpDslCore.Parser;/**/
 using System;
 using System.Collections.Generic;
@@ -151,6 +153,17 @@ namespace pdfsharpdslTests
             var evaluation = new VariableEvaluation("missing", new Dictionary<string, object?>());
 
             Assert.Throws<ArgumentOutOfRangeException>(() => evaluation.Value);
+        }
+
+        [Fact]
+        public void ModuloOperatorIsEvaluatedFromParsedDsl()
+        {
+            var tree = ParseText("SET VAR X=7%3;");
+            var visitor = new PdfDrawerForTestsVisitor();
+
+            visitor.Draw(Mock.Of<IPdfDocumentDrawer>(), tree);
+
+            Assert.Equal(1.0, visitor.Vars["X"]);
         }
     }
 }

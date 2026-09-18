@@ -79,6 +79,9 @@ namespace PdfSharpDslCore.Evaluation
                         case "/":
                             op = BinaryOperation.Div;
                             break;
+                        case "%":
+                            op = BinaryOperation.Mod;
+                            break;
                         case ">":
                             op = BinaryOperation.Superior;
                             break;

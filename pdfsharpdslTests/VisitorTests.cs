@@ -106,7 +106,7 @@ namespace pdfsharpdslTests
         [Fact]
         public void DrawExecutesViewSizeTextWidthAndDebugOptions()
         {
-            var tree = ParseText("VIEWSIZE 100,140;TEXT 10,20 MaxWidth=30 Text=\"hello\";DEBUGOPTIONS DEBUG_TEXT, DEBUG_RECT, DEBUG_ROWTEMPLATE, DEBUG_RULE, DEBUG_ALL, UNKNOWN;");
+            var tree = ParseText("VIEWSIZE 100,140;TEXT 10,20 MaxWidth=30 Text=\"hello\";DEBUGOPTIONS DEBUG_TEXT, DEBUG_RECT, DEBUG_ROWTEMPLATE, DEBUG_IMAGE, DEBUG_RULE, DEBUG_ALL, UNKNOWN;");
             var drawer = new Mock<IPdfDocumentDrawer>();
             drawer.SetupProperty(x => x.DebugOptions);
 
@@ -115,7 +115,7 @@ namespace pdfsharpdslTests
             drawer.Verify(x => x.SetViewSize(100, 140), Times.Once);
             drawer.Verify(x => x.DrawText("hello", 10, 20, 30, null), Times.Once);
             Assert.Equal(
-                DebugOptions.DebugText | DebugOptions.DebugRect | DebugOptions.DebugRowTemplate | DebugOptions.DebugRule | DebugOptions.DebugAll,
+                DebugOptions.DebugText | DebugOptions.DebugRect | DebugOptions.DebugRowTemplate | DebugOptions.DebugImage | DebugOptions.DebugRule | DebugOptions.DebugAll,
                 drawer.Object.DebugOptions);
         }
 
@@ -132,6 +132,66 @@ namespace pdfsharpdslTests
 
             Assert.Equal(612.0, visitor.Vars["WIDTH"]);
             Assert.Equal(792.0, visitor.Vars["HEIGHT"]);
+        }
+
+        [Fact]
+        public void ImageStatementsPreserveDimensionsUnitsAndCropMode()
+        {
+            const string imageData = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+            var tree = ParseText(
+                $"IMAGE 1,2 Data=\"data:image/png;base64,{imageData}\";" +
+                $"IMAGE 3,4,30,40 pixel crop Data=\"{imageData}\";" +
+                $"IMAGE 5,6,70,80 point fit Data=\"{imageData}\";");
+            var calls = new List<(double X, double Y, double? Width, double? Height, bool Pixel, bool Crop)>();
+            var drawer = new Mock<IPdfDocumentDrawer>();
+            drawer.Setup(x => x.DrawImage(
+                    It.IsAny<XImage>(),
+                    It.IsAny<double>(),
+                    It.IsAny<double>(),
+                    It.IsAny<double?>(),
+                    It.IsAny<double?>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<bool>()))
+                .Callback<XImage, double, double, double?, double?, bool, bool>((_, x, y, width, height, pixel, crop) =>
+                    calls.Add((x, y, width, height, pixel, crop)));
+
+            new PdfDrawerVisitor().Draw(drawer.Object, tree);
+
+            Assert.Equal((1, 2, null, null, false, false), calls[0]);
+            Assert.Equal((3, 4, 30, 40, true, true), calls[1]);
+            Assert.Equal((5, 6, 70, 80, false, false), calls[2]);
+        }
+
+        [Fact]
+        public void TableRowTemplateBuildsRowsWidthsAndPadding()
+        {
+            var tree = ParseText(
+                "TABLE 20,30 " +
+                "HEAD " +
+                "COL Width=40 MaxWidth=30 \"A\"; " +
+                "COL Width=auto MaxWidth=100 \"B\"; " +
+                "ENDHEAD " +
+                "ROWTEMPLATE 2 " +
+                "COL $ROWINDEX; " +
+                "ENDROW " +
+                "ENDTABLE");
+            TableDefinition? capturedTable = null;
+            var drawer = new Mock<IPdfDocumentDrawer>();
+            drawer.Setup(x => x.DrawTable(20, 30, It.IsAny<TableDefinition>()))
+                .Callback<double, double, TableDefinition>((_, _, table) => capturedTable = table);
+            var visitor = new InspectablePdfDrawerVisitor();
+
+            visitor.Draw(drawer.Object, tree);
+
+            Assert.NotNull(capturedTable);
+            Assert.Equal(2, capturedTable.Columns.Count);
+            Assert.Equal(40, capturedTable.Columns[0].DesiredWidth);
+            Assert.Equal(30, capturedTable.Columns[0].MaxWidth);
+            Assert.Null(capturedTable.Columns[1].DesiredWidth);
+            Assert.Equal(100, capturedTable.Columns[1].MaxWidth);
+            Assert.Equal(new[] { "0", string.Empty }, capturedTable.Rows[0].Data);
+            Assert.Equal(new[] { "1", string.Empty }, capturedTable.Rows[1].Data);
+            Assert.False(visitor.Vars.ContainsKey("ROWINDEX"));
         }
 
         [Fact]
@@ -178,6 +238,55 @@ namespace pdfsharpdslTests
 
             Assert.IsType<InvalidOperationException>(customError.InnerException);
             Assert.Contains("MISSING", missingError.Message);
+        }
+
+        [Fact]
+        public void NestedDslUdfsRestoreOuterScopes()
+        {
+            var tree = ParseText(
+                "SET VAR VALUE=10; " +
+                "UDF INNER(VALUE) SET VAR INNERONLY=99; LINE $VALUE,$INNERONLY,$VALUE,$INNERONLY; ENDUDF " +
+                "UDF OUTER(VALUE) SET VAR OUTERONLY=20; CALL INNER(30); LINE $VALUE,$OUTERONLY,$VALUE,$OUTERONLY; ENDUDF " +
+                "CALL OUTER(40); LINE $VALUE,0,$VALUE,0;");
+            var drawer = new Mock<IPdfDocumentDrawer>();
+            var visitor = new InspectablePdfDrawerVisitor();
+
+            visitor.Draw(drawer.Object, tree);
+
+            drawer.Verify(x => x.DrawLine(30, 99, 30, 99), Times.Once);
+            drawer.Verify(x => x.DrawLine(40, 20, 40, 20), Times.Once);
+            drawer.Verify(x => x.DrawLine(10, 0, 10, 0), Times.Once);
+            Assert.Equal(10.0, visitor.Vars["VALUE"]);
+            Assert.False(visitor.Vars.ContainsKey("INNERONLY"));
+            Assert.False(visitor.Vars.ContainsKey("OUTERONLY"));
+        }
+
+        [Fact]
+        public void DslUdfFailureRestoresOuterScope()
+        {
+            var tree = ParseText(
+                "SET VAR VALUE=1; " +
+                "UDF FAIL(VALUE) SET VAR TEMP=2; LINE $MISSING,0,0,0; ENDUDF " +
+                "CALL FAIL(9);");
+            var visitor = new InspectablePdfDrawerVisitor();
+
+            Assert.Throws<ArgumentOutOfRangeException>(() => visitor.Draw(Mock.Of<IPdfDocumentDrawer>(), tree));
+
+            Assert.Equal(1.0, visitor.Vars["VALUE"]);
+            Assert.False(visitor.Vars.ContainsKey("TEMP"));
+        }
+
+        [Theory]
+        [InlineData("UDF NEEDS(X) LINE $X,0,0,0; ENDUDF CALL NEEDS();")]
+        [InlineData("UDF NONE() LINE 0,0,0,0; ENDUDF CALL NONE(1);")]
+        public void DslUdfRejectsZeroArgumentCountMismatches(string input)
+        {
+            var tree = ParseText(input);
+            var visitor = new InspectablePdfDrawerVisitor();
+
+            var error = Assert.Throws<PdfParserException>(() => visitor.Draw(Mock.Of<IPdfDocumentDrawer>(), tree));
+
+            Assert.Contains("arguments count", error.Message);
         }
 
         [Fact]
