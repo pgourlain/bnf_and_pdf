@@ -125,7 +125,7 @@ namespace PdfSharpDslCore.Drawing
         public void DrawLine(double x, double y, double x1, double y1)
         {
             var page = CurrentPage;
-            InternalDrawLine(CurrentPen, ScaleX(ResolveX(x, page), page), ScaleY(ResolveY(y, page), page),
+            InternalDrawLine(ScalePen(CurrentPen, page), ScaleX(ResolveX(x, page), page), ScaleY(ResolveY(y, page), page),
                 ScaleX(ResolveX(x1, page), page), ScaleY(ResolveY(y1, page), page));
         }
 
@@ -158,7 +158,7 @@ namespace PdfSharpDslCore.Drawing
         {
             var page = CurrentPage;
             (x, y, w, h) = DrawingHelper.CoordRectToPage(page.Width, page.Height, x, y, w, h);
-            InternalDrawRect(CurrentPen, CurrentBrush, ScaleX(x, page), ScaleY(y, page), ScaleX(w, page), ScaleY(h, page), isFilled);
+            InternalDrawRect(ScalePen(CurrentPen, page), CurrentBrush, ScaleX(x, page), ScaleY(y, page), ScaleX(w, page), ScaleY(h, page), isFilled);
         }
 
         private void InternalDrawRect(PdfPen pen, PdfBrush brush, double x, double y, double w, double h, bool isFilled)
@@ -177,7 +177,7 @@ namespace PdfSharpDslCore.Drawing
         {
             var page = CurrentPage;
             (x, y, w, h) = DrawingHelper.CoordRectToPage(page.Width, page.Height, x, y, w, h);
-            InternalDrawEllipse(CurrentPen, CurrentBrush, ScaleX(x, page), ScaleY(y, page), ScaleX(w, page), ScaleY(h, page), isFilled);
+            InternalDrawEllipse(ScalePen(CurrentPen, page), CurrentBrush, ScaleX(x, page), ScaleY(y, page), ScaleX(w, page), ScaleY(h, page), isFilled);
         }
 
         private void InternalDrawEllipse(PdfPen pen, PdfBrush brush, double x, double y, double w, double h, bool isFilled)
@@ -198,7 +198,7 @@ namespace PdfSharpDslCore.Drawing
             (x, y, w, h) = DrawingHelper.CoordRectToPage(page.Width, page.Height, x, y, w, h);
             InternalDrawText(text, ScaleX(x, page), ScaleY(y, page), w.HasValue ? ScaleX(w.Value, page) : page.Width - x,
                 h.HasValue ? ScaleY(h.Value, page) : null, PdfHorizontalAlignment.Near, PdfVerticalAlignment.Near,
-                CurrentFont, CurrentBrush, null);
+                ScaleFont(CurrentFont, page), CurrentBrush, null);
         }
 
         public void DrawLineText(string text, double x, double y, double? w, double? h, PdfHorizontalAlignment hAlign,
@@ -207,7 +207,7 @@ namespace PdfSharpDslCore.Drawing
             var page = CurrentPage;
             (x, y, w, h) = DrawingHelper.CoordRectToPage(page.Width, page.Height, x, y, w, h);
             InternalDrawText(text, ScaleX(x, page), ScaleY(y, page), w.HasValue ? ScaleX(w.Value, page) : null,
-                h.HasValue ? ScaleY(h.Value, page) : null, hAlign, vAlign, CurrentFont, CurrentBrush, HighlightBrush,
+                h.HasValue ? ScaleY(h.Value, page) : null, hAlign, vAlign, ScaleFont(CurrentFont, page), CurrentBrush, HighlightBrush,
                 textOrientation?.Angle ?? textOrientation?.Orientation switch
                 {
                     TextOrientationEnum.Vertical => 90,
@@ -367,7 +367,7 @@ namespace PdfSharpDslCore.Drawing
         {
             var page = CurrentPage;
             var endPoint = new PdfPoint(x, y);
-            InternalDrawLine(CurrentPen, ScaleX(_currentPoint.X, page), ScaleY(_currentPoint.Y, page),
+            InternalDrawLine(ScalePen(CurrentPen, page), ScaleX(_currentPoint.X, page), ScaleY(_currentPoint.Y, page),
                 ScaleX(endPoint.X, page), ScaleY(endPoint.Y, page));
             _currentPoint = endPoint;
         }
@@ -398,7 +398,7 @@ namespace PdfSharpDslCore.Drawing
             var height = h ?? 0;
             if (width <= 0 || height <= 0)
                 throw new ArgumentOutOfRangeException(nameof(w), "Pie dimensions must be positive.");
-            InternalDrawPie(CurrentPen, CurrentBrush, ScaleX(x, page), ScaleY(y, page),
+            InternalDrawPie(ScalePen(CurrentPen, page), CurrentBrush, ScaleX(x, page), ScaleY(y, page),
                 ScaleX(width, page), ScaleY(height, page), startAngle, sweepAngle, isFilled);
         }
 
@@ -423,7 +423,7 @@ namespace PdfSharpDslCore.Drawing
             var page = CurrentPage;
             var transformed = points.Select(point => new PdfPoint(ScaleX(point.X, page), ScaleY(point.Y, page))).ToArray();
             if (transformed.Length < 3) throw new ArgumentException("A polygon requires at least three points.", nameof(points));
-            InternalDrawPolygon(CurrentPen, CurrentBrush, transformed, isFilled);
+            InternalDrawPolygon(ScalePen(CurrentPen, page), CurrentBrush, transformed, isFilled);
         }
 
         private void InternalDrawPolygon(PdfPen pen, PdfBrush brush, PdfPoint[] points, bool isFilled)
@@ -505,6 +505,18 @@ namespace PdfSharpDslCore.Drawing
         private static double ResolveY(double y, RecordedPage page) => y < 0 ? page.Height + y : y;
         private static double ScaleX(double value, RecordedPage page) => value * page.ScaleX;
         private static double ScaleY(double value, RecordedPage page) => value * page.ScaleY;
+
+        private static PdfPen ScalePen(PdfPen pen, RecordedPage page)
+        {
+            var scaled = new PdfPen(pen.Color, pen.Width * ScaleFactor(page)) { DashStyle = pen.DashStyle };
+            return scaled;
+        }
+
+        private static PdfFont ScaleFont(PdfFont font, RecordedPage page) =>
+            new(font.FamilyName, font.Size * ScaleFactor(page), font.Style);
+
+        private static double ScaleFactor(RecordedPage page) =>
+            Math.Sqrt(page.ScaleX * page.ScaleY);
 
         private static (double Width, double Height) GetPageDimensions(PdfPageSize size, PdfPageOrientation orientation)
         {
