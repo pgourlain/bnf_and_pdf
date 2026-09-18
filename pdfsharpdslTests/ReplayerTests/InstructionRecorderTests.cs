@@ -9,6 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Irony;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace pdfsharpdslTests.ReplayerTests
@@ -145,6 +146,92 @@ namespace pdfsharpdslTests.ReplayerTests
             AddInstructions(block1, 1, 100);
             Assert.Equal(new XRect(0,200, 50, 100), block.Rect);
             Assert.Equal(new XRect(0,100, 50, 100), block1.Rect);
+        }
+
+        [Fact]
+        public void InstructionActionExecutesWithOffsetAndExposesMetadata()
+        {
+            var rectangle = new XRect(1, 2, 3, 4);
+            double? appliedOffset = null;
+            var instruction = new InstructionAction(offset => appliedOffset = offset, rectangle, "action");
+
+            var result = instruction.Draw(defaultDrawerMock().Object, 12, 99);
+
+            Assert.Equal(rectangle, instruction.Rect);
+            Assert.Equal("action", instruction.Name);
+            Assert.Equal(12, appliedOffset);
+            Assert.Equal(0, result);
+        }
+
+        [Fact]
+        public void RecorderRootRejectsInstructionsAndBlockMetadataCanBeCleared()
+        {
+            var recorder = new BlocksRecorder();
+            var instruction = new DummyInstruction(new XRect(0, 0, 10, 10));
+
+            Assert.False(recorder.CanPushInstruction);
+            Assert.Throws<NotSupportedException>(() => recorder.CurrentBlock.PushInstruction(instruction));
+
+            var block = recorder.OpenBlock("named", 15, false, 4);
+            block.PushInstruction(instruction, false);
+
+            Assert.True(recorder.CanPushInstruction);
+            Assert.Equal("named", block.Name);
+            Assert.Equal(15, block.OffsetY);
+            Assert.NotNull(block.Parent);
+            Assert.True(block.Rect.IsEmpty);
+            Assert.Single(block.Instructions);
+
+            block.Clear();
+            Assert.Empty(block.Instructions);
+        }
+
+        [Fact]
+        public void NestedBlockMovesToNextPage()
+        {
+            var logger = new Mock<ILogger>();
+            logger.Setup(x => x.IsEnabled(LogLevel.Debug)).Returns(true);
+            var drawer = defaultDrawerMock();
+            var recorder = new BlocksRecorder(logger.Object);
+            var outer = recorder.OpenBlock("outer", 0, false);
+            var child = outer.OpenBlock("child", 250, true);
+            var instruction = new DummyInstruction(new XRect(0, 0, 50, 50));
+            child.PushInstruction(instruction);
+
+            var pageOffset = outer.Draw(drawer.Object, 0, 0);
+
+            drawer.Verify(x => x.NewPage(null, null), Times.Once);
+            Assert.Equal(new XRect(0, 0, 50, 50), instruction.DrawingRect);
+            Assert.True(pageOffset > 0);
+        }
+
+        [Fact]
+        public void OversizedNestedBlockCannotBePrintedEntirely()
+        {
+            var drawer = defaultDrawerMock();
+            var recorder = new BlocksRecorder();
+            var outer = recorder.OpenBlock("outer", 0, false);
+            var child = outer.OpenBlock("child", 0, true);
+            child.PushInstruction(new DummyInstruction(new XRect(0, 0, 50, 400)));
+
+            Assert.Throws<NotImplementedException>(() => outer.Draw(drawer.Object, 0, 0));
+        }
+
+        [Fact]
+        public void InstructionsCannotBeAddedWhileBlockIsDrawing()
+        {
+            var drawer = defaultDrawerMock();
+            var recorder = new BlocksRecorder();
+            var block = recorder.OpenBlock("block", 0, true);
+            var extraInstruction = new DummyInstruction(new XRect(0, 20, 10, 10));
+            block.PushInstruction(new InstructionAction(
+                _ => block.PushInstruction(extraInstruction),
+                new XRect(0, 0, 10, 10),
+                "mutating"));
+
+            block.Draw(drawer.Object, 0, 0);
+
+            Assert.Single(block.Instructions);
         }
 
         private static void AddInstructions(IInstructionBlock block, int count, int height)
