@@ -562,11 +562,10 @@ namespace PdfSharpDslCore.Parser
                     for (var i = 0; i < rowCount; i++)
                     {
                         var rowDef = new RowDefinition();
-                        var cols = row.ChildNodes("TableCol").SelectMany(x => x.ChildNodes)
-                            .Where(x => x.Term?.Name != "COL").ToArray();
 
                         vars.Add("ROWINDEX", i);
-                        var rowData = cols.Select(x => EvaluateForObject(x)?.ToString()!).ToList();
+                        rowDef.Cells = row.ChildNodes("TableCol").Select(ParseTableCell).ToList();
+                        var rowData = rowDef.Cells.Select(cell => cell.Text).ToList();
 
                         while (rowData.Count < tbl.Columns.Count)
                         {
@@ -598,11 +597,8 @@ namespace PdfSharpDslCore.Parser
                     rowDef.DesiredHeight = rowHeight;
                 }
 
-                var cols = row.ChildNodes("TableCol").SelectMany(x => x.ChildNodes).Where(x => x.Term?.Name != "COL")
-                    .ToArray();
-
-
-                var rowData = cols.Select(x => x.Token.ValueString).ToList();
+                rowDef.Cells = row.ChildNodes("TableCol").Select(ParseTableCell).ToList();
+                var rowData = rowDef.Cells.Select(cell => cell.Text).ToList();
                 while (rowData.Count < tbl.Columns.Count)
                 {
                     rowData.Add(string.Empty);
@@ -611,6 +607,34 @@ namespace PdfSharpDslCore.Parser
                 rowDef.Data = rowData.ToArray();
                 tbl.Rows.Add(rowDef);
             }
+        }
+
+        private CellDefinition ParseTableCell(ParseTreeNode node)
+        {
+            var expression = node.ChildNodes.Last();
+            var cell = new CellDefinition
+            {
+                Text = EvaluateForObject(expression)?.ToString() ?? string.Empty,
+                ColumnSpan = ParseTableCellSpan(node.ChildNode("TableCellColSpan")),
+                RowSpan = ParseTableCellSpan(node.ChildNode("TableCellRowSpan"))
+            };
+            var alignment = node.ChildNode("TextAlignment");
+            if (alignment is not null)
+            {
+                var hNode = alignment.ChildNode("HAlign");
+                var vNode = alignment.ChildNode("VAlign");
+                if (hNode?.ChildNodes.Count > 0)
+                    cell.HorizontalAlignment = ParseTextAlignment(hNode, null).Item1;
+                if (vNode?.ChildNodes.Count > 0)
+                    cell.VerticalAlignment = ParseTextAlignment(null, vNode).Item2;
+            }
+            return cell;
+        }
+
+        private int ParseTableCellSpan(ParseTreeNode? node)
+        {
+            if (node is null || node.ChildNodes.Count == 0) return 1;
+            return Math.Max(1, Convert.ToInt32(EvaluateForDouble(node.ChildNodes.Last())));
         }
 
         private void GenerateTableHead(IEnumerable<ParseTreeNode> nodes, TableDefinition tbl)

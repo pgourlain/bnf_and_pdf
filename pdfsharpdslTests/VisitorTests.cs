@@ -211,6 +211,37 @@ namespace pdfsharpdslTests
         }
 
         [Fact]
+        public void TableCellsCaptureSpansAndAlignment()
+        {
+            var tree = ParseText(
+                "TABLE 20,30 " +
+                "HEAD " +
+                "COL Width=100 MaxWidth=100 \"A\"; " +
+                "COL Width=100 MaxWidth=100 \"B\"; " +
+                "COL Width=100 MaxWidth=100 \"C\"; " +
+                "ENDHEAD " +
+                "ROW 40 " +
+                "COL ColSpan=2 RowSpan=2 HAlign=hcenter VAlign=bottom \"Merged\"; " +
+                "COL HAlign=right \"Right\"; " +
+                "ENDROW " +
+                "ROW COL \"Remaining\"; ENDROW " +
+                "ENDTABLE");
+            TableDefinition? capturedTable = null;
+            var drawer = new Mock<IPdfDocumentDrawer>();
+            drawer.Setup(x => x.DrawTable(20, 30, It.IsAny<TableDefinition>()))
+                .Callback<double, double, TableDefinition>((_, _, table) => capturedTable = table);
+
+            new InspectablePdfDrawerVisitor().Draw(drawer.Object, tree);
+
+            var mergedCell = Assert.Single(capturedTable!.Rows[0].Cells, cell => cell.Text == "Merged");
+            Assert.Equal(2, mergedCell.ColumnSpan);
+            Assert.Equal(2, mergedCell.RowSpan);
+            Assert.Equal(PdfHorizontalAlignment.Center, mergedCell.HorizontalAlignment);
+            Assert.Equal(PdfVerticalAlignment.Far, mergedCell.VerticalAlignment);
+            Assert.Equal(PdfHorizontalAlignment.Far, capturedTable.Rows[0].Cells[1].HorizontalAlignment);
+        }
+
+        [Fact]
         public void CustomUdfCanFallBackToDslBodyOrOverrideIt()
         {
             var fallbackTree = ParseText("UDF SAMPLE(X) LINE $X,0,$X,1; ENDUDF CALL SAMPLE(3);");

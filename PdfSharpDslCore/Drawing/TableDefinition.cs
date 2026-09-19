@@ -71,9 +71,20 @@ namespace PdfSharpDslCore.Drawing
         public double? DesiredHeight { get; set; }
         public double? MaxHeight { get; set; }
 
+        public List<CellDefinition> Cells { get; set; } = new();
+
         /// <summary>
         /// string because there is only draw text
         /// </summary>
         public string[] Data { get; set; } = Array.Empty<string>();
+    }
+
+    public class CellDefinition
+    {
+        public string Text { get; set; } = string.Empty;
+        public int ColumnSpan { get; set; } = 1;
+        public int RowSpan { get; set; } = 1;
+        public PdfHorizontalAlignment? HorizontalAlignment { get; set; }
+        public PdfVerticalAlignment? VerticalAlignment { get; set; }
     }
 }
