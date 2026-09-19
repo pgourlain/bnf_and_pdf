@@ -37,6 +37,19 @@ namespace pdfsharpdslTests
             Assert.True(pdf.ContentStreamCount > 0);
         }
 
+        [Fact]
+        public void DrawingEmbeddedImageAddsPdfImageResource()
+        {
+            const string input = "NEWPAGE A4 portrait;" +
+                "IMAGE 10,10,20,20 point fit Data=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=\";";
+
+            using var memStm = GeneratePdf(input);
+            var pdf = new PdfBinaryInspector(memStm);
+
+            Assert.True(pdf.HasPdfHeader);
+            Assert.Equal(1, pdf.ImageCount);
+        }
+
         [Theory()]
         [InlineData("pdf1-udfs.txt")]
         public void TestdrawingUdfsOutPut(string file)

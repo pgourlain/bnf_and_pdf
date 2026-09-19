@@ -10,6 +10,7 @@
 		<Version>2.0.0</Version>
 		<Authors>Pierrick Gourlain</Authors>
 		<Company></Company>
+		<UseLocalTerraPdf Condition="'$(UseLocalTerraPdf)' == '' and Exists('..\..\TerraPDF\src\TerraPDF\TerraPDF.csproj')">true</UseLocalTerraPdf>
 		<Description>A DSL using TerraPDF to generate PDF</Description>
 		<RepositoryUrl>https://github.com/pgourlain/bnf_and_pdf</RepositoryUrl>
 		<PackageIcon>Icon.jpg</PackageIcon>
@@ -17,19 +18,23 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <None Include="..\LICENSE.md">
-	    <Pack>True</Pack>
-	    <PackagePath>\</PackagePath>
-	  </None>
-	</ItemGroup>
-
-	<ItemGroup>
+		<None Include="..\LICENSE.md">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
 		<PackageReference Include="Irony" Version="1.5.3" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
-		<PackageReference Include="TerraPDF" Version="2.1.0" />
+		<PackageReference Include="TerraPDF" Version="2.1.0" Condition="'$(UseLocalTerraPdf)' != 'true'" />
+	</ItemGroup>
+	<ItemGroup Condition="'$(UseLocalTerraPdf)' == 'true'">
+		<ProjectReference Include="..\..\TerraPDF\src\TerraPDF\TerraPDF.csproj" />
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\PdfSharpDsl.Language\PdfSharpDsl.Language.csproj" />
+	</ItemGroup>
+	<ItemGroup>
+		<Compile Remove="Extensions\ParseTreeNodeExtensions.cs" />
+		<Compile Remove="Parser\PdfGrammar.cs" />
 	</ItemGroup>
 	<ItemGroup>
 		<InternalsVisibleTo Include="pdfsharpdslTests" />

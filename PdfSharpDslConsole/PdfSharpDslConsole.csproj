@@ -57,6 +57,9 @@
     <None Update="pdfsharp-newpage.ipdf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="demo.ipdf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <!-- <None Update="pdfsharp.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None> -->
