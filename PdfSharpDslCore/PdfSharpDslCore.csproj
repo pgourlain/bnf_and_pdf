@@ -24,7 +24,7 @@
 		</None>
 		<PackageReference Include="Irony" Version="1.5.3" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
-		<PackageReference Include="TerraPDF" Version="2.1.0" Condition="'$(UseLocalTerraPdf)' != 'true'" />
+		<PackageReference Include="TerraPDF" Version="2.2.0" Condition="'$(UseLocalTerraPdf)' != 'true'" />
 	</ItemGroup>
 	<ItemGroup Condition="'$(UseLocalTerraPdf)' == 'true'">
 		<ProjectReference Include="..\..\TerraPDF\src\TerraPDF\TerraPDF.csproj" />
