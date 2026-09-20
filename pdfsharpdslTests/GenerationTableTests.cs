@@ -14,6 +14,7 @@ namespace pdfsharpdslTests
     {
         [Theory]
         [InlineData("pdf1-table.txt")]
+        [InlineData("pdf1-table-merged.txt")]
         public void TestDrawingNotFailed(string file)
         {
             var input = File.ReadAllText($"./ValidInputFiles/{file}");

@@ -195,6 +195,50 @@ namespace pdfsharpdslTests
         }
 
         [Fact]
+        public void TableColParsesColSpanRowSpanAndAlignment()
+        {
+            var tree = ParseText(
+                "TABLE 20,30 " +
+                "HEAD " +
+                "COL Width=40 MaxWidth=30 \"A\"; " +
+                "COL Width=auto MaxWidth=100 \"B\"; " +
+                "ENDHEAD " +
+                "ROW " +
+                "COL ColSpan=2 HAlign=hcenter VAlign=vcenter \"merged\"; " +
+                "ENDROW " +
+                "ROW " +
+                "COL RowSpan=2 \"plain\"; " +
+                "COL \"formula: \"+(1+1); " +
+                "ENDROW " +
+                "ENDTABLE");
+            TableDefinition? capturedTable = null;
+            var drawer = new Mock<IPdfDocumentDrawer>();
+            drawer.Setup(x => x.DrawTable(20, 30, It.IsAny<TableDefinition>()))
+                .Callback<double, double, TableDefinition>((_, _, table) => capturedTable = table);
+            var visitor = new InspectablePdfDrawerVisitor();
+
+            visitor.Draw(drawer.Object, tree);
+
+            Assert.NotNull(capturedTable);
+            var mergedCell = capturedTable.Rows[0].Cells[0];
+            Assert.Equal("merged", mergedCell.Text);
+            Assert.Equal(2, mergedCell.ColumnSpan);
+            Assert.Equal(1, mergedCell.RowSpan);
+            Assert.Equal(XStringAlignment.Center, mergedCell.HorizontalAlignment);
+            Assert.Equal(XLineAlignment.Center, mergedCell.VerticalAlignment);
+
+            var plainCell = capturedTable.Rows[1].Cells[0];
+            Assert.Equal("plain", plainCell.Text);
+            Assert.Equal(1, plainCell.ColumnSpan);
+            Assert.Equal(2, plainCell.RowSpan);
+            Assert.Null(plainCell.HorizontalAlignment);
+            Assert.Null(plainCell.VerticalAlignment);
+
+            var formulaCell = capturedTable.Rows[1].Cells[1];
+            Assert.Equal("formula: 2", formulaCell.Text);
+        }
+
+        [Fact]
         public void CustomUdfCanFallBackToDslBodyOrOverrideIt()
         {
             var fallbackTree = ParseText("UDF SAMPLE(X) LINE $X,0,$X,1; ENDUDF CALL SAMPLE(3);");

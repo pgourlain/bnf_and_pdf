@@ -113,6 +113,8 @@ namespace PdfSharpDslCore.Parser
             var TableRowListOrRowTemplate = new NonTerminal("TableRowListOrRowTemplate");
             var TableRowTemplate = new NonTerminal("TableRowTemplate");
             var TableRowTemplateCount = new NonTerminal("TableRowTemplateCount");
+            var TableCellColSpan = new NonTerminal("TableCellColSpan");
+            var TableCellRowSpan = new NonTerminal("TableCellRowSpan");
 
             var PointAutoLocation = new NonTerminal("PointAutoLocation");
             var NumberOrAuto = new NonTerminal("NumberOrAuto");
@@ -333,7 +335,9 @@ namespace PdfSharpDslCore.Parser
             TableColWidth.Rule = Arg("Width") + NumberOrAuto + Arg("MaxWidth") + NumberOrAuto;
             TableColList.Rule = MakeStarRule(TableColList, TableCol);
             TableRow.Rule = ToTerm("ROW") + TableRowStyle + TableColList + ToTerm("ENDROW");
-            TableCol.Rule = ToTerm("COL") + FormulaExpression + semi;
+            TableCellColSpan.Rule = Empty | Arg("ColSpan") + number_literal;
+            TableCellRowSpan.Rule = Empty | Arg("RowSpan") + number_literal;
+            TableCol.Rule = ToTerm("COL") + TableCellColSpan + TableCellRowSpan + TextAlignment + FormulaExpression + semi;
             TableLocation.Rule = PointLocation /*+ "," + PointAutoLocation*/;
             PointAutoLocation.Rule = NumberOrAuto + "," + NumberOrAuto;
             NumberOrAuto.Rule = FormulaExpression | "auto";

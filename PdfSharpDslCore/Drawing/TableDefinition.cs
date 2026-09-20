@@ -77,5 +77,16 @@ namespace PdfSharpDslCore.Drawing
         /// string because there is only draw text
         /// </summary>
         public string[] Data { get; set; } = Array.Empty<string>();
+
+        public List<CellDefinition> Cells { get; set; } = new();
+    }
+
+    public class CellDefinition
+    {
+        public string Text { get; set; } = string.Empty;
+        public int ColumnSpan { get; set; } = 1;
+        public int RowSpan { get; set; } = 1;
+        public XStringAlignment? HorizontalAlignment { get; set; }
+        public XLineAlignment? VerticalAlignment { get; set; }
     }
 }
