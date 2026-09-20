@@ -1,13 +1,16 @@
 
 # Change log
 
-## Unreleased
-* Migrated console and test projects to .NET 10 while retaining reusable projects on .NET Standard 2.0.
-* Added reproducible core-only coverage enforcement at 90% line coverage.
-* Added Roslyn source-generator compilation and clean NuGet consumer validation.
+## Version 2.0.0 (unreleased)
 * Migrated PDF generation from PdfSharpCore and its image/font/archive dependencies to TerraPDF 2.1.0.
 * Added engine-independent drawing primitives and `PdfSharpDsl.Language` for the netstandard2.0 source generator.
 * Added `PublishPdf(Stream)`, `PublishPdf(string)` and `PublishPdf()` to `PdfDocumentDrawer`.
+* **Breaking:** `PdfSharpDslCore` now targets `net8.0` (was `netstandard2.0`).
+
+## Version 1.0.6 (September 20, 2026)
+* Migrated console and test projects to .NET 10 while retaining reusable projects on .NET Standard 2.0.
+* Added reproducible core-only coverage enforcement at 90% line coverage.
+* Added Roslyn source-generator compilation and clean NuGet consumer validation.
 
 ## Version 1.0.5 (March 3, 2024)
 * Update nugets packages and upgrade to .Net 8
