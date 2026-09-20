@@ -1,49 +1,47 @@
-using PdfSharpCore;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Drawing.Layout;
-using PdfSharpCore.Drawing.Layout.enums;
-using PdfSharpCore.Pdf;
-using SixLabors.ImageSharp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
 using Microsoft.Extensions.Logging;
 using PdfSharpDslCore.Extensions;
-using SixLabors.Fonts;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using TerraPDF.Core;
 
 namespace PdfSharpDslCore.Drawing
 {
     public sealed class PdfDocumentDrawer : IDisposable, IPdfDocumentDrawer
     {
-        private readonly PdfDocument _document;
-        private readonly ILogger? _logger;
-        private PdfPage? _currentPage;
-        private XPen? _currentPen;
-        private XBrush? _currentBrush;
-
-        private XFont? _currentFont;
-        private XGraphics? _gfx;
-        private IXGraphicsRenderer? _gfxRenderer;
-        private bool _disposedValue;
-        private XPoint _currentPoint = new XPoint(0, 0);
-        private PageSize _defaultPageSize = PageSize.A4;
-        private PageOrientation _defaultPageOrientation = PageOrientation.Portrait;
-        private readonly List<Action<int>> _onNewPageHooks = new();
-
-        private readonly DrawingContext _drawingCtx;
-
-        private readonly XPen _debugPen = new XPen(XColors.Red, 0.5) { DashStyle = XDashStyle.DashDot };
-        private readonly Lazy<XFont> _debugFont = new Lazy<XFont>(() => new XFont("monospace", 6));
-
-        public PdfDocumentDrawer(PdfDocument document, ILogger? logger = null)
+        private sealed class RecordedPage
         {
-            _drawingCtx = new(logger);
-            _document = document ?? throw new ArgumentNullException(nameof(document));
-            _logger = logger;
+            public RecordedPage(PdfPageSize size, PdfPageOrientation orientation)
+            {
+                (Width, Height) = GetPageDimensions(size, orientation);
+            }
+
+            public double Width { get; }
+            public double Height { get; }
+            public double ScaleX { get; set; } = 1;
+            public double ScaleY { get; set; } = 1;
+            public List<Action<VectorCanvas>> Commands { get; } = new();
         }
 
-        #region properties
+        private readonly ILogger? _logger;
+        private readonly DrawingContext _drawingCtx;
+        private readonly List<RecordedPage> _pages = new();
+        private readonly List<Action<int>> _onNewPageHooks = new();
+        private readonly Stack<bool> _measurementStates = new();
+        private PdfPageSize _defaultPageSize = PdfPageSize.A4;
+        private PdfPageOrientation _defaultPageOrientation = PdfPageOrientation.Portrait;
+        private PdfPen? _currentPen;
+        private PdfBrush? _currentBrush;
+        private PdfFont? _currentFont;
+        private PdfPoint _currentPoint;
+        private bool _isMeasuring;
+
+        public PdfDocumentDrawer(ILogger? logger = null)
+        {
+            _logger = logger;
+            _drawingCtx = new DrawingContext(logger);
+        }
 
         public DebugOptions DebugOptions
         {
@@ -51,890 +49,571 @@ namespace PdfSharpDslCore.Drawing
             set => _drawingCtx.DebugOptions = value;
         }
 
-        public PdfPage CurrentPage
+        public PdfPen CurrentPen
         {
-            get
-            {
-                if (_currentPage is not null) return _currentPage;
-                _currentPage = _document.AddPage();
-                _currentPage.Size = _defaultPageSize;
-                _currentPage.Orientation = _defaultPageOrientation;
-
-                return _currentPage;
-            }
-            set
-            {
-                if (_currentPage == value) return;
-                _currentPage = value;
-                if (_logger.DebugEnabled())
-                {
-                    _logger.WriteDebug(this, $"Dispose GFX:{_gfx?.GetHashCode() ?? 0}");
-                }
-                _gfx?.Dispose();
-                _gfx = null;
-                _gfxRenderer = null;
-            }
+            get => _currentPen ??= new PdfPen(PdfColor.Black, 1);
+            set => _currentPen = value ?? throw new ArgumentNullException(nameof(value));
         }
 
-        public XPen CurrentPen
+        public PdfBrush CurrentBrush
         {
-            get => _currentPen ??= XPens.Black;
-            set => _currentPen = value;
+            get => _currentBrush ??= new PdfBrush(PdfColor.Black);
+            set => _currentBrush = value ?? throw new ArgumentNullException(nameof(value));
         }
 
-        public XBrush CurrentBrush
-        {
-            get => _currentBrush ??= XBrushes.Black;
-            set => _currentBrush = value;
-        }
+        public PdfBrush? HighlightBrush { get; set; }
 
-        public XBrush? HighlightBrush { get; set; }
-
-        public XFont CurrentFont
+        public PdfFont CurrentFont
         {
-            get => _currentFont ??= new XFont("Arial", 10);
-            set => _currentFont = value;
+            get => _currentFont ??= new PdfFont("Helvetica", 10);
+            set => _currentFont = value ?? throw new ArgumentNullException(nameof(value));
         }
 
         public double PageWidth => CurrentPage.Width;
         public double PageHeight => CurrentPage.Height;
 
-
-        private XGraphics Gfx
+        private RecordedPage CurrentPage
         {
             get
             {
-                if (_gfx is not null) return _gfx;
-                if (_logger.DebugEnabled())
+                if (_pages.Count == 0)
                 {
-                    _logger.WriteDebug(this, "Create new gfx from page");
+                    _pages.Add(new RecordedPage(_defaultPageSize, _defaultPageOrientation));
                 }
-                _gfx = XGraphics.FromPdfPage(CurrentPage);
-                // HACK, read from https://github.com/ststeiger/PdfSharpCore/blob/master/docs/MigraDocCore/samples/MixMigraDocCoreAndPDFsharpCore.md
-                _gfx.MUH = PdfFontEncoding.Unicode;
 
-                return _gfx;
+                return _pages[_pages.Count - 1];
             }
         }
 
-        #endregion
-
-        private void Dispose(bool disposing)
+        public void PublishPdf(Stream stream)
         {
-            if (_disposedValue) return;
-            if (disposing)
+            ArgumentNullException.ThrowIfNull(stream);
+            CreateDocument().PublishPdf(stream);
+        }
+
+        public void PublishPdf(string path)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(path);
+            CreateDocument().PublishPdf(path);
+        }
+
+        public byte[] PublishPdf() => CreateDocument().PublishPdf();
+
+        private DocumentComposer CreateDocument()
+        {
+            _ = CurrentPage;
+            return Document.Create(document =>
             {
-                // TODO: dispose managed state (managed objects)
-                _gfx?.Dispose();
-            }
-
-            _gfx = null;
-            _gfxRenderer = null;
-            // TODO: free unmanaged resources (unmanaged objects) and override finalizer
-            // TODO: set large fields to null
-            _disposedValue = true;
-        }
-
-        public void Dispose()
-        {
-            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-            Dispose(disposing: true);
+                foreach (var recordedPage in _pages)
+                {
+                    document.Page(page =>
+                    {
+                        page.Size(recordedPage.Width, recordedPage.Height);
+                        page.Margin(0);
+                        page.Content().Canvas(recordedPage.Height, canvas =>
+                        {
+                            foreach (var command in recordedPage.Commands)
+                            {
+                                command(canvas);
+                            }
+                        });
+                    });
+                }
+            });
         }
 
         public void DrawLine(double x, double y, double x1, double y1)
         {
             var page = CurrentPage;
-            if (x < 0)
-            {
-                x = page.Width + x;
-            }
-
-            if (y < 0)
-            {
-                y = page.Height + y;
-            }
-
-            if (x1 < 0)
-            {
-                x1 = page.Width + x1;
-            }
-
-            if (y1 < 0)
-            {
-                y1 = page.Height + y1;
-            }
-            InternalDrawLine(CurrentPen, x, y, x1, y1);
+            InternalDrawLine(ScalePen(CurrentPen, page), ScaleX(ResolveX(x, page), page), ScaleY(ResolveY(y, page), page),
+                ScaleX(ResolveX(x1, page), page), ScaleY(ResolveY(y1, page), page));
         }
 
-        private void InternalDrawLine(XPen pen, double x, double y, double x1, double y1)
+        private void InternalDrawLine(PdfPen pen, double x, double y, double x1, double y1)
         {
-            Gfx.DrawLine(pen, x, y, x1, y1);
-            this._drawingCtx.PushInstruction((oy) => InternalDrawLine(pen, x, y+oy, x1, y1+oy), new XRect(new XPoint(x, y), new XPoint(x1, y1)));
+            AddCommand(canvas => DrawStyledLine(canvas, pen, x, y, x1, y1));
+            _drawingCtx.PushInstruction(offset => InternalDrawLine(pen, x, y + offset, x1, y1 + offset),
+                new PdfRect(new PdfPoint(x, y), new PdfPoint(x1, y1)));
+        }
+
+        private static void DrawStyledLine(VectorCanvas canvas, PdfPen pen, double x, double y, double x1, double y1)
+        {
+            canvas.Line(x, y, x1, y1, pen.Color.Hex, pen.Width, pen.Color.Opacity, GetDashPattern(pen));
+        }
+
+        private static double[]? GetDashPattern(PdfPen pen)
+        {
+            var width = Math.Max(pen.Width, 0.1);
+            return pen.DashStyle switch
+            {
+                PdfDashStyle.Dash => new[] { 4 * width, 3 * width },
+                PdfDashStyle.Dot => new[] { width, 2 * width },
+                PdfDashStyle.DashDot => new[] { 4 * width, 3 * width, width, 3 * width },
+                PdfDashStyle.DashDotDot => new[] { 4 * width, 3 * width, width, 2 * width, width, 2 * width },
+                _ => null,
+            };
         }
 
         public void DrawRect(double x, double y, double w, double h, bool isFilled)
         {
-            (x, y, w, h) = CurrentPage.CoordRectToPage(x, y, w, h);
-            InternalDrawRect(CurrentPen, CurrentBrush, x, y, w, h, isFilled);
+            var page = CurrentPage;
+            (x, y, w, h) = DrawingHelper.CoordRectToPage(page.Width, page.Height, x, y, w, h);
+            InternalDrawRect(ScalePen(CurrentPen, page), CurrentBrush, ScaleX(x, page), ScaleY(y, page), ScaleX(w, page), ScaleY(h, page), isFilled);
         }
 
-        private void InternalDrawRect(XPen pen, XBrush brush, double x, double y, double w, double h, bool isFilled)
+        private void InternalDrawRect(PdfPen pen, PdfBrush brush, double x, double y, double w, double h, bool isFilled)
         {
-            if (isFilled)
+            var dashPattern = GetDashPattern(pen);
+            AddCommand(canvas =>
             {
-                Gfx.DrawRectangle(pen, brush, x, y, w, h);
-            }
-            else
-            {
-                Gfx.DrawRectangle(pen, x, y, w, h);
-            }
-            this._drawingCtx.PushInstruction((oy) => InternalDrawRect(pen, brush, x, y+oy, w, h, isFilled), new XRect(x, y, w, h));
+                if (isFilled) canvas.FillRect(x, y, w, h, brush.Color.Hex, brush.Color.Opacity);
+                canvas.StrokeRect(x, y, w, h, pen.Color.Hex, pen.Width, pen.Color.Opacity, dashPattern);
+            });
+            _drawingCtx.PushInstruction(offset => InternalDrawRect(pen, brush, x, y + offset, w, h, isFilled),
+                new PdfRect(x, y, w, h));
         }
 
         public void DrawEllipse(double x, double y, double w, double h, bool isFilled)
         {
-            (x, y, w, h) = CurrentPage.CoordRectToPage(x, y, w, h);
-            var r = new XRect(x, y, w, h);
-            InternalDrawEllipse(isFilled, r, CurrentPen, CurrentBrush);
+            var page = CurrentPage;
+            (x, y, w, h) = DrawingHelper.CoordRectToPage(page.Width, page.Height, x, y, w, h);
+            InternalDrawEllipse(ScalePen(CurrentPen, page), CurrentBrush, ScaleX(x, page), ScaleY(y, page), ScaleX(w, page), ScaleY(h, page), isFilled);
         }
 
-        private void InternalDrawEllipse(bool isFilled, XRect r, XPen pen, XBrush brush)
+        private void InternalDrawEllipse(PdfPen pen, PdfBrush brush, double x, double y, double w, double h, bool isFilled)
         {
-            if (isFilled)
+            AddCommand(canvas =>
             {
-                Gfx.DrawEllipse(pen, brush, r);
-            }
-            else
-            {
-                Gfx.DrawEllipse(pen, r);
-            }
-            this._drawingCtx.PushInstruction((oy) => InternalDrawEllipse(isFilled, r.OffsetY(oy), pen, brush), r);
+                var cx = x + w / 2;
+                var cy = y + h / 2;
+                if (isFilled) canvas.FillEllipse(cx, cy, w / 2, h / 2, brush.Color.Hex, brush.Color.Opacity);
+                canvas.StrokeEllipse(cx, cy, w / 2, h / 2, pen.Color.Hex, pen.Width, pen.Color.Opacity);
+            });
+            _drawingCtx.PushInstruction(offset => InternalDrawEllipse(pen, brush, x, y + offset, w, h, isFilled), new PdfRect(x, y, w, h));
         }
 
-        public void DrawText(string text, double x, double y, double? w,
-            double? h)
+        public void DrawText(string text, double x, double y, double? w, double? h)
         {
             var page = CurrentPage;
-            (x, y, w, h) = page.CoordRectToPage(x, y, w, h);
-            //20221009 : only top left is supported
-            if (w == null || h == null)
-            {
-                //because of missing w/h alignment is Left
-                var sizeFormatter = new XTextSegmentFormatter(Gfx)
-                {
-                    Alignment = XParagraphAlignment.Left
-                };
-                w = w ?? page.Width - x;
-                var size = sizeFormatter.CalculateTextSize(text, CurrentFont, CurrentBrush, w.Value);
-                var r = new XRect(x, y, size.Width, size.Height);
-
-                sizeFormatter.DrawString(text, CurrentFont, CurrentBrush, r);
-                if (_drawingCtx.DebugText)
-                {
-                    DebugRect(r);
-                }
-            }
-            else
-            {
-                //fmt is not used, because DrawString support only TopLeft
-                var r = new XRect(x, y, w.Value, h.Value);
-                var formatter = new XTextFormatter(Gfx);
-                formatter.DrawString(text, CurrentFont, CurrentBrush, r);
-                if (_drawingCtx.DebugText)
-                {
-                    DebugRect(r);
-                }
-            }
+            (x, y, w, h) = DrawingHelper.CoordRectToPage(page.Width, page.Height, x, y, w, h);
+            InternalDrawText(text, ScaleX(x, page), ScaleY(y, page), w.HasValue ? ScaleX(w.Value, page) : page.Width - x,
+                h.HasValue ? ScaleY(h.Value, page) : null, PdfHorizontalAlignment.Near, PdfVerticalAlignment.Near,
+                ScaleFont(CurrentFont, page), CurrentBrush, null);
         }
 
-        public void DrawLineText(string text, double x, double y, double? w, double? h, XStringAlignment hAlign,
-            XLineAlignment vAlign, TextOrientation textOrientation)
-        {
-            (x, y, w, h) = CurrentPage.CoordRectToPage(x, y, w, h);
-            var fmt = new XStringFormat
-            {
-                Alignment = hAlign,
-                LineAlignment = vAlign,
-            };
-            InternalDrawLineText(text, x, y, w, h, textOrientation, fmt, CurrentFont, CurrentBrush, HighlightBrush);
-        }
-
-        private void InternalDrawLineText(string text, double x, double y, double? w, double? h,
-            TextOrientation textOrientation, XStringFormat fmt, XFont font, XBrush brush, XBrush? hb)
-        {
-            XRect r;
-            //TODO : optimize to do this only on vertical text
-            var cnt = Gfx.BeginContainer();
-            try
-            {
-                r = InternalDrawString(text, x, y, w, h, fmt, textOrientation, font, brush, hb);
-            }
-            finally
-            {
-                Gfx.EndContainer(cnt);
-            }
-
-            this._drawingCtx.PushInstruction(
-                (oy) => InternalDrawLineText(text, x, y+oy, w, h, textOrientation, fmt, font, brush, hb), r, instrName:$"DrawLineText({text})");
-        }
-
-        private XRect InternalDrawString(string text, double x, double y, double? w, double? h,
-            XStringFormat fmt, TextOrientation textOrientation, XFont font, XBrush brush, XBrush? hb)
-        {
-            XRect result;
-            double angle = 0;
-
-            if (textOrientation.Angle is not null)
-            {
-                angle = textOrientation.Angle.Value;
-            }
-            else if (textOrientation.Orientation == TextOrientationEnum.Vertical)
-            {
-                angle = 90;
-            }
-
-            if (angle != 0)
-            {
-                Gfx.RotateAtTransform(angle, new XPoint(x, y));
-            }
-
-            var textSize = Gfx.MeasureString(text, font);
-            if (w == null || h == null)
-            {
-                Gfx.DrawString(text, font, brush, x, y, fmt);
-                var rText = new XRect(x, y, textSize.Width, textSize.Height);
-                var r = DrawingHelper.RectFromStringFormat(x, y, textSize, fmt);
-                result = r;
-                if (_drawingCtx.DebugText)
-                {
-                    DebugRect(r);
-                }
-
-                if (hb == null) return result;
-
-
-                //
-                //var highlightColor = XColor.FromArgb(50, 255, 233, 178);
-                //var b = new XSolidBrush(highlightColor);
-                Gfx.DrawRectangle(hb, r);
-            }
-            else
-            {
-                //fmt is not used, because DrawString support only TopLeft
-                var r = new XRect(x, y, w.Value, h.Value);
-                Gfx.DrawString(text, font, brush, r, fmt);
-                var hr = DrawingHelper.RectFromStringFormat(x, y, textSize, fmt);
-                result = hr;
-                if (_drawingCtx.DebugText)
-                {
-                    DebugRect(hr);
-                }
-
-                if (hb == null) return result;
-                hr.Intersect(r);
-                //var highlightColor = XColor.FromArgb(50, 255, 233, 178);
-                //var b = new XSolidBrush(highlightColor);
-                Gfx.DrawRectangle(hb, hr);
-            }
-
-            return result;
-        }
-
-        public void DrawTitle(string text, double margin, XStringAlignment hAlign, XLineAlignment vAlign)
+        public void DrawLineText(string text, double x, double y, double? w, double? h, PdfHorizontalAlignment hAlign,
+            PdfVerticalAlignment vAlign, TextOrientation textOrientation)
         {
             var page = CurrentPage;
-
-            var fmt = new XStringFormat
-            {
-                Alignment = hAlign,
-                LineAlignment = vAlign,
-            };
-
-            var textSize = Gfx.MeasureString(text, CurrentFont, XStringFormats.TopLeft);
-            if (margin < 0)
-            {
-                margin = page.Height - textSize.Height + margin;
-            }
-
-            var r = new XRect(0, margin, page.Width, textSize.Height);
-            InternalDrawText(text, r, fmt, textSize, CurrentFont, CurrentBrush, HighlightBrush);
+            (x, y, w, h) = DrawingHelper.CoordRectToPage(page.Width, page.Height, x, y, w, h);
+            InternalDrawText(text, ScaleX(x, page), ScaleY(y, page), w.HasValue ? ScaleX(w.Value, page) : null,
+                h.HasValue ? ScaleY(h.Value, page) : null, hAlign, vAlign, ScaleFont(CurrentFont, page), CurrentBrush, HighlightBrush,
+                textOrientation?.Angle ?? textOrientation?.Orientation switch
+                {
+                    TextOrientationEnum.Vertical => 90,
+                    TextOrientationEnum.HorizontalInvert => 180,
+                    TextOrientationEnum.VerticalInvert => 270,
+                    _ => 0,
+                });
         }
 
-        private void InternalDrawText(string text, XRect r, XStringFormat fmt, XSize textSize,
-            XFont font, XBrush brush, XBrush? hb)
+        private void InternalDrawText(string text, double x, double y, double? w, double? h, PdfHorizontalAlignment hAlign,
+            PdfVerticalAlignment vAlign, PdfFont font, PdfBrush brush, PdfBrush? highlight, double angle = 0)
         {
-            Gfx.DrawString(text, font, brush, r, fmt);
-            this._drawingCtx.PushInstruction((oy) => InternalDrawText(text, r.OffsetY(oy), fmt, textSize, font, brush, hb), r);
-            if (_drawingCtx.DebugText)
+            var lines = WrapText(text, w, font);
+            var lineHeight = font.Size * 1.2;
+            var measuredWidth = lines.Count == 0 ? 0 : lines.Max(line => MeasureText(line, font));
+            var measuredHeight = lines.Count * lineHeight;
+            var rect = new PdfRect(x, y, w ?? measuredWidth, h ?? measuredHeight);
+            var textSize = new PdfSize(Math.Min(measuredWidth, rect.Width), Math.Min(measuredHeight, rect.Height));
+            var textRect = w.HasValue
+                ? DrawingHelper.RectFromStringFormat(rect, textSize, hAlign, vAlign)
+                : DrawingHelper.RectFromStringFormat(x, y, textSize, hAlign, vAlign);
+
+            AddCommand(canvas =>
             {
-                var debugRect = DrawingHelper.RectFromStringFormat(r, textSize, fmt);
-                DebugRect(debugRect);
-            }
+                if (highlight is not null)
+                    canvas.FillRect(textRect.X, textRect.Y, textRect.Width, textRect.Height, highlight.Color.Hex, highlight.Color.Opacity);
 
-            if (hb == null) return;
+                for (var index = 0; index < lines.Count; index++)
+                {
+                    var line = lines[index];
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+                    var lineWidth = MeasureText(line, font);
+                    var lineX = w.HasValue
+                        ? hAlign switch
+                        {
+                            PdfHorizontalAlignment.Center => rect.X + (rect.Width - lineWidth) / 2,
+                            PdfHorizontalAlignment.Far => rect.Right - lineWidth,
+                            _ => rect.X,
+                        }
+                        : hAlign switch
+                        {
+                            PdfHorizontalAlignment.Center => x - lineWidth / 2,
+                            PdfHorizontalAlignment.Far => x - lineWidth,
+                            _ => x,
+                        };
+                    canvas.Text(line, lineX, textRect.Y + font.Size + index * lineHeight, brush.Color.Hex, font.Size,
+                            font.FamilyName, font.Style.HasFlag(PdfFontStyle.Bold), font.Style.HasFlag(PdfFontStyle.Italic), brush.Color.Opacity,
+                            angle);
+                }
+            });
 
-            var hr = DrawingHelper.RectFromStringFormat(r, textSize, fmt);
-            Gfx.DrawRectangle(hb, hr);
+            _drawingCtx.PushInstruction(offset => InternalDrawText(text, x, y + offset, w, h, hAlign, vAlign, font, brush, highlight, angle),
+                textRect, instrName: $"DrawText({text})");
         }
 
-        public void DrawTable(double x, double y, TableDefinition tblDef)
+        public void DrawTitle(string text, double margin, PdfHorizontalAlignment hAlign, PdfVerticalAlignment vAlign)
         {
+            var height = CurrentFont.Size * 1.2;
+            if (margin < 0) margin = PageHeight - height + margin;
+            InternalDrawText(text, 0, margin, PageWidth, height, hAlign, vAlign, CurrentFont, CurrentBrush, HighlightBrush);
+        }
+
+        public void DrawTable(double x, double y, TableDefinition table)
+        {
+            ArgumentNullException.ThrowIfNull(table);
             var availableWidth = PageWidth - x;
-            Gfx.Save();
-            try
+            var fonts = table.Columns.Select(column => column.Font ?? CurrentFont).ToArray();
+            var margins = table.CellMargin;
+            var cells = LayoutTableCells(table);
+
+            for (var index = 0; index < table.Columns.Count; index++)
             {
-                //todo check if the current page can receive 
-                //calculate table dimension
-                var defaultFont = CurrentFont;
-                var defaultBrush = CurrentBrush;
-
-                XFont[] xFonts = new XFont[tblDef.Columns.Count];
-                bool[] colMeasure = new bool[tblDef.Columns.Count];
-                bool calcHeaderHeight = tblDef.HeaderHeight is null;
-                var margins = tblDef.CellMargin;
-                int i = 0;
-                foreach (var column in tblDef.Columns)
-                {
-                    xFonts[i] = column.Font ?? defaultFont;
-                    colMeasure[i] = column.DesiredWidth is null;
-                    if (colMeasure[i] || calcHeaderHeight)
-                    {
-                        var measure = Gfx.MeasureString(column.ColumnHeaderName, xFonts[i]);
-                        if (colMeasure[i])
-                        {
-                            column.DesiredWidth = measure.Width + margins.Left + margins.Right;
-                        }
-
-                        if (calcHeaderHeight)
-                        {
-                            tblDef.HeaderHeight = Math.Max(tblDef.HeaderHeight ?? 0,
-                                measure.Height + margins.Top + margins.Bottom);
-                        }
-                    }
-
-                    i++;
-                }
-
-                var placements = LayoutTableCells(tblDef);
-
-                //measure all rows
-                var sizeFormatter = new XTextSegmentFormatter(Gfx)
-                {
-                    Alignment = XParagraphAlignment.Left
-                };
-                for (var rowIndex = 0; rowIndex < tblDef.Rows.Count; rowIndex++)
-                {
-                    var row = tblDef.Rows[rowIndex];
-                    var rowMeasure = row.DesiredHeight is null;
-                    foreach (var placement in placements)
-                    {
-                        //a spanning cell does not inflate a single column; measured separately below
-                        if (placement.Row != rowIndex || placement.ColumnSpan != 1) continue;
-                        var colIndex = placement.Column;
-                        var text = placement.Cell.Text;
-                        var testSize = !colMeasure[colIndex];
-                        var pageSpaceLeft = tblDef.ColMaxWidth(colIndex, availableWidth);
-                        var column = tblDef.Columns[colIndex];
-                        if (colMeasure[colIndex])
-                        {
-                            var cSize = Gfx.MeasureString(text, xFonts[colIndex]);
-                            cSize.Width += (margins.Left + margins.Right);
-                            if (cSize.Width > pageSpaceLeft)
-                            {
-                                //measure height with fixed width
-                                testSize = true;
-                                column.DesiredWidth = Math.Max(column.DesiredWidth ?? 0, pageSpaceLeft);
-                            }
-                            else
-                            {
-                                column.DesiredWidth = Math.Max(column.DesiredWidth ?? 0, cSize.Width);
-                            }
-
-                            if (rowMeasure && placement.RowSpan == 1)
-                            {
-                                row.DesiredHeight = Math.Max(row.DesiredHeight ?? 0,
-                                    cSize.Height + margins.Top + margins.Bottom);
-                            }
-                        }
-
-                        if (!testSize) continue;
-                        var w = Math.Max(0, Math.Min(column.DesiredWidth ?? 0, pageSpaceLeft));
-                        var measure = SafeCalculateTextSize(sizeFormatter, text, xFonts[colIndex], defaultBrush, w);
-                        if (rowMeasure && placement.RowSpan == 1)
-                        {
-                            row.DesiredHeight = Math.Max(row.DesiredHeight ?? 0,
-                                measure.Height + margins.Top + margins.Bottom);
-                        }
-                    }
-                }
-
-                //column widths are final: build x-offsets, then grow rows for cells spanning columns and/or rows
-                var colX = new double[tblDef.Columns.Count + 1];
-                for (i = 0; i < tblDef.Columns.Count; i++)
-                {
-                    colX[i + 1] = colX[i] + tblDef.Columns[i].DrawWidth;
-                }
-
-                foreach (var placement in placements)
-                {
-                    if (placement.ColumnSpan == 1 && placement.RowSpan == 1) continue;
-                    var spanWidth = colX[placement.Column + placement.ColumnSpan] - colX[placement.Column];
-                    var w = Math.Max(0, spanWidth - margins.Left - margins.Right);
-                    var measure = SafeCalculateTextSize(sizeFormatter, placement.Cell.Text, xFonts[placement.Column],
-                        defaultBrush, w);
-                    var requiredHeight = measure.Height + margins.Top + margins.Bottom;
-                    var spannedRows = tblDef.Rows.Skip(placement.Row).Take(placement.RowSpan).ToArray();
-                    var missingHeight = requiredHeight - spannedRows.Sum(r => r.DesiredHeight ?? 0);
-                    if (missingHeight > 0)
-                    {
-                        var lastSpannedRow = spannedRows[spannedRows.Length - 1];
-                        lastSpannedRow.DesiredHeight = (lastSpannedRow.DesiredHeight ?? 0) + missingHeight;
-                    }
-                }
-
-                //draw header
-                double offsetX = 0;
-                double offsetY = 0;
-                i = 0;
-                if (y + tblDef.HeaderHeight > CurrentPage.Height)
-                {
-                    Gfx.Restore();
-                    NewPage();
-                    Gfx.Save();
-                    //TODO: set top margin
-                    y = 1;
-                }
-
-                foreach (var column in tblDef.Columns)
-                {
-                    var w = column.DrawWidth;
-                    var h = tblDef.HeaderHeight ?? 0;
-
-                    var r = new XRect(offsetX + x, y, w, h);
-                    var hMargin = margins.Left + margins.Right;
-                    var vMargin = margins.Top + margins.Bottom;
-                    var rText = new XRect(offsetX + x + margins.Left, offsetY + y + margins.Top, w - hMargin,
-                        h - vMargin);
-
-                    Gfx.DrawRectangle(CurrentPen, tblDef.HeaderBackColor, r);
-                    offsetX += column.DrawWidth;
-                    //todo: alignment
-                    var fmt = new XStringFormat
-                    { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center };
-                    DrawStringMultiline(column.ColumnHeaderName, xFonts[i], column.Brush ?? defaultBrush, rText, fmt);
-                    i++;
-                }
-
-                offsetY = tblDef.HeaderHeight ?? 0;
-                //draw body; a rowspan/colspan cell is drawn once, at the row/column where it starts
-                for (var rowIndex = 0; rowIndex < tblDef.Rows.Count; rowIndex++)
-                {
-                    var row = tblDef.Rows[rowIndex];
-                    var rowPlacements = placements.Where(p => p.Row == rowIndex).ToArray();
-                    //a row fully covered by a rowspan started above has no placements of its own: never split a rowspan block
-                    if (rowPlacements.Length > 0)
-                    {
-                        var blockHeight = rowPlacements.Max(p =>
-                            tblDef.Rows.Skip(p.Row).Take(p.RowSpan).Sum(sr => sr.DesiredHeight ?? 0));
-                        if (y + offsetY + blockHeight > CurrentPage.Height)
-                        {
-                            Gfx.Restore();
-                            NewPage();
-                            Gfx.Save();
-                            //TODO: set top margin
-                            y = 1;
-                            offsetY = 0;
-                        }
-                    }
-
-                    foreach (var placement in rowPlacements)
-                    {
-                        DrawTableCell(x, y + offsetY, placement, tblDef, xFonts, defaultBrush, colX);
-                    }
-
-                    offsetY += row.DesiredHeight ?? 0;
-                }
-            }
-            finally
-            {
-                Gfx.Restore();
-            }
-        }
-
-        private sealed class TableCellPlacement
-        {
-            public TableCellPlacement(int row, int column, int columnSpan, int rowSpan, CellDefinition cell)
-            {
-                Row = row;
-                Column = column;
-                ColumnSpan = columnSpan;
-                RowSpan = rowSpan;
-                Cell = cell;
+                var column = table.Columns[index];
+                var contentWidth = cells
+                    .Where(cell => cell.Column == index && cell.Cell.ColumnSpan == 1)
+                    .Select(cell => MeasureCellWidth(cell.Cell.Text, fonts[index]))
+                    .DefaultIfEmpty(0)
+                    .Max();
+                var desiredWidth = Math.Max(MeasureCellWidth(column.ColumnHeaderName, fonts[index]), contentWidth)
+                    + margins.Left + margins.Right;
+                column.DesiredWidth ??= Math.Min(desiredWidth,
+                    table.ColMaxWidth(index, availableWidth));
+                table.HeaderHeight ??= fonts[index].Size * 1.2 + margins.Top + margins.Bottom;
             }
 
-            public int Row { get; }
-            public int Column { get; }
-            public int ColumnSpan { get; }
-            public int RowSpan { get; }
-            public CellDefinition Cell { get; }
+            for (var rowIndex = 0; rowIndex < table.Rows.Count; rowIndex++)
+            {
+                var row = table.Rows[rowIndex];
+                var contentHeight = cells.Where(cell => cell.Row == rowIndex && cell.Cell.RowSpan == 1)
+                    .Select(cell =>
+                    {
+                        var width = table.Columns.Skip(cell.Column).Take(cell.Cell.ColumnSpan).Sum(column => column.DrawWidth);
+                        var font = fonts[cell.Column];
+                        return MeasureCellLineCount(cell.Cell.Text, width - margins.Left - margins.Right, font)
+                               * font.Size * 1.2 + margins.Top + margins.Bottom;
+                    }).DefaultIfEmpty(fonts[0].Size * 1.2 + margins.Top + margins.Bottom).Max();
+                row.DesiredHeight ??= contentHeight;
+            }
+
+            foreach (var cell in cells.Where(cell => cell.Cell.RowSpan > 1))
+            {
+                var width = table.Columns.Skip(cell.Column).Take(cell.Cell.ColumnSpan).Sum(column => column.DrawWidth);
+                var font = fonts[cell.Column];
+                var requiredHeight = MeasureCellLineCount(cell.Cell.Text, width - margins.Left - margins.Right, font)
+                                     * font.Size * 1.2 + margins.Top + margins.Bottom;
+                var rows = table.Rows.Skip(cell.Row).Take(cell.Cell.RowSpan).ToArray();
+                var missingHeight = requiredHeight - rows.Sum(row => row.DesiredHeight ?? 0);
+                if (missingHeight > 0)
+                    rows[^1].DesiredHeight = (rows[^1].DesiredHeight ?? 0) + missingHeight;
+            }
+
+            if (y + (table.HeaderHeight ?? 0) > PageHeight) { NewPage(); y = 1; }
+            var offsetY = 0d;
+            if (table.ShowHeader)
+            {
+                DrawTableRow(x, y, table.Columns.Select(column => column.ColumnHeaderName).ToArray(), table.HeaderHeight ?? 0, table, fonts, table.HeaderBackColor);
+                offsetY = table.HeaderHeight ?? 0;
+            }
+
+            for (var rowIndex = 0; rowIndex < table.Rows.Count; rowIndex++)
+            {
+                var row = table.Rows[rowIndex];
+                var height = row.DesiredHeight ?? 0;
+                var rowCells = cells.Where(cell => cell.Row == rowIndex).ToArray();
+                var requiredHeight = rowCells.Select(cell => table.Rows.Skip(rowIndex).Take(cell.Cell.RowSpan)
+                    .Sum(spannedRow => spannedRow.DesiredHeight ?? 0)).DefaultIfEmpty(height).Max();
+                if (y + offsetY + requiredHeight > PageHeight) { NewPage(); y = table.TopMarginOnPageBreak; offsetY = 0; }
+                foreach (var cell in rowCells)
+                    DrawTableCell(x, y + offsetY, cell, table, fonts);
+                offsetY += height;
+            }
         }
 
         private static List<TableCellPlacement> LayoutTableCells(TableDefinition table)
         {
             var result = new List<TableCellPlacement>();
-            var columnCount = table.Columns.Count;
-            var occupiedUntilRow = new int[columnCount];
+            var occupiedUntilRow = new int[table.Columns.Count];
             for (var rowIndex = 0; rowIndex < table.Rows.Count; rowIndex++)
             {
                 var row = table.Rows[rowIndex];
                 var cells = row.Cells.Count > 0
                     ? row.Cells
                     : row.Data.Select(text => new CellDefinition { Text = text }).ToList();
-
                 var columnIndex = 0;
                 foreach (var cell in cells)
                 {
-                    while (columnIndex < columnCount && occupiedUntilRow[columnIndex] > rowIndex)
+                    while (columnIndex < table.Columns.Count && occupiedUntilRow[columnIndex] > rowIndex)
                         columnIndex++;
-                    if (columnIndex >= columnCount) break;
+                    if (columnIndex >= table.Columns.Count) break;
 
-                    var columnSpan = Math.Min(Math.Max(1, cell.ColumnSpan), columnCount - columnIndex);
-                    var rowSpan = Math.Min(Math.Max(1, cell.RowSpan), table.Rows.Count - rowIndex);
-                    result.Add(new TableCellPlacement(rowIndex, columnIndex, columnSpan, rowSpan, cell));
-                    for (var c = columnIndex; c < columnIndex + columnSpan; c++)
-                        occupiedUntilRow[c] = rowIndex + rowSpan;
-                    columnIndex += columnSpan;
-                }
-
-                //keep drawing borders for any column this (short) row never reached
-                for (var c = 0; c < columnCount; c++)
-                {
-                    if (occupiedUntilRow[c] > rowIndex) continue;
-                    result.Add(new TableCellPlacement(rowIndex, c, 1, 1, new CellDefinition()));
-                    occupiedUntilRow[c] = rowIndex + 1;
+                    cell.ColumnSpan = Math.Min(Math.Max(1, cell.ColumnSpan), table.Columns.Count - columnIndex);
+                    cell.RowSpan = Math.Min(Math.Max(1, cell.RowSpan), table.Rows.Count - rowIndex);
+                    result.Add(new TableCellPlacement(rowIndex, columnIndex, cell));
+                    for (var index = columnIndex; index < columnIndex + cell.ColumnSpan; index++)
+                        occupiedUntilRow[index] = rowIndex + cell.RowSpan;
+                    columnIndex += cell.ColumnSpan;
                 }
             }
-
             return result;
         }
 
-        private void DrawTableCell(double x, double y, TableCellPlacement placement, TableDefinition table,
-            XFont[] fonts, XBrush defaultBrush, double[] colX)
+        private void DrawTableCell(double x, double y, TableCellPlacement placement, TableDefinition table, PdfFont[] fonts)
         {
             var column = table.Columns[placement.Column];
+            var offsetX = table.Columns.Take(placement.Column).Sum(item => item.DrawWidth);
+            var width = table.Columns.Skip(placement.Column).Take(placement.Cell.ColumnSpan).Sum(item => item.DrawWidth);
+            var height = table.Rows.Skip(placement.Row).Take(placement.Cell.RowSpan).Sum(row => row.DesiredHeight ?? 0);
+            if (column.BackColor is not null)
+            {
+                var previousBrush = CurrentBrush;
+                CurrentBrush = column.BackColor;
+                DrawRect(x + offsetX, y, width, height, true);
+                CurrentBrush = previousBrush;
+            }
+            else DrawRect(x + offsetX, y, width, height, false);
+
             var margins = table.CellMargin;
-            var w = colX[placement.Column + placement.ColumnSpan] - colX[placement.Column];
-            var h = table.Rows.Skip(placement.Row).Take(placement.RowSpan).Sum(r => r.DesiredHeight ?? 0);
-            var r = new XRect(x + colX[placement.Column], y, w, h);
-            ResetClip();
-            Gfx.DrawRectangle(CurrentPen, column.BackColor, r);
-            var hMargin = margins.Left + margins.Right;
-            var vMargin = margins.Top + margins.Bottom;
-            var rText = new XRect(r.X + margins.Left, r.Y + margins.Top, w - hMargin, h - vMargin);
-            Gfx.IntersectClip(rText);
-            var fmt = new XStringFormat
-            {
-                Alignment = placement.Cell.HorizontalAlignment ?? column.Alignment,
-                LineAlignment = placement.Cell.VerticalAlignment ?? XLineAlignment.Near
-            };
-            DrawStringMultiline(placement.Cell.Text, fonts[placement.Column], column.Brush ?? defaultBrush, rText,
-                fmt);
+            InternalDrawText(placement.Cell.Text, x + offsetX + margins.Left, y + margins.Top,
+                Math.Max(0, width - margins.Left - margins.Right), Math.Max(0, height - margins.Top - margins.Bottom),
+                placement.Cell.HorizontalAlignment ?? column.Alignment,
+                placement.Cell.VerticalAlignment ?? PdfVerticalAlignment.Center,
+                fonts[placement.Column], column.Brush ?? CurrentBrush, null);
         }
 
-        /// <summary>
-        /// Some fallback fonts (e.g. a missing "Arial" on Linux CI resolving to a font with degenerate metrics)
-        /// make PdfSharpCore's own wrap-height computation go negative and throw. Fall back to an unwrapped
-        /// measurement, which does not exercise that code path, rather than crash the whole table.
-        /// </summary>
-        private XSize SafeCalculateTextSize(XTextSegmentFormatter formatter, string text, XFont font, XBrush brush,
-            double width)
-        {
-            try
-            {
-                return formatter.CalculateTextSize(text, font, brush, width);
-            }
-            catch (ArgumentException)
-            {
-                return Gfx.MeasureString(text, font);
-            }
-        }
+        private sealed record TableCellPlacement(int Row, int Column, CellDefinition Cell);
 
-        private void ResetClip()
+        private void DrawTableRow(double x, double y, string[] values, double height, TableDefinition table, PdfFont[] fonts, PdfBrush? rowBackground)
         {
-            if (_gfx is null) return;
-            _gfxRenderer ??= (IXGraphicsRenderer)_gfx.GetType().GetField("_renderer",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.GetField
-                                                             | System.Reflection.BindingFlags.Instance)
-                .GetValue(_gfx);
-            _gfxRenderer?.ResetClip();
-        }
-
-        private void DrawStringMultiline(string text, XFont xFont, XBrush xBrush, XRect r, XStringFormat fmt)
-        {
-            var formatter = new XTextFormatter(Gfx)
+            var offsetX = 0d;
+            for (var index = 0; index < table.Columns.Count; index++)
             {
-                Alignment = fmt.Alignment switch
+                var column = table.Columns[index];
+                var width = column.DrawWidth;
+                var background = rowBackground ?? column.BackColor;
+                if (background is not null)
                 {
-                    XStringAlignment.Center => XParagraphAlignment.Center,
-                    XStringAlignment.Far => XParagraphAlignment.Right,
-                    _ => XParagraphAlignment.Left
-                },
-                VerticalAlignment = fmt.LineAlignment switch
-                {
-                    XLineAlignment.Center => XVerticalAlignment.Middle,
-                    XLineAlignment.Far => XVerticalAlignment.Bottom,
-                    _ => XVerticalAlignment.Top
+                    var previousBrush = CurrentBrush;
+                    CurrentBrush = background;
+                    DrawRect(x + offsetX, y, width, height, true);
+                    CurrentBrush = previousBrush;
                 }
-            };
-            formatter.DrawString(text, xFont, xBrush, r);
+                else DrawRect(x + offsetX, y, width, height, false);
+
+                var margins = table.CellMargin;
+                InternalDrawText(index < values.Length ? values[index] : string.Empty, x + offsetX + margins.Left, y + margins.Top,
+                    Math.Max(0, width - margins.Left - margins.Right), Math.Max(0, height - margins.Top - margins.Bottom),
+                    column.Alignment, PdfVerticalAlignment.Center, fonts[index], column.Brush ?? CurrentBrush, null);
+                offsetX += width;
+            }
         }
 
         public void SetViewSize(double w, double h)
         {
-            var scaleX = CurrentPage.Width / w;
-            var scaleY = CurrentPage.Height / h;
-
-            Gfx.ScaleTransform(scaleX, scaleY);
+            if (w <= 0 || h <= 0) throw new ArgumentOutOfRangeException(nameof(w), "View dimensions must be positive.");
+            CurrentPage.ScaleX = CurrentPage.Width / w;
+            CurrentPage.ScaleY = CurrentPage.Height / h;
         }
 
-        public void NewPage(PageSize? pageSize = null, PageOrientation? pageOrientation = null)
+        public void NewPage(PdfPageSize? pageSize = null, PdfPageOrientation? pageOrientation = null)
         {
             _defaultPageSize = pageSize ?? _defaultPageSize;
             _defaultPageOrientation = pageOrientation ?? _defaultPageOrientation;
-            
-            CurrentPage = AddPage();
-            _onNewPageHooks.ForEach( x=> x(_document.PageCount));
+            _pages.Add(new RecordedPage(_defaultPageSize, _defaultPageOrientation));
+            _logger?.WriteDebug(this, "AddPage");
+            _onNewPageHooks.ForEach(callback => callback(_pages.Count));
             if ((DebugOptions & DebugOptions.DebugRule) == DebugOptions.DebugRule)
-            {
-                var mm5 = 25;
-                var start = mm5;
-                while (start < PageHeight)
-                {
-                    var ten = (start % (mm5+mm5)) == 0;
-                    this.Gfx.DrawLine(XPens.Red, 0, start, ten ? 50 : 25, start);
-                    if (ten)
-                    {
-                        DebugText($"{start}", 50, start);
-                    }
-                    start += mm5;
-                }
-            }
+                for (var position = 25d; position < PageHeight; position += 25)
+                    DrawLine(0, position, position % 50 == 0 ? 50 : 25, position);
         }
 
-        private PdfPage AddPage()
-        {
-            if (_logger.DebugEnabled())
-            {
-                _logger.WriteDebug(this, $"AddPage");
-            }
-            var page = _document.AddPage();
-            page.Size = _defaultPageSize;
-            page.Orientation = _defaultPageOrientation;
-            return page;
-        }
-
-        public void MoveTo(double x, double y)
-        {
-            _currentPoint = new XPoint(x, y);
-        }
+        public void MoveTo(double x, double y) => _currentPoint = new PdfPoint(x, y);
 
         public void LineTo(double x, double y)
         {
-            var endPoint = new XPoint(x, y);
-            InternalLineTo(_currentPoint, endPoint, CurrentPen);
+            var page = CurrentPage;
+            var endPoint = new PdfPoint(x, y);
+            InternalDrawLine(ScalePen(CurrentPen, page), ScaleX(_currentPoint.X, page), ScaleY(_currentPoint.Y, page),
+                ScaleX(endPoint.X, page), ScaleY(endPoint.Y, page));
             _currentPoint = endPoint;
         }
 
-        private void InternalLineTo(XPoint p1, XPoint p2, XPen pen)
+        public void DrawImage(PdfImage image, double x, double y, double? w, double? h, bool sizeInPixel, bool cropImage)
         {
-            Gfx.DrawLine(pen, p1, p2);
-            this._drawingCtx.PushInstruction((oy) => InternalLineTo(p1.OffsetY(oy), p2.OffsetY(oy), pen), new XRect(p1, p2));
-            //this._drawingCtx.UpdateDrawingRect(new XRect(p1, p2));
+            ArgumentNullException.ThrowIfNull(image);
+            var page = CurrentPage;
+            (x, y, w, h) = DrawingHelper.CoordRectToPage(page.Width, page.Height, x, y, w, h);
+            var data = image.Data.ToArray();
+            var naturalSize = VectorCanvas.GetImageSizeInPoints(data);
+            var width = w.HasValue ? (sizeInPixel ? w.Value * 72d / 96d : w.Value) : naturalSize.Width;
+            var height = h.HasValue ? (sizeInPixel ? h.Value * 72d / 96d : h.Value) : naturalSize.Height;
+            if (width <= 0 || height <= 0)
+                throw new ArgumentOutOfRangeException(nameof(w), "Image dimensions must be positive.");
+
+            var fit = cropImage ? ImageFit.CropTopLeft : ImageFit.Stretch;
+            AddCommand(canvas => canvas.Image(data, ScaleX(x, page), ScaleY(y, page),
+                ScaleX(width, page), ScaleY(height, page), fit));
+            _drawingCtx.PushInstruction(offset => DrawImage(image, x, y + offset, w, h, sizeInPixel, cropImage),
+                new PdfRect(x, y, width, height), instrName: "DrawImage");
         }
 
-        public void DrawImage(XImage image, double x, double y, double? w, double? h, bool sizeInPixel, bool cropImage)
+        public void DrawPie(double x, double y, double? w, double? h, double startAngle, double sweepAngle, bool isFilled)
         {
-            if (sizeInPixel)
-            {
-                //convert Pixel to Point
-                w = w * 72 / 96.0;
-                h = h * 72 / 96.0;
-                /*
-                if (h is not null)
-                {
-                    h = (double)(h * 72) / 96.0;
-                }
-                 */
-            }
-
-            //fix coord if < 0 
-            (x, y, w, h) = CurrentPage.CoordRectToPage(x, y, w, h);
-            InternalDrawImage(image, x, y, w, h, cropImage);
+            var page = CurrentPage;
+            var width = w ?? 0;
+            var height = h ?? 0;
+            if (width <= 0 || height <= 0)
+                throw new ArgumentOutOfRangeException(nameof(w), "Pie dimensions must be positive.");
+            InternalDrawPie(ScalePen(CurrentPen, page), CurrentBrush, ScaleX(x, page), ScaleY(y, page),
+                ScaleX(width, page), ScaleY(height, page), startAngle, sweepAngle, isFilled);
         }
 
-        private void InternalDrawImage(XImage image, double x, double y, double? w, double? h, bool cropImage)
+        private void InternalDrawPie(PdfPen pen, PdfBrush brush, double x, double y, double width, double height,
+            double startAngle, double sweepAngle, bool isFilled)
         {
-            var ow = w;
-            var oh = h;
-            if (w is null && h is null)
+            AddCommand(canvas =>
             {
-                Gfx.DrawImage(image, x, y);
-                w = image.PointWidth;
-                h = image.PointHeight;
-            }
-            else
-            {
-                w ??= image.PointWidth;
-                h ??= image.PointHeight;
-                if (cropImage)
-                {
-                    //draw in form, then draw form in page
-                    using XForm form = new XForm(this._document, XUnit.FromPoint(w.Value), XUnit.FromPoint(h.Value));
-                    using var gr = XGraphics.FromForm(form);
-                    gr.DrawImage(image, 0, 0);
-                    Gfx.DrawImage(form, x, y);
-                }
+                if (isFilled)
+                    canvas.DrawPie(x, y, width, height, startAngle, sweepAngle,
+                        brush.Color.Hex, pen.Color.Hex, pen.Width, brush.Color.Opacity);
                 else
-                {
-                    Gfx.DrawImage(image, x, y, w.Value, h.Value);
-                }
-            }
-            this._drawingCtx.PushInstruction((oy) => InternalDrawImage(image, x, y+oy, ow, oh, cropImage), new XRect(x, y, w.Value, h.Value));
+                    canvas.StrokePie(x, y, width, height, startAngle, sweepAngle,
+                        pen.Color.Hex, pen.Width, pen.Color.Opacity);
+            });
+            _drawingCtx.PushInstruction(offset => InternalDrawPie(pen, brush, x, y + offset, width, height, startAngle, sweepAngle, isFilled),
+                new PdfRect(x, y, width, height), instrName: "DrawPie");
         }
 
-        public void DrawPie(double x, double y, double? w, double? h, double startAngle, double sweepAngle,
-            bool isFilled)
+        public void DrawPolygon(IEnumerable<PdfPoint> points, bool isFilled)
         {
-            InternalDrawPie(x, y, w, h, startAngle, sweepAngle, isFilled, CurrentPen, CurrentBrush);
+            var page = CurrentPage;
+            var transformed = points.Select(point => new PdfPoint(ScaleX(point.X, page), ScaleY(point.Y, page))).ToArray();
+            if (transformed.Length < 3) throw new ArgumentException("A polygon requires at least three points.", nameof(points));
+            InternalDrawPolygon(ScalePen(CurrentPen, page), CurrentBrush, transformed, isFilled);
         }
 
-        private void InternalDrawPie(double x, double y, double? w, double? h, double startAngle, double sweepAngle,
-            bool isFilled, XPen pen, XBrush brush)
+        private void InternalDrawPolygon(PdfPen pen, PdfBrush brush, PdfPoint[] points, bool isFilled)
         {
-            if (isFilled)
+            var tuples = points.Select(point => (point.X, point.Y)).ToArray();
+            AddCommand(canvas => canvas.Path(path =>
             {
-                Gfx.DrawPie(pen, brush, x, y, w ?? 0, h ?? 0, startAngle, sweepAngle);
-            }
-            else
-            {
-                Gfx.DrawPie(pen, x, y, w ?? 0, h ?? 0, startAngle, sweepAngle);
-            }
-            this._drawingCtx.PushInstruction((oy) => InternalDrawPie(x, y+oy, w, h, startAngle, sweepAngle, isFilled, pen, brush),
-                new XRect(x, y, w ?? 0, h ?? 0));
+                path.Polygon(tuples).Stroke(pen.Color.Hex, pen.Width).Opacity(pen.Color.Opacity);
+                if (isFilled) path.Fill(brush.Color.Hex).Opacity(brush.Color.Opacity);
+            }));
+            _drawingCtx.PushInstruction(offset => InternalDrawPolygon(pen, brush, points.Select(point => point.OffsetY(offset)).ToArray(), isFilled), points);
         }
-
-        public void DrawPolygon(IEnumerable<XPoint> points, bool isFilled)
-        {
-            var ptArray = points.ToArray();
-            InternalDrawPolygon(isFilled, ptArray, CurrentPen, CurrentBrush);
-        }
-
-        private void InternalDrawPolygon(bool isFilled, XPoint[] ptArray, XPen pen, XBrush brush)
-        {
-            if (isFilled)
-            {
-                Gfx.DrawPolygon(pen, brush, ptArray, XFillMode.Alternate);
-            }
-            else
-            {
-                Gfx.DrawPolygon(pen, ptArray);
-            }
-            this._drawingCtx.PushInstruction((oy) => InternalDrawPolygon(isFilled, ptArray.OffsetY(oy), pen, brush), ptArray);
-        }
-
 
         public void BeginDrawRowTemplate(string name, int index, double offsetY, double newPageTopMargin)
         {
-            //open virtual block
-            this._drawingCtx.OpenBlock($"{name}:{index}", offsetY, Gfx, newPageTopMargin);
-            //drawing is only to measure
-            _gfx = XGraphics.CreateMeasureContext(new XSize(PageWidth, PageHeight),
-                XGraphicsUnit.Point, XPageDirection.Downwards);
+            _drawingCtx.OpenBlock($"{name}:{index}", offsetY, newPageTopMargin);
+            _measurementStates.Push(_isMeasuring);
+            _isMeasuring = true;
         }
 
         public DrawingResult EndDrawRowTemplate(int index)
         {
-            double newPageOffsetY = 0;
-            var result = this._drawingCtx.BlockRect;
-            InternalEndRowTemplate(index, result);
-            IInstructionBlock block;
-            var level = _drawingCtx.Level;
-            (block, _gfx) = this._drawingCtx.RestoreGraphics();
-            if (result.IsEmpty)
-            {
-                return new()
-                {
-                    DrawingRect = new XRect(0, block.OffsetY, 0, 0),
-                    PageOffsetY = 0
-                };
-            }
-
-            if (level <= 1)
-            {
-                //draw only if rowTemplate if at root level
-                newPageOffsetY = block.Draw(this, 0, 0);
-                if (_logger?.IsEnabled(LogLevel.Debug) ?? false)
-                {
-                    _logger.WriteDebug(this, $"EndDrawing block #{index} Rect={block.Rect}, newPageOffsetY={newPageOffsetY}");
-                }
-            }
-
-            this._drawingCtx.CloseBlock();
-
-            return  new()
-            {
-                DrawingRect = result,
-                PageOffsetY = newPageOffsetY
-            };
+            var result = _drawingCtx.BlockRect;
+            var block = _drawingCtx.EndMeasure();
+            _isMeasuring = _measurementStates.Pop();
+            var pageOffsetY = 0d;
+            if (result.IsEmpty) result = new PdfRect(0, block.OffsetY, 0, 0);
+            else if (_drawingCtx.Level == 0) pageOffsetY = block.Draw(this, 0, 0);
+            _drawingCtx.CloseBlock();
+            return new DrawingResult { DrawingRect = result, PageOffsetY = pageOffsetY };
         }
 
-        private void InternalEndRowTemplate(int index, XRect result)
-        {
-            if (_drawingCtx.DebugRowTemplate)
-            {
-                DebugRect(result);
-                Gfx.DrawLine(_debugPen, 0, 0, 5, 2);
-                Gfx.DrawLine(_debugPen, 0, 0, 2, 5);
-                Gfx.DrawLine(_debugPen, 0, 0, 10, 10);
-                DebugText($"{_drawingCtx.Level}.{index}", 10, 10);
-            }
-            this._drawingCtx.PushInstruction((oy) => InternalEndRowTemplate(index, result.OffsetY(oy)), result, false, "EndRowTemplate");
-        }
-
-        public void BeginIterationTemplate(int rowCount)
-        {
-        }
-
-        public void EndIterationTemplate(double drawHeight)
-        {
-        }
-
-        private void DebugText(string text, double x, double y)
-        {
-            var fmt = new XStringFormat()
-            {
-                Alignment = XStringAlignment.Near,
-                LineAlignment = XLineAlignment.Near
-            };
-
-            Gfx.DrawString(text, _debugFont.Value, XBrushes.Red, x, y, fmt);
-        }
-        private void DebugRect(XRect rect)
-        {
-            Gfx.DrawRectangle(_debugPen, rect);
-        }
+        public void BeginIterationTemplate(int rowCount) { }
+        public void EndIterationTemplate(double drawHeight) { }
 
         public void RegisterOnNewPage(Action<int> callback)
         {
-            if (callback != null && !_onNewPageHooks.Contains(callback))
-            {
-                _onNewPageHooks.Add(callback);
-            }
+            if (callback is not null && !_onNewPageHooks.Contains(callback)) _onNewPageHooks.Add(callback);
         }
 
-        public void UnRegisterOnNewPage(Action<int> callback)
+        public void UnRegisterOnNewPage(Action<int> callback) => _onNewPageHooks.Remove(callback);
+
+        private void AddCommand(Action<VectorCanvas> command)
         {
-            _onNewPageHooks.Remove(callback);
+            if (!_isMeasuring) CurrentPage.Commands.Add(command);
         }
+
+        private static double MeasureText(string text, PdfFont font)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            return VectorCanvas.MeasureTextWidth(text, font.Size, font.FamilyName, font.Style.HasFlag(PdfFontStyle.Bold), font.Style.HasFlag(PdfFontStyle.Italic));
+        }
+
+        private static double MeasureCellWidth(string text, PdfFont font) =>
+            text.Replace("\r\n", "\n").Split('\n').Select(line => MeasureText(line, font)).DefaultIfEmpty(0).Max();
+
+        private static int MeasureCellLineCount(string text, double width, PdfFont font) =>
+            WrapText(text, width, font).Count;
+
+        private static List<string> WrapText(string text, double? maxWidth, PdfFont font)
+        {
+            var lines = new List<string>();
+            foreach (var sourceLine in text.Replace("\r\n", "\n").Split('\n'))
+            {
+                if (maxWidth is null || maxWidth <= 0 || MeasureText(sourceLine, font) <= maxWidth) { lines.Add(sourceLine); continue; }
+                var current = string.Empty;
+                foreach (var word in sourceLine.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var candidate = current.Length == 0 ? word : $"{current} {word}";
+                    if (current.Length > 0 && MeasureText(candidate, font) > maxWidth) { lines.Add(current); current = word; }
+                    else current = candidate;
+                }
+                lines.Add(current);
+            }
+            return lines;
+        }
+
+        private static double ResolveX(double x, RecordedPage page) => x < 0 ? page.Width + x : x;
+        private static double ResolveY(double y, RecordedPage page) => y < 0 ? page.Height + y : y;
+        private static double ScaleX(double value, RecordedPage page) => value * page.ScaleX;
+        private static double ScaleY(double value, RecordedPage page) => value * page.ScaleY;
+
+        private static PdfPen ScalePen(PdfPen pen, RecordedPage page)
+        {
+            var scaled = new PdfPen(pen.Color, pen.Width * ScaleFactor(page)) { DashStyle = pen.DashStyle };
+            return scaled;
+        }
+
+        private static PdfFont ScaleFont(PdfFont font, RecordedPage page) =>
+            new(font.FamilyName, font.Size * ScaleFactor(page), font.Style);
+
+        private static double ScaleFactor(RecordedPage page) =>
+            Math.Sqrt(page.ScaleX * page.ScaleY);
+
+        private static (double Width, double Height) GetPageDimensions(PdfPageSize size, PdfPageOrientation orientation)
+        {
+            var dimensions = size switch
+            {
+                PdfPageSize.A0 => (2383.94, 3370.39),
+                PdfPageSize.A1 => (1683.78, 2383.94),
+                PdfPageSize.A2 => (1190.55, 1683.78),
+                PdfPageSize.A3 => (841.89, 1190.55),
+                PdfPageSize.A5 => (419.53, 595.28),
+                PdfPageSize.A6 => (297.64, 419.53),
+                PdfPageSize.Letter => (612d, 792d),
+                PdfPageSize.Legal => (612d, 1008d),
+                PdfPageSize.Ledger => (1224d, 792d),
+                PdfPageSize.Tabloid => (792d, 1224d),
+                _ => (595.28, 841.89),
+            };
+            return orientation == PdfPageOrientation.Landscape ? (dimensions.Item2, dimensions.Item1) : dimensions;
+        }
+
+        public void Dispose() { }
     }
 }

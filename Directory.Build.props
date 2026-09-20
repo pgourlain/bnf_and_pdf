@@ -1,0 +1,11 @@
+<Project>
+
+	<!--
+		MSBuild only auto-discovers Directory.Build.props by walking up from each project
+		directory, so this stub exists purely to pull in the real files from _build/.
+		Edit _build/Version.props and _build/Common.props, not this file.
+	-->
+	<Import Project="_build\Version.props" />
+	<Import Project="_build\Common.props" />
+
+</Project>

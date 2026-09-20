@@ -1,0 +1,13 @@
+<Project>
+
+	<!--
+		Single source of truth for the product version.
+		Every assembly and every package in this repository is built from this value.
+		CI overrides it at build/pack time with -p:Version=<release tag>.
+	-->
+	<PropertyGroup>
+		<VersionPrefix>2.0.0</VersionPrefix>
+		<VersionSuffix></VersionSuffix>
+	</PropertyGroup>
+
+</Project>

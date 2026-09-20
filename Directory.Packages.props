@@ -1,0 +1,6 @@
+<Project>
+
+	<!-- Stub: see Directory.Build.props. Edit _build/Packages.props, not this file. -->
+	<Import Project="_build\Packages.props" />
+
+</Project>

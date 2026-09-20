@@ -1,5 +1,4 @@
-﻿using PdfSharpCore.Pdf;
-using PdfSharpDslCore.Drawing;
+﻿using PdfSharpDslCore.Drawing;
 using PdfSharpDslCore.Parser;
 using System;
 using System.Collections.Generic;

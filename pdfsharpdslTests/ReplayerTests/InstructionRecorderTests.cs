@@ -1,6 +1,4 @@
 ﻿using Moq;
-using PdfSharpCore;
-using PdfSharpCore.Drawing;
 using PdfSharpDslCore.Drawing;
 using System;
 using System.Collections.Generic;
@@ -20,15 +18,15 @@ namespace pdfsharpdslTests.ReplayerTests
         #region private classes
         class DummyInstruction : IInstruction
         {
-            public DummyInstruction(XRect r, string name="")
+            public DummyInstruction(PdfRect r, string name="")
             {
                 this.Rect = r;
                 Name = name;
             }
 
-            public XRect Rect { get; }
+            public PdfRect Rect { get; }
             public string Name { get; }
-            public XRect DrawingRect { get; private set; }
+            public PdfRect DrawingRect { get; private set; }
 
             public double Draw(IPdfDocumentDrawer drawer, double offsetY, double pageOffsetY)
             {
@@ -58,8 +56,8 @@ namespace pdfsharpdslTests.ReplayerTests
             var block = recorder.OpenBlock(string.Empty,0, true,0);
             Assert.NotNull(block);
 
-            var r = new XRect(0, 0, 50, 50);
-            var r1 = new XRect(150, 150, 50, 50);
+            var r = new PdfRect(0, 0, 50, 50);
+            var r1 = new PdfRect(150, 150, 50, 50);
 
             block.PushInstruction(new DummyInstruction(r));
 
@@ -71,7 +69,7 @@ namespace pdfsharpdslTests.ReplayerTests
             var hasNewPage = block.Draw(drawerMock.Object, 0,0);
             Assert.Equal(0,hasNewPage);
 
-            block.PushInstruction(new DummyInstruction(new XRect(0, 200, 10, 100)));
+            block.PushInstruction(new DummyInstruction(new PdfRect(0, 200, 10, 100)));
             hasNewPage = block.Draw(drawerMock.Object, 0, 0);
             Assert.True(hasNewPage > 0);
             drawerMock.Verify(x => x.NewPage(null, null), Times.Once);
@@ -79,11 +77,11 @@ namespace pdfsharpdslTests.ReplayerTests
             
             //draw at bottom page
             block = recorder.OpenBlock(string.Empty,200, true,0);
-            var instr = new DummyInstruction(new XRect(0, 0, 50, 100));
+            var instr = new DummyInstruction(new PdfRect(0, 0, 50, 100));
             block.PushInstruction(instr);
             hasNewPage = block.Draw(drawerMock.Object, 0, 0);
             Assert.True(hasNewPage > 0);
-            Assert.Equal(new XRect(0,0,50,100), instr.DrawingRect);
+            Assert.Equal(new PdfRect(0,0,50,100), instr.DrawingRect);
             recorder.CloseBlock();
             
 
@@ -97,7 +95,7 @@ namespace pdfsharpdslTests.ReplayerTests
             var recorder = new BlocksRecorder();
             //draw at bottom page
             var block = recorder.OpenBlock(string.Empty,200, true, 0);
-            var instr = new DummyInstruction(new XRect(0, 0, 50, 100));
+            var instr = new DummyInstruction(new PdfRect(0, 0, 50, 100));
             block.PushInstruction(instr);
             var hasNewPage = block.Draw(drawerMock.Object, 0, 0);
             
@@ -138,20 +136,20 @@ namespace pdfsharpdslTests.ReplayerTests
             var block = recorder.OpenBlock(string.Empty,200, true,0);
             AddInstructions(block, 1, 100);
             
-            Assert.Equal(new XRect(0,200, 50, 100), block.Rect);
+            Assert.Equal(new PdfRect(0,200, 50, 100), block.Rect);
             
             recorder.CloseBlock();
             block = recorder.OpenBlock(string.Empty,100, true);
             var block1 = recorder.OpenBlock(string.Empty,100, true);
             AddInstructions(block1, 1, 100);
-            Assert.Equal(new XRect(0,200, 50, 100), block.Rect);
-            Assert.Equal(new XRect(0,100, 50, 100), block1.Rect);
+            Assert.Equal(new PdfRect(0,200, 50, 100), block.Rect);
+            Assert.Equal(new PdfRect(0,100, 50, 100), block1.Rect);
         }
 
         [Fact]
         public void InstructionActionExecutesWithOffsetAndExposesMetadata()
         {
-            var rectangle = new XRect(1, 2, 3, 4);
+            var rectangle = new PdfRect(1, 2, 3, 4);
             double? appliedOffset = null;
             var instruction = new InstructionAction(offset => appliedOffset = offset, rectangle, "action");
 
@@ -167,7 +165,7 @@ namespace pdfsharpdslTests.ReplayerTests
         public void RecorderRootRejectsInstructionsAndBlockMetadataCanBeCleared()
         {
             var recorder = new BlocksRecorder();
-            var instruction = new DummyInstruction(new XRect(0, 0, 10, 10));
+            var instruction = new DummyInstruction(new PdfRect(0, 0, 10, 10));
 
             Assert.False(recorder.CanPushInstruction);
             Assert.Throws<NotSupportedException>(() => recorder.CurrentBlock.PushInstruction(instruction));
@@ -195,13 +193,13 @@ namespace pdfsharpdslTests.ReplayerTests
             var recorder = new BlocksRecorder(logger.Object);
             var outer = recorder.OpenBlock("outer", 0, false);
             var child = outer.OpenBlock("child", 250, true);
-            var instruction = new DummyInstruction(new XRect(0, 0, 50, 50));
+            var instruction = new DummyInstruction(new PdfRect(0, 0, 50, 50));
             child.PushInstruction(instruction);
 
             var pageOffset = outer.Draw(drawer.Object, 0, 0);
 
             drawer.Verify(x => x.NewPage(null, null), Times.Once);
-            Assert.Equal(new XRect(0, 0, 50, 50), instruction.DrawingRect);
+            Assert.Equal(new PdfRect(0, 0, 50, 50), instruction.DrawingRect);
             Assert.True(pageOffset > 0);
         }
 
@@ -212,7 +210,7 @@ namespace pdfsharpdslTests.ReplayerTests
             var recorder = new BlocksRecorder();
             var outer = recorder.OpenBlock("outer", 0, false);
             var child = outer.OpenBlock("child", 0, true);
-            child.PushInstruction(new DummyInstruction(new XRect(0, 0, 50, 400)));
+            child.PushInstruction(new DummyInstruction(new PdfRect(0, 0, 50, 400)));
 
             Assert.Throws<NotImplementedException>(() => outer.Draw(drawer.Object, 0, 0));
         }
@@ -223,10 +221,10 @@ namespace pdfsharpdslTests.ReplayerTests
             var drawer = defaultDrawerMock();
             var recorder = new BlocksRecorder();
             var block = recorder.OpenBlock("block", 0, true);
-            var extraInstruction = new DummyInstruction(new XRect(0, 20, 10, 10));
+            var extraInstruction = new DummyInstruction(new PdfRect(0, 20, 10, 10));
             block.PushInstruction(new InstructionAction(
                 _ => block.PushInstruction(extraInstruction),
-                new XRect(0, 0, 10, 10),
+                new PdfRect(0, 0, 10, 10),
                 "mutating"));
 
             block.Draw(drawer.Object, 0, 0);
@@ -236,7 +234,7 @@ namespace pdfsharpdslTests.ReplayerTests
 
         private static void AddInstructions(IInstructionBlock block, int count, int height)
         {
-            var r = new XRect(0, 0, 50, height);
+            var r = new PdfRect(0, 0, 50, height);
             for (var i = 0; i < count; i++)
             {
 

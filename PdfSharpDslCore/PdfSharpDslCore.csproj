@@ -1,43 +1,42 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>netstandard2.0</TargetFramework>
+		<TargetFrameworks>$(NetLibTfms)</TargetFrameworks>
 		<PackageReadmeFile>Readme.md</PackageReadmeFile>
-		<LangVersion>9.0</LangVersion>
-		<Nullable>enable</Nullable>
 		<Title>Generate PDF using DSL</Title>
 		<PackageId>PdfSharpDslCore</PackageId>
-		<Version>1.0.6</Version>
-		<Authors>Pierrick Gourlain</Authors>
-		<Company></Company>
-		<Description>A DSL using PdfSharpCore to generate PDF</Description>
-		<RepositoryUrl>https://github.com/pgourlain/bnf_and_pdf</RepositoryUrl>
+		<UseLocalTerraPdf Condition="'$(UseLocalTerraPdf)' == '' and Exists('..\..\TerraPDF\src\TerraPDF\TerraPDF.csproj')">true</UseLocalTerraPdf>
+		<Description>A DSL using TerraPDF to generate PDF</Description>
 		<PackageIcon>Icon.jpg</PackageIcon>
-		<PackageLicenseFile>LICENSE.md</PackageLicenseFile>
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <None Include="..\LICENSE.md">
-	    <Pack>True</Pack>
-	    <PackagePath>\</PackagePath>
-	  </None>
+		<PackageReference Include="Irony" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+		<PackageReference Include="TerraPDF" Condition="'$(UseLocalTerraPdf)' != 'true'" />
 	</ItemGroup>
-
-	<ItemGroup>
-		<PackageReference Include="Irony" Version="1.5.3" />
-		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
-		<PackageReference Include="PdfSharpCore" Version="1.3.63" />
-		<PackageReference Include="SixLabors.ImageSharp" Version="2.1.12" />
+	<ItemGroup Condition="'$(UseLocalTerraPdf)' == 'true'">
+		<ProjectReference Include="..\..\TerraPDF\src\TerraPDF\TerraPDF.csproj" />
 	</ItemGroup>
 	<ItemGroup>
-	  <None Update="Icon.jpg">
-	    <Pack>True</Pack>
-	    <PackagePath>\</PackagePath>
-	  </None>
-	  <None Update="Readme.md">
-	    <Pack>True</Pack>
-	    <PackagePath>\</PackagePath>
-	  </None>
+		<ProjectReference Include="..\PdfSharpDsl.Language\PdfSharpDsl.Language.csproj" />
+	</ItemGroup>
+	<ItemGroup>
+		<Compile Remove="Extensions\ParseTreeNodeExtensions.cs" />
+		<Compile Remove="Parser\PdfGrammar.cs" />
+	</ItemGroup>
+	<ItemGroup>
+		<InternalsVisibleTo Include="pdfsharpdslTests" />
+	</ItemGroup>
+	<!--
+		Now that this project multi-targets, pack runs in the cross-targeting (outer) build,
+		where the SDK does not expand its default None globs. So these must be Include, not
+		Update: an Update would have nothing to attach the Pack metadata to and the icon and
+		readme would silently drop out of the package (NU5046).
+	-->
+	<ItemGroup Condition="'$(TargetFramework)' == ''">
+		<None Include="Icon.jpg" Pack="true" PackagePath="\" />
+		<None Include="Readme.md" Pack="true" PackagePath="\" />
 	</ItemGroup>
 
 </Project>

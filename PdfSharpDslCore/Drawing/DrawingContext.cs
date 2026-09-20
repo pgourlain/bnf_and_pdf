@@ -1,5 +1,4 @@
-﻿using PdfSharpCore.Drawing;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Irony;
 using Microsoft.Extensions.Logging;
@@ -9,8 +8,8 @@ namespace PdfSharpDslCore.Drawing
     internal class DrawingContext
     {
         private readonly BlocksRecorder _recorder;
-        private readonly Stack<XGraphics> _previousGraphics = new();
-        public int Level => _previousGraphics.Count;
+        private int _level;
+        public int Level => _level;
 
         public DebugOptions DebugOptions { get; set; }
         public bool DebugText => (DebugOptions & (DebugOptions.DebugText | DebugOptions.DebugAll)) > 0;
@@ -21,18 +20,18 @@ namespace PdfSharpDslCore.Drawing
             _recorder = new(logger);
         }
         
-        public void OpenBlock(string name, double offsetY, XGraphics previousGraphics, double newPageTopMargin)
+        public void OpenBlock(string name, double offsetY, double newPageTopMargin)
         {
-            _previousGraphics.Push(previousGraphics);
+            _level++;
             _recorder.OpenBlock(name, offsetY, true, newPageTopMargin);
         }
 
-        public XRect BlockRect => _recorder.CurrentBlock.Rect;
-        internal (IInstructionBlock, XGraphics) RestoreGraphics()
+        public PdfRect BlockRect => _recorder.CurrentBlock.Rect;
+        internal IInstructionBlock EndMeasure()
         {
             var block = _recorder.CurrentBlock;
-
-            return (block, _previousGraphics.Pop());
+            _level--;
+            return block;
         }
 
         internal void CloseBlock()
@@ -40,7 +39,7 @@ namespace PdfSharpDslCore.Drawing
             _recorder.CloseBlock();
         }
         
-        public void PushInstruction(Action<double> action, XRect rect, bool accumulate=true, string instrName="")
+        public void PushInstruction(Action<double> action, PdfRect rect, bool accumulate=true, string instrName="")
         {
             if (_recorder.CanPushInstruction)
             {
@@ -49,9 +48,9 @@ namespace PdfSharpDslCore.Drawing
             }
         }
 
-        public void PushInstruction(Action<double> action, XPoint[] ptArray)
+        public void PushInstruction(Action<double> action, PdfPoint[] ptArray)
         {
-            var r = XRect.Empty;
+            var r = PdfRect.Empty;
             foreach (var pt in ptArray)   
             {
                 r.Union(pt);

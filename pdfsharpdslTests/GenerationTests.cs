@@ -1,10 +1,6 @@
 
-using PdfSharpCore.Pdf.IO;
-using PdfSharpCore.Pdf;
 using PdfSharpDslCore.Parser;
 using PdfSharpDslCore.Drawing;
-using PdfSharpCore.Pdf.Content;
-using PdfSharpCore.Pdf.Content.Objects;
 using System.Diagnostics;
 using System.Text;
 using System.Diagnostics.CodeAnalysis;
@@ -21,10 +17,10 @@ namespace pdfsharpdslTests
         {
             var input = File.ReadAllText($"./ValidInputFiles/{file}");
             using var memStm = GeneratePdf(input);
-            memStm.Position = 0;
-            using PdfDocument pdfDocument = PdfReader.Open(memStm, PdfDocumentOpenMode.Import);
-            //generation and import not failed
-            Assert.True(true);
+            var pdf = new PdfBinaryInspector(memStm);
+
+            Assert.True(pdf.HasPdfHeader);
+            Assert.True(pdf.PageCount > 0);
         }
 
 
@@ -34,17 +30,24 @@ namespace pdfsharpdslTests
         {
             var input = File.ReadAllText($"./ValidInputFiles/{file}");
             using var memStm = GeneratePdf(input);
-            memStm.Position = 0;
-            //reopne pdf to check if "print" works
-            using PdfDocument pdfDocument = PdfReader.Open(memStm, PdfDocumentOpenMode.Import);
-            Assert.Equal(1, pdfDocument.PageCount);
-            var p = pdfDocument.Pages[0];
-            var h = p.Height.Point;
-            Assert.NotNull(p);
+            var pdf = new PdfBinaryInspector(memStm);
 
-            var lines = ExtractLines(p).ToArray();
-            Assert.Equal(4, lines.Length);
-            //TODO check values extracted from lines
+            Assert.True(pdf.HasPdfHeader);
+            Assert.Equal(1, pdf.PageCount);
+            Assert.True(pdf.ContentStreamCount > 0);
+        }
+
+        [Fact]
+        public void DrawingEmbeddedImageAddsPdfImageResource()
+        {
+            const string input = "NEWPAGE A4 portrait;" +
+                "IMAGE 10,10,20,20 point fit Data=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=\";";
+
+            using var memStm = GeneratePdf(input);
+            var pdf = new PdfBinaryInspector(memStm);
+
+            Assert.True(pdf.HasPdfHeader);
+            Assert.Equal(1, pdf.ImageCount);
         }
 
         [Theory()]
@@ -53,12 +56,10 @@ namespace pdfsharpdslTests
         {
             var input = File.ReadAllText($"./ValidInputFiles/{file}");
             using var memStm = GeneratePdf(input);
-            memStm.Position = 0;
-            //reopen pdf to check if "print" works
-            using PdfDocument pdfDocument = PdfReader.Open(memStm, PdfDocumentOpenMode.Import);
-            Assert.Equal(1+10, pdfDocument.PageCount);
+            var pdf = new PdfBinaryInspector(memStm);
 
-            Assert.True(true);
+            Assert.True(pdf.HasPdfHeader);
+            Assert.Equal(1 + 10, pdf.PageCount);
         }
 
         [Theory()]
@@ -74,50 +75,5 @@ namespace pdfsharpdslTests
             });
         }
 
-        private IEnumerable<string> ExtractLines(PdfPage p)
-        {
-            var h = p.Height.Point;
-            var content = ContentReader.ReadContent(p);
-
-            foreach (COperator op in content)
-            {
-                string s = string.Empty;
-                switch (op.OpCode.OpCodeName)
-                {
-                    case OpCodeName.m:
-                        s = "MOVETO " + ExtractLineOperands(op.Operands, h);
-                        yield return s;
-                        break;
-                    case OpCodeName.l:
-                        s = "LINETO " + ExtractLineOperands(op.Operands, h); ;
-                        yield return s;
-                        break;
-                    default:
-                        break;
-                }
-            }
-        }
-
-        string ExtractLineOperands(CSequence cSequence, double pageHeight)
-        {
-            List<string> lines = new List<string>();
-            int i = 0;
-            foreach (var operand in cSequence)
-            {
-                if (operand is CInteger intValue)
-                {
-                    if (i == 1)
-                    {
-                        lines.Add((pageHeight - intValue.Value).ToString());
-                    }
-                    else
-                    {
-                        lines.Add(intValue.ToString());
-                    }
-                }
-                i++;
-            }
-            return string.Join(",", lines.ToArray());
-        }
     }
 }

@@ -1,0 +1,44 @@
+<Project>
+
+	<!-- Target framework aliases, so TFMs are declared in one place. -->
+	<PropertyGroup>
+		<!-- Shipped libraries: multi-targeted so net8.0 consumers keep working. -->
+		<NetLibTfms>net8.0;net10.0</NetLibTfms>
+		<!-- Applications and test projects. -->
+		<NetAppTfm>net10.0</NetAppTfm>
+		<!-- Roslyn components and everything they load: must stay netstandard2.0. -->
+		<NetStandardTfm>netstandard2.0</NetStandardTfm>
+	</PropertyGroup>
+
+	<!-- Compiler defaults. A project may override any of these. -->
+	<PropertyGroup>
+		<LangVersion>latest</LangVersion>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
+
+	<!-- Package metadata shared by every packable project. -->
+	<PropertyGroup>
+		<Authors>Pierrick Gourlain</Authors>
+		<Company>Pierrick Gourlain</Company>
+		<Copyright>Copyright (c) 2022-2026 Pierrick Gourlain</Copyright>
+		<PackageProjectUrl>https://github.com/pgourlain/bnf_and_pdf</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/pgourlain/bnf_and_pdf</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<PackageTags>pdf;dsl;irony;terrapdf;pdf-generation;source-generator</PackageTags>
+		<PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+	</PropertyGroup>
+
+	<!-- Reproducible builds and symbol packages. -->
+	<PropertyGroup>
+		<PublishRepositoryUrl>true</PublishRepositoryUrl>
+		<IncludeSymbols>true</IncludeSymbols>
+		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
+		<ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+	</PropertyGroup>
+
+	<!--
+		LICENSE.md is packed from _build/Common.targets, not here: IsPackable is set by the
+		.csproj, which MSBuild evaluates after this file, so it cannot be tested at this point.
+	-->
+
+</Project>

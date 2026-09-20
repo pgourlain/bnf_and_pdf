@@ -61,7 +61,6 @@ namespace PdfSharpDslCore.Generator.DrawingGenerator
 #nullable enable
 namespace PDfDsl {
     using System.Collections.Generic;
-    using PdfSharpCore.Drawing;
     using PdfSharpDslCore.Drawing;
     //another comments
 ");

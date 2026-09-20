@@ -1,5 +1,3 @@
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
 using System;
 using System.Collections.Generic;
 
@@ -13,8 +11,8 @@ namespace PdfSharpDslCore.Drawing
         public double TopMarginOnPageBreak { get; set; }
         //header height, should be measure if not specified
         public double? HeaderHeight { get; set; }
-        public TrimMargins CellMargin { get; set; } = new TrimMargins() { All = 1 };
-        public XBrush? HeaderBackColor { get; set; }
+        public PdfMargins CellMargin { get; set; } = new PdfMargins() { All = 1 };
+        public PdfBrush? HeaderBackColor { get; set; }
 
 
         public List<RowDefinition> Rows { get; private set; } = new();
@@ -33,10 +31,10 @@ namespace PdfSharpDslCore.Drawing
         /// <returns></returns>
         public double ColMaxWidth(int i, double pageWidth)
         {
-            return Math.Max(0, Math.Min(Columns[i].MaxWidth ?? pageWidth, pageWidth));
+            return Math.Min(Columns[i].MaxWidth ?? pageWidth, pageWidth);
         }
 
-        public XStringAlignment Alignment(int i)
+        public PdfHorizontalAlignment Alignment(int i)
         {
             return Columns[i].Alignment;
         }
@@ -49,10 +47,10 @@ namespace PdfSharpDslCore.Drawing
         public double? DesiredWidth { get; set; } = null;
         public double? MaxWidth { get; set; } = null;
 
-        public XStringAlignment Alignment { get; set; } = XStringAlignment.Near;
-        public XFont? Font { get; set; }
-        public XBrush? Brush { get; set; }
-        public XBrush? BackColor { get; set; }
+        public PdfHorizontalAlignment Alignment { get; set; } = PdfHorizontalAlignment.Near;
+        public PdfFont? Font { get; set; }
+        public PdfBrush? Brush { get; set; }
+        public PdfBrush? BackColor { get; set; }
 
         public double DrawWidth
         {
@@ -73,12 +71,12 @@ namespace PdfSharpDslCore.Drawing
         public double? DesiredHeight { get; set; }
         public double? MaxHeight { get; set; }
 
+        public List<CellDefinition> Cells { get; set; } = new();
+
         /// <summary>
         /// string because there is only draw text
         /// </summary>
         public string[] Data { get; set; } = Array.Empty<string>();
-
-        public List<CellDefinition> Cells { get; set; } = new();
     }
 
     public class CellDefinition
@@ -86,7 +84,7 @@ namespace PdfSharpDslCore.Drawing
         public string Text { get; set; } = string.Empty;
         public int ColumnSpan { get; set; } = 1;
         public int RowSpan { get; set; } = 1;
-        public XStringAlignment? HorizontalAlignment { get; set; }
-        public XLineAlignment? VerticalAlignment { get; set; }
+        public PdfHorizontalAlignment? HorizontalAlignment { get; set; }
+        public PdfVerticalAlignment? VerticalAlignment { get; set; }
     }
 }

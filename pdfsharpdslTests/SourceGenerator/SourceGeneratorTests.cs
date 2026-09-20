@@ -2,7 +2,6 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Text;
-using PdfSharpCore.Drawing;
 using PdfSharpDslCore.Drawing;
 using PdfSharpDslCore.Generator;
 using System.Diagnostics.CodeAnalysis;
@@ -31,7 +30,7 @@ namespace pdfsharpdslTests.SourceGenerator
             var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
                 .Split(Path.PathSeparator)
                 .Append(typeof(IPdfDocumentDrawer).Assembly.Location)
-                .Append(typeof(XColor).Assembly.Location)
+                .Append(typeof(PdfColor).Assembly.Location)
                 .Distinct()
                 .Select(path => MetadataReference.CreateFromFile(path));
             var compilation = CSharpCompilation.Create(

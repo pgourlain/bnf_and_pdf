@@ -1,6 +1,4 @@
 using Irony.Parsing;
-using PdfSharpCore;
-using PdfSharpCore.Drawing;
 using PdfSharpDslCore.Drawing;
 using PdfSharpDslCore.Evaluation;
 using PdfSharpDslCore.Extensions;
@@ -65,11 +63,10 @@ namespace PdfSharpDslCore.Generator.DrawingGenerator
             ParseTreeNode styleNode)
         {
             var penvName = $"pen{vNameIndex++}";
-            state.AppendLine($"var {penvName} = new XPen({ColorToString(colorNode.ParseColor())}, (double){EvaluateForString(widthNode).StringValue});");
-            //_code.AppendLine($"var {penvName} = new XPen({ColorToString(value.Color)}, {value.Width});");
-            if (styleNode != null && Enum.TryParse< XDashStyle>(styleNode.Token.ValueString, true, out var penStyle))
+            state.AppendLine($"var {penvName} = new PdfPen({ColorToString(colorNode.ParseColor())}, (double){EvaluateForString(widthNode).StringValue});");
+            if (styleNode != null && Enum.TryParse<PdfDashStyle>(styleNode.Token.ValueString, true, out var penStyle))
             {
-                state.AppendLine($"{penvName}.DashStyle = XDashStyle.{penStyle.ToString()};");
+                state.AppendLine($"{penvName}.DashStyle = PdfDashStyle.{penStyle};");
             }
             state.AppendLine($"{_prefix}CurrentPen = {penvName};");
         }
@@ -104,25 +101,9 @@ namespace PdfSharpDslCore.Generator.DrawingGenerator
             return new CSharpEvaluator(_prefix, node).EvaluateForCSharpString(_declaredVariables, _declaredFunctions);
         }
 
-        uint Argb(XColor color)
+        private static string ColorToString(PdfColor color)
         {
-            var _a = color.A;
-            var _r = color.R;
-            var _g = color.G;
-            var _b = color.B;
-            return ((uint)(_a * 255) << 24) | ((uint)_r << 16) | ((uint)_g << 8) | _b;
-        }
-
-        private string ColorToString(XColor color)
-        {
-            if (color.IsKnownColor)
-            {
-                return $"XColors.{XColorResourceManager.GetKnownColor(Argb(color))}";
-            }
-            else
-            {
-                return $"XColor.FromArgb({color.A},{color.R},{color.G},{color.B})";
-            }
+            return $"PdfColor.FromArgb({color.Alpha}, {color.Red}, {color.Green}, {color.Blue})";
         }
     }
 }

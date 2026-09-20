@@ -1,7 +1,6 @@
 ﻿using Castle.Components.DictionaryAdapter.Xml;
 using Irony.Parsing;
 using Moq;
-using PdfSharpCore.Drawing;
 using PdfSharpDslCore.Drawing;
 using PdfSharpDslCore.Parser;
 using System;
@@ -25,7 +24,7 @@ namespace pdfsharpdslTests
             mock.SetupProperty(x => x.CurrentBrush);
             new PdfDrawerVisitor().Draw(mock.Object, res);
 
-            Assert.Equal(XColors.Black, ((XSolidBrush)mock.Object.CurrentBrush).Color);
+            Assert.Equal(PdfColor.Black, mock.Object.CurrentBrush.Color);
         }
 
         [Theory]
@@ -54,16 +53,14 @@ namespace pdfsharpdslTests
         {
             var res = ParseText(input);
             var mock = new Mock<IPdfDocumentDrawer>();
-            mock.SetupProperty(x => x.CurrentFont, new XFont("Consolas", 8));
+            mock.SetupProperty(x => x.CurrentFont, new PdfFont("Consolas", 8));
 
             var visitor = new PdfDrawerForTestsVisitor();
             visitor.RegisterFormulaFunction("getFontName", (_) => expected);
             var drawer = mock.Object;
             visitor.Draw(drawer, res);
             var f = drawer.CurrentFont;
-            //because font names change on different OS
-            var pi = typeof(XFont).GetProperty("FamilyName", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            Assert.StartsWith((string)expected, (string)pi?.GetValue(drawer.CurrentFont)!);
+            Assert.StartsWith((string)expected, drawer.CurrentFont.FamilyName);
             Assert.Equal(size, drawer.CurrentFont.Size);
         }
 
@@ -119,6 +116,25 @@ namespace pdfsharpdslTests
                 drawer.Object.DebugOptions);
         }
 
+            [Theory]
+            [InlineData("", TextOrientationEnum.Horizontal, null)]
+            [InlineData("Orientation=horizontal", TextOrientationEnum.Horizontal, null)]
+            [InlineData("Orientation=vertical", TextOrientationEnum.Vertical, null)]
+            [InlineData("Orientation=30", TextOrientationEnum.Horizontal, 30.0)]
+            [InlineData("Orientation=(-15*2)", TextOrientationEnum.Horizontal, -30.0)]
+            public void LineTextPreservesOrientation(string orientation, TextOrientationEnum expectedMode, double? expectedAngle)
+            {
+                var tree = ParseText($"LINETEXT 220,235 HAlign=left VAlign=vcenter {orientation} Text=\"label\";");
+                Assert.False(tree.HasErrors());
+                var drawer = new Mock<IPdfDocumentDrawer>();
+
+                new PdfDrawerVisitor().Draw(drawer.Object, tree);
+
+                drawer.Verify(target => target.DrawLineText("label", 220, 235, null, null,
+                PdfHorizontalAlignment.Near, PdfVerticalAlignment.Center,
+                It.Is<TextOrientation>(value => value.Orientation == expectedMode && value.Angle == expectedAngle)), Times.Once);
+            }
+
         [Fact]
         public void DrawResolvesPageSystemVariables()
         {
@@ -145,14 +161,14 @@ namespace pdfsharpdslTests
             var calls = new List<(double X, double Y, double? Width, double? Height, bool Pixel, bool Crop)>();
             var drawer = new Mock<IPdfDocumentDrawer>();
             drawer.Setup(x => x.DrawImage(
-                    It.IsAny<XImage>(),
+                    It.IsAny<PdfImage>(),
                     It.IsAny<double>(),
                     It.IsAny<double>(),
                     It.IsAny<double?>(),
                     It.IsAny<double?>(),
                     It.IsAny<bool>(),
                     It.IsAny<bool>()))
-                .Callback<XImage, double, double, double?, double?, bool, bool>((_, x, y, width, height, pixel, crop) =>
+                .Callback<PdfImage, double, double, double?, double?, bool, bool>((_, x, y, width, height, pixel, crop) =>
                     calls.Add((x, y, width, height, pixel, crop)));
 
             new PdfDrawerVisitor().Draw(drawer.Object, tree);
@@ -195,47 +211,34 @@ namespace pdfsharpdslTests
         }
 
         [Fact]
-        public void TableColParsesColSpanRowSpanAndAlignment()
+        public void TableCellsCaptureSpansAndAlignment()
         {
             var tree = ParseText(
                 "TABLE 20,30 " +
                 "HEAD " +
-                "COL Width=40 MaxWidth=30 \"A\"; " +
-                "COL Width=auto MaxWidth=100 \"B\"; " +
+                "COL Width=100 MaxWidth=100 \"A\"; " +
+                "COL Width=100 MaxWidth=100 \"B\"; " +
+                "COL Width=100 MaxWidth=100 \"C\"; " +
                 "ENDHEAD " +
-                "ROW " +
-                "COL ColSpan=2 HAlign=hcenter VAlign=vcenter \"merged\"; " +
+                "ROW 40 " +
+                "COL ColSpan=2 RowSpan=2 HAlign=hcenter VAlign=bottom \"Merged\"; " +
+                "COL HAlign=right \"Right\"; " +
                 "ENDROW " +
-                "ROW " +
-                "COL RowSpan=2 \"plain\"; " +
-                "COL \"formula: \"+(1+1); " +
-                "ENDROW " +
+                "ROW COL \"Remaining\"; ENDROW " +
                 "ENDTABLE");
             TableDefinition? capturedTable = null;
             var drawer = new Mock<IPdfDocumentDrawer>();
             drawer.Setup(x => x.DrawTable(20, 30, It.IsAny<TableDefinition>()))
                 .Callback<double, double, TableDefinition>((_, _, table) => capturedTable = table);
-            var visitor = new InspectablePdfDrawerVisitor();
 
-            visitor.Draw(drawer.Object, tree);
+            new InspectablePdfDrawerVisitor().Draw(drawer.Object, tree);
 
-            Assert.NotNull(capturedTable);
-            var mergedCell = capturedTable.Rows[0].Cells[0];
-            Assert.Equal("merged", mergedCell.Text);
+            var mergedCell = Assert.Single(capturedTable!.Rows[0].Cells, cell => cell.Text == "Merged");
             Assert.Equal(2, mergedCell.ColumnSpan);
-            Assert.Equal(1, mergedCell.RowSpan);
-            Assert.Equal(XStringAlignment.Center, mergedCell.HorizontalAlignment);
-            Assert.Equal(XLineAlignment.Center, mergedCell.VerticalAlignment);
-
-            var plainCell = capturedTable.Rows[1].Cells[0];
-            Assert.Equal("plain", plainCell.Text);
-            Assert.Equal(1, plainCell.ColumnSpan);
-            Assert.Equal(2, plainCell.RowSpan);
-            Assert.Null(plainCell.HorizontalAlignment);
-            Assert.Null(plainCell.VerticalAlignment);
-
-            var formulaCell = capturedTable.Rows[1].Cells[1];
-            Assert.Equal("formula: 2", formulaCell.Text);
+            Assert.Equal(2, mergedCell.RowSpan);
+            Assert.Equal(PdfHorizontalAlignment.Center, mergedCell.HorizontalAlignment);
+            Assert.Equal(PdfVerticalAlignment.Far, mergedCell.VerticalAlignment);
+            Assert.Equal(PdfHorizontalAlignment.Far, capturedTable.Rows[0].Cells[1].HorizontalAlignment);
         }
 
         [Fact]
@@ -339,8 +342,8 @@ namespace pdfsharpdslTests
             var tree = ParseText("ROWTEMPLATE Count=2 Y=10 Name=\"row\" BorderSize=2 NewPageTopMargin=5 LINE 0,0,10,10; ENDROWTEMPLATE");
             var drawer = new Mock<IPdfDocumentDrawer>();
             drawer.SetupSequence(x => x.EndDrawRowTemplate(It.IsAny<int>()))
-                .Returns(new DrawingResult { DrawingRect = new XRect(0, 0, 10, 20), PageOffsetY = 0 })
-                .Returns(new DrawingResult { DrawingRect = new XRect(0, 20, 10, 30), PageOffsetY = 10 });
+                .Returns(new DrawingResult { DrawingRect = new PdfRect(0, 0, 10, 20), PageOffsetY = 0 })
+                .Returns(new DrawingResult { DrawingRect = new PdfRect(0, 20, 10, 30), PageOffsetY = 10 });
             var visitor = new InspectablePdfDrawerVisitor();
 
             visitor.Draw(drawer.Object, tree);

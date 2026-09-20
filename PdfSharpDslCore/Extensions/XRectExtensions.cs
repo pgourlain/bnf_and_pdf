@@ -1,29 +1,27 @@
 using System.Collections.Generic;
-using PdfSharpCore.Drawing;
+using PdfSharpDslCore.Drawing;
 
 namespace PdfSharpDslCore.Extensions
 {
-    public static class XRectExtensions
+    public static class PdfRectExtensions
     {
-        public static XRect OffsetY(this XRect r, double y)
+        public static PdfRect OffsetY(this PdfRect r, double y)
         {
             var result = r;
             result.Offset(0, y);
             return result;
         }
 
-        public static XPoint OffsetY(this XPoint p, double y)
+        public static PdfPoint OffsetY(this PdfPoint p, double y)
         {
-            var result = p;
-            result.Offset(0,y);
-            return result;
+            return p.OffsetY(y);
         }
         
-        public static XPoint[] OffsetY(this XPoint[] pts, double y)
+        public static PdfPoint[] OffsetY(this PdfPoint[] pts, double y)
         {
             if (y != 0)
             {
-                List<XPoint> resultPts = new List<XPoint>();
+                List<PdfPoint> resultPts = new List<PdfPoint>();
                 foreach (var pt in pts)
                 {
                     resultPts.Add(pt.OffsetY(y));

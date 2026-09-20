@@ -1,13 +1,9 @@
 ﻿using System.Globalization;
-using PdfSharpCore.Fonts;
-using PdfSharpCore.Pdf;
-using PdfSharpDslConsole.Fonts;
 using PdfSharpDslCore.Drawing;
 using PdfSharpDslCore.Parser;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Logging.Console;
+using TerraPDF.Helpers;
 
 ServiceProvider serviceProvider = new ServiceCollection()
     .AddLogging((loggingBuilder) => loggingBuilder
@@ -26,10 +22,6 @@ CultureInfo.CurrentCulture = CultureInfo.CurrentUICulture = CultureInfo.Invarian
 //Now both are working
 logger?.LogDebug("Debug World");         
 logger?.LogInformation("Hello World");
-
-//GlobalFontSettings.FontResolver = new FontResolver();
-GlobalFontSettings.DefaultFontEncoding = PdfFontEncoding.Unicode;
-
 
 #region global variables
 var globalComments = new[]
@@ -95,11 +87,12 @@ var parser = new Irony.Parsing.Parser(new PdfGrammar());
 //var fileName = "pdfsharp-newpage.ipdf";
 //var fileName = "pdfsharp.ipdf";
 //var fileName = "sample1.ipdf";
-var fileName = "demo.ipdf";
-if (args.Length > 0)
-{
-    fileName = args[0];
-}
+var fileName = args.Length > 0 ? args[0] : "demo.ipdf";
+var outputFile = Path.GetFullPath("helloworld.pdf");
+if (args.Length == 0)
+    Directory.SetCurrentDirectory(AppContext.BaseDirectory);
+if (!Path.IsPathRooted(fileName) && !File.Exists(fileName))
+    fileName = Path.Combine(AppContext.BaseDirectory, fileName);
 
 var parsingResult = parser.Parse(File.ReadAllText(fileName));
 
@@ -115,11 +108,14 @@ if (parsingResult.HasErrors())
 }
 else
 {
-    GlobalFontSettings.FontResolver = new MyFontResolver(LocalFontFiles());
-    //PdfSharpCore cclasses
-    var document = new PdfDocument();
+    RegisterSystemFonts();
+    foreach (var font in LocalFontNames().Zip(LocalFontFiles()))
+    {
+        FontFamily.Register(font.First, font.Second);
+    }
+
     //draw parsing result
-    using var drawer = new PdfDocumentDrawer(document, logger);
+    using var drawer = new PdfDocumentDrawer(logger);
     var visitor = new PdfDrawerVisitor(logger);
 
     visitor.RegisterFormulaFunction("GetFontCount", (_) => LocalFontNames().Count());
@@ -132,7 +128,8 @@ else
     visitor.RegisterFormulaFunction("GETCOMMENTAUTHOR", getCommentAuthor);
 
     visitor.Draw(drawer, parsingResult);
-    document.Save("helloworld.pdf");
+    drawer.PublishPdf(outputFile);
+    Console.WriteLine($"PDF generated: {outputFile}");
 
     //var a = new PDfDsl.pdfsharp();
     //a.WritePdf(drawer);
@@ -140,12 +137,12 @@ else
 
 IEnumerable<string> LocalFontFiles()
 {
-    yield return @"Fonts/AlexBrush-Regular.ttf";
-    yield return @"Fonts/Just-Signature.ttf";
-    yield return @"Fonts/Inspiration-Regular.ttf";
-    yield return @"Fonts/Quirlycues.ttf";
-    yield return @"Fonts/Rabiohead.ttf";
-    yield return @"Fonts/SCRIPTIN.ttf";
+    yield return Path.Combine(AppContext.BaseDirectory, "Fonts", "AlexBrush-Regular.ttf");
+    yield return Path.Combine(AppContext.BaseDirectory, "Fonts", "Just-Signature.ttf");
+    yield return Path.Combine(AppContext.BaseDirectory, "Fonts", "Inspiration-Regular.ttf");
+    yield return Path.Combine(AppContext.BaseDirectory, "Fonts", "Quirlycues.ttf");
+    yield return Path.Combine(AppContext.BaseDirectory, "Fonts", "Rabiohead.ttf");
+    yield return Path.Combine(AppContext.BaseDirectory, "Fonts", "SCRIPTIN.ttf");
 }
 
 IEnumerable<string> LocalFontNames()
@@ -156,6 +153,26 @@ IEnumerable<string> LocalFontNames()
     yield return "Quirlycues";
     yield return "Rabiohead";
     yield return "Scriptina";
+}
+
+void RegisterSystemFonts()
+{
+    var fontsDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Fonts);
+    RegisterFontVariant("Arial", "arial.ttf", fontsDirectory);
+    RegisterFontVariant("Arial", "arialbd.ttf", fontsDirectory, bold: true);
+    RegisterFontVariant("Arial", "ariali.ttf", fontsDirectory, italic: true);
+    RegisterFontVariant("Arial", "arialbi.ttf", fontsDirectory, bold: true, italic: true);
+    RegisterFontVariant("Consolas", "consola.ttf", fontsDirectory);
+    RegisterFontVariant("Consolas", "consolab.ttf", fontsDirectory, bold: true);
+    RegisterFontVariant("Consolas", "consolai.ttf", fontsDirectory, italic: true);
+    RegisterFontVariant("Consolas", "consolaz.ttf", fontsDirectory, bold: true, italic: true);
+}
+
+void RegisterFontVariant(string familyName, string fileName, string directory, bool bold = false, bool italic = false)
+{
+    var path = Path.Combine(directory, fileName);
+    if (File.Exists(path))
+        FontFamily.Register(familyName, path, bold, italic);
 }
 
 object GetFontNameByIndex(object[] arguments)

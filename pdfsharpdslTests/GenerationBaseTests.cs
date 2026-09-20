@@ -1,5 +1,4 @@
-﻿using PdfSharpCore.Pdf;
-using PdfSharpDslCore.Drawing;
+﻿using PdfSharpDslCore.Drawing;
 using PdfSharpDslCore.Parser;
 using System;
 using System.Collections.Generic;
@@ -17,14 +16,12 @@ namespace pdfsharpdslTests
         {
             var parsingResult = ParseText(dslFileContent);
 
-            //PdfSharpCore cclasses
-            using var document = new PdfDocument();
-            //draw parsing result
-            using var drawer = new PdfDocumentDrawer(document);
+            using var drawer = new PdfDocumentDrawer();
             new PdfDrawerVisitor().Draw(drawer, parsingResult);
 
             var result = new MemoryStream();
-            document.Save(result, false);
+            drawer.PublishPdf(result);
+            result.Position = 0;
             return result;
         }
     }
