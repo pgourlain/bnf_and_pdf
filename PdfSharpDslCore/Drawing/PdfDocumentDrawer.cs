@@ -459,7 +459,7 @@ namespace PdfSharpDslCore.Drawing
 
                         if (!testSize) continue;
                         var w = Math.Max(0, Math.Min(column.DesiredWidth ?? 0, pageSpaceLeft));
-                        var measure = sizeFormatter.CalculateTextSize(text, xFonts[colIndex], defaultBrush, w);
+                        var measure = SafeCalculateTextSize(sizeFormatter, text, xFonts[colIndex], defaultBrush, w);
                         if (rowMeasure && placement.RowSpan == 1)
                         {
                             row.DesiredHeight = Math.Max(row.DesiredHeight ?? 0,
@@ -480,7 +480,7 @@ namespace PdfSharpDslCore.Drawing
                     if (placement.ColumnSpan == 1 && placement.RowSpan == 1) continue;
                     var spanWidth = colX[placement.Column + placement.ColumnSpan] - colX[placement.Column];
                     var w = Math.Max(0, spanWidth - margins.Left - margins.Right);
-                    var measure = sizeFormatter.CalculateTextSize(placement.Cell.Text, xFonts[placement.Column],
+                    var measure = SafeCalculateTextSize(sizeFormatter, placement.Cell.Text, xFonts[placement.Column],
                         defaultBrush, w);
                     var requiredHeight = measure.Height + margins.Top + margins.Bottom;
                     var spannedRows = tblDef.Rows.Skip(placement.Row).Take(placement.RowSpan).ToArray();
@@ -639,6 +639,24 @@ namespace PdfSharpDslCore.Drawing
             };
             DrawStringMultiline(placement.Cell.Text, fonts[placement.Column], column.Brush ?? defaultBrush, rText,
                 fmt);
+        }
+
+        /// <summary>
+        /// Some fallback fonts (e.g. a missing "Arial" on Linux CI resolving to a font with degenerate metrics)
+        /// make PdfSharpCore's own wrap-height computation go negative and throw. Fall back to an unwrapped
+        /// measurement, which does not exercise that code path, rather than crash the whole table.
+        /// </summary>
+        private XSize SafeCalculateTextSize(XTextSegmentFormatter formatter, string text, XFont font, XBrush brush,
+            double width)
+        {
+            try
+            {
+                return formatter.CalculateTextSize(text, font, brush, width);
+            }
+            catch (ArgumentException)
+            {
+                return Gfx.MeasureString(text, font);
+            }
         }
 
         private void ResetClip()
