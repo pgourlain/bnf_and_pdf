@@ -16,8 +16,8 @@ namespace pdfsharpdslTests
             new PdfSharpDslCore.Parser.PdfDrawerVisitor().Draw(drawer, tree);
             var content = ReadContent(drawer.PublishPdf());
 
-            Assert.Matches(@"0\.00 -1\.00 1\.00 0\.00 220\.00 [\d.]+ Tm\n\(vertical\) Tj", content);
-            Assert.Matches(@"0\.87 -0\.50 0\.50 0\.87 300\.00 [\d.]+ Tm\n\(30 degree rotation\) Tj", content);
+            Assert.Matches(@"0\.000000 -1\.000000 1\.000000 0\.000000 220\.00 [\d.]+ Tm\n\(vertical\) Tj", content);
+            Assert.Matches(@"0\.866025 -0\.500000 0\.500000 0\.866025 300\.00 [\d.]+ Tm\n\(30 degree rotation\) Tj", content);
         }
 
         [Fact]
