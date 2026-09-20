@@ -5,6 +5,21 @@
 
 This is a sample library that use [Irony.Net](https://github.com/IronyProject/Irony) to define a grammar to print PDF using [PdfSharpCore](https://github.com/ststeiger/PdfSharpCore/)
 
+## Current support
+
+- `PdfSharpDslCore` and `PdfSharpDslCore.Generator` target `netstandard2.0`.
+- `PdfSharpDslConsole` and the test project target `net10.0`.
+- The repository is pinned to SDK `10.0.400` in `global.json`.
+- The generator package includes its analyzer dependencies and supports clean NuGet consumer builds.
+
+Run the full test and core coverage gate with:
+
+```powershell
+powershell -NoProfile -File .\scripts\coverage.ps1
+```
+
+The gate requires at least 90% core line coverage. See [tasks.md](tasks.md) for the migration tracker and verified results.
+
 
 # Example
 

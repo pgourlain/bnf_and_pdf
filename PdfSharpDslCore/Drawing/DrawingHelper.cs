@@ -24,7 +24,7 @@ namespace PdfSharpDslCore.Drawing
                 case XStringAlignment.Near:
                     break;
                 case XStringAlignment.Far:
-                    result.Offset(r.Right - textSize.Width, 0);
+                    result.Offset(r.Width - textSize.Width, 0);
                     break;
             }
 
@@ -36,7 +36,7 @@ namespace PdfSharpDslCore.Drawing
                 case XLineAlignment.Near:
                     break;
                 case XLineAlignment.Far:
-                    result.Offset(0, r.Bottom - textSize.Height);
+                    result.Offset(0, r.Height - textSize.Height);
                     break;
             }
 

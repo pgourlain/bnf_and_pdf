@@ -1,6 +1,7 @@
 using PdfSharpCore;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Drawing.Layout;
+using PdfSharpCore.Drawing.Layout.enums;
 using PdfSharpCore.Pdf;
 using SixLabors.ImageSharp;
 using System;
@@ -414,22 +415,29 @@ namespace PdfSharpDslCore.Drawing
                     i++;
                 }
 
+                var placements = LayoutTableCells(tblDef);
+
                 //measure all rows
                 var sizeFormatter = new XTextSegmentFormatter(Gfx)
                 {
                     Alignment = XParagraphAlignment.Left
                 };
-                foreach (var row in tblDef.Rows)
+                for (var rowIndex = 0; rowIndex < tblDef.Rows.Count; rowIndex++)
                 {
+                    var row = tblDef.Rows[rowIndex];
                     var rowMeasure = row.DesiredHeight is null;
-                    for (i = 0; i < row.Data.Length; i++)
+                    foreach (var placement in placements)
                     {
-                        var testSize = !colMeasure[i];
-                        var pageSpaceLeft = tblDef.ColMaxWidth(i, availableWidth);
-                        var column = tblDef.Columns[i];
-                        if (colMeasure[i])
+                        //a spanning cell does not inflate a single column; measured separately below
+                        if (placement.Row != rowIndex || placement.ColumnSpan != 1) continue;
+                        var colIndex = placement.Column;
+                        var text = placement.Cell.Text;
+                        var testSize = !colMeasure[colIndex];
+                        var pageSpaceLeft = tblDef.ColMaxWidth(colIndex, availableWidth);
+                        var column = tblDef.Columns[colIndex];
+                        if (colMeasure[colIndex])
                         {
-                            var cSize = Gfx.MeasureString(row.Data[i], xFonts[i]);
+                            var cSize = Gfx.MeasureString(text, xFonts[colIndex]);
                             cSize.Width += (margins.Left + margins.Right);
                             if (cSize.Width > pageSpaceLeft)
                             {
@@ -442,7 +450,7 @@ namespace PdfSharpDslCore.Drawing
                                 column.DesiredWidth = Math.Max(column.DesiredWidth ?? 0, cSize.Width);
                             }
 
-                            if (rowMeasure)
+                            if (rowMeasure && placement.RowSpan == 1)
                             {
                                 row.DesiredHeight = Math.Max(row.DesiredHeight ?? 0,
                                     cSize.Height + margins.Top + margins.Bottom);
@@ -450,13 +458,37 @@ namespace PdfSharpDslCore.Drawing
                         }
 
                         if (!testSize) continue;
-                        var w = Math.Min(column.DesiredWidth ?? 0, pageSpaceLeft);
-                        var measure = sizeFormatter.CalculateTextSize(row.Data[i], xFonts[i], defaultBrush, w);
-                        if (rowMeasure)
+                        var w = Math.Max(0, Math.Min(column.DesiredWidth ?? 0, pageSpaceLeft));
+                        var measure = SafeCalculateTextSize(sizeFormatter, text, xFonts[colIndex], defaultBrush, w);
+                        if (rowMeasure && placement.RowSpan == 1)
                         {
                             row.DesiredHeight = Math.Max(row.DesiredHeight ?? 0,
                                 measure.Height + margins.Top + margins.Bottom);
                         }
+                    }
+                }
+
+                //column widths are final: build x-offsets, then grow rows for cells spanning columns and/or rows
+                var colX = new double[tblDef.Columns.Count + 1];
+                for (i = 0; i < tblDef.Columns.Count; i++)
+                {
+                    colX[i + 1] = colX[i] + tblDef.Columns[i].DrawWidth;
+                }
+
+                foreach (var placement in placements)
+                {
+                    if (placement.ColumnSpan == 1 && placement.RowSpan == 1) continue;
+                    var spanWidth = colX[placement.Column + placement.ColumnSpan] - colX[placement.Column];
+                    var w = Math.Max(0, spanWidth - margins.Left - margins.Right);
+                    var measure = SafeCalculateTextSize(sizeFormatter, placement.Cell.Text, xFonts[placement.Column],
+                        defaultBrush, w);
+                    var requiredHeight = measure.Height + margins.Top + margins.Bottom;
+                    var spannedRows = tblDef.Rows.Skip(placement.Row).Take(placement.RowSpan).ToArray();
+                    var missingHeight = requiredHeight - spannedRows.Sum(r => r.DesiredHeight ?? 0);
+                    if (missingHeight > 0)
+                    {
+                        var lastSpannedRow = spannedRows[spannedRows.Length - 1];
+                        lastSpannedRow.DesiredHeight = (lastSpannedRow.DesiredHeight ?? 0) + missingHeight;
                     }
                 }
 
@@ -494,40 +526,30 @@ namespace PdfSharpDslCore.Drawing
                 }
 
                 offsetY = tblDef.HeaderHeight ?? 0;
-                //draw body
-                foreach (var row in tblDef.Rows)
+                //draw body; a rowspan/colspan cell is drawn once, at the row/column where it starts
+                for (var rowIndex = 0; rowIndex < tblDef.Rows.Count; rowIndex++)
                 {
-                    if (y + offsetY + row.DesiredHeight > CurrentPage.Height)
+                    var row = tblDef.Rows[rowIndex];
+                    var rowPlacements = placements.Where(p => p.Row == rowIndex).ToArray();
+                    //a row fully covered by a rowspan started above has no placements of its own: never split a rowspan block
+                    if (rowPlacements.Length > 0)
                     {
-                        Gfx.Restore();
-                        NewPage();
-                        Gfx.Save();
-                        //TODO: set top margin
-                        y = 1;
-                        offsetY = 0;
+                        var blockHeight = rowPlacements.Max(p =>
+                            tblDef.Rows.Skip(p.Row).Take(p.RowSpan).Sum(sr => sr.DesiredHeight ?? 0));
+                        if (y + offsetY + blockHeight > CurrentPage.Height)
+                        {
+                            Gfx.Restore();
+                            NewPage();
+                            Gfx.Save();
+                            //TODO: set top margin
+                            y = 1;
+                            offsetY = 0;
+                        }
                     }
 
-                    offsetX = 0;
-                    for (i = 0; i < row.Data.Length; i++)
+                    foreach (var placement in rowPlacements)
                     {
-                        var w = tblDef.Columns[i].DrawWidth;
-                        var h = row.DesiredHeight ?? 0;
-                        var r = new XRect(offsetX + x, offsetY + y, w, h);
-                        ResetClip();
-                        Gfx.DrawRectangle(CurrentPen, tblDef.Columns[i].BackColor, r);
-                        var hMargin = margins.Left + margins.Right;
-                        var vMargin = margins.Top + margins.Bottom;
-                        var rText = new XRect(offsetX + x + margins.Left, offsetY + y + margins.Top, w - hMargin,
-                            h - vMargin);
-                        Gfx.IntersectClip(rText);
-                        var fmt = new XStringFormat
-                        { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center };
-                        //to debug
-                        //Gfx.DrawRectangle(XPens.Violet, rText);
-                        //TODO: split to draw one string per line
-                        DrawStringMultiline(row.Data[i], xFonts[i], tblDef.Columns[i].Brush ?? defaultBrush, rText,
-                            fmt);
-                        offsetX += w;
+                        DrawTableCell(x, y + offsetY, placement, tblDef, xFonts, defaultBrush, colX);
                     }
 
                     offsetY += row.DesiredHeight ?? 0;
@@ -536,6 +558,104 @@ namespace PdfSharpDslCore.Drawing
             finally
             {
                 Gfx.Restore();
+            }
+        }
+
+        private sealed class TableCellPlacement
+        {
+            public TableCellPlacement(int row, int column, int columnSpan, int rowSpan, CellDefinition cell)
+            {
+                Row = row;
+                Column = column;
+                ColumnSpan = columnSpan;
+                RowSpan = rowSpan;
+                Cell = cell;
+            }
+
+            public int Row { get; }
+            public int Column { get; }
+            public int ColumnSpan { get; }
+            public int RowSpan { get; }
+            public CellDefinition Cell { get; }
+        }
+
+        private static List<TableCellPlacement> LayoutTableCells(TableDefinition table)
+        {
+            var result = new List<TableCellPlacement>();
+            var columnCount = table.Columns.Count;
+            var occupiedUntilRow = new int[columnCount];
+            for (var rowIndex = 0; rowIndex < table.Rows.Count; rowIndex++)
+            {
+                var row = table.Rows[rowIndex];
+                var cells = row.Cells.Count > 0
+                    ? row.Cells
+                    : row.Data.Select(text => new CellDefinition { Text = text }).ToList();
+
+                var columnIndex = 0;
+                foreach (var cell in cells)
+                {
+                    while (columnIndex < columnCount && occupiedUntilRow[columnIndex] > rowIndex)
+                        columnIndex++;
+                    if (columnIndex >= columnCount) break;
+
+                    var columnSpan = Math.Min(Math.Max(1, cell.ColumnSpan), columnCount - columnIndex);
+                    var rowSpan = Math.Min(Math.Max(1, cell.RowSpan), table.Rows.Count - rowIndex);
+                    result.Add(new TableCellPlacement(rowIndex, columnIndex, columnSpan, rowSpan, cell));
+                    for (var c = columnIndex; c < columnIndex + columnSpan; c++)
+                        occupiedUntilRow[c] = rowIndex + rowSpan;
+                    columnIndex += columnSpan;
+                }
+
+                //keep drawing borders for any column this (short) row never reached
+                for (var c = 0; c < columnCount; c++)
+                {
+                    if (occupiedUntilRow[c] > rowIndex) continue;
+                    result.Add(new TableCellPlacement(rowIndex, c, 1, 1, new CellDefinition()));
+                    occupiedUntilRow[c] = rowIndex + 1;
+                }
+            }
+
+            return result;
+        }
+
+        private void DrawTableCell(double x, double y, TableCellPlacement placement, TableDefinition table,
+            XFont[] fonts, XBrush defaultBrush, double[] colX)
+        {
+            var column = table.Columns[placement.Column];
+            var margins = table.CellMargin;
+            var w = colX[placement.Column + placement.ColumnSpan] - colX[placement.Column];
+            var h = table.Rows.Skip(placement.Row).Take(placement.RowSpan).Sum(r => r.DesiredHeight ?? 0);
+            var r = new XRect(x + colX[placement.Column], y, w, h);
+            ResetClip();
+            Gfx.DrawRectangle(CurrentPen, column.BackColor, r);
+            var hMargin = margins.Left + margins.Right;
+            var vMargin = margins.Top + margins.Bottom;
+            var rText = new XRect(r.X + margins.Left, r.Y + margins.Top, w - hMargin, h - vMargin);
+            Gfx.IntersectClip(rText);
+            var fmt = new XStringFormat
+            {
+                Alignment = placement.Cell.HorizontalAlignment ?? column.Alignment,
+                LineAlignment = placement.Cell.VerticalAlignment ?? XLineAlignment.Near
+            };
+            DrawStringMultiline(placement.Cell.Text, fonts[placement.Column], column.Brush ?? defaultBrush, rText,
+                fmt);
+        }
+
+        /// <summary>
+        /// Some fallback fonts (e.g. a missing "Arial" on Linux CI resolving to a font with degenerate metrics)
+        /// make PdfSharpCore's own wrap-height computation go negative and throw. Fall back to an unwrapped
+        /// measurement, which does not exercise that code path, rather than crash the whole table.
+        /// </summary>
+        private XSize SafeCalculateTextSize(XTextSegmentFormatter formatter, string text, XFont font, XBrush brush,
+            double width)
+        {
+            try
+            {
+                return formatter.CalculateTextSize(text, font, brush, width);
+            }
+            catch (ArgumentException)
+            {
+                return Gfx.MeasureString(text, font);
             }
         }
 
@@ -551,7 +671,21 @@ namespace PdfSharpDslCore.Drawing
 
         private void DrawStringMultiline(string text, XFont xFont, XBrush xBrush, XRect r, XStringFormat fmt)
         {
-            var formatter = new XTextFormatter(Gfx);
+            var formatter = new XTextFormatter(Gfx)
+            {
+                Alignment = fmt.Alignment switch
+                {
+                    XStringAlignment.Center => XParagraphAlignment.Center,
+                    XStringAlignment.Far => XParagraphAlignment.Right,
+                    _ => XParagraphAlignment.Left
+                },
+                VerticalAlignment = fmt.LineAlignment switch
+                {
+                    XLineAlignment.Center => XVerticalAlignment.Middle,
+                    XLineAlignment.Far => XVerticalAlignment.Bottom,
+                    _ => XVerticalAlignment.Top
+                }
+            };
             formatter.DrawString(text, xFont, xBrush, r);
         }
 

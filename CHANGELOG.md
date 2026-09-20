@@ -1,6 +1,15 @@
 
 # Change log
 
+## Version 1.0.6 (September 20, 2024)
+* Migrated console and test projects to .NET 10 while retaining reusable projects on .NET Standard 2.0.
+* Added reproducible core-only coverage enforcement at 90% line coverage.
+* Added Roslyn source-generator compilation and clean NuGet consumer validation.
+
+
+## Version 1.0.5 (March 3, 2024)
+* Update nugets packages and upgrade to .Net 8
+
 ## Version 1.0.4 (May 19, 2023)
 * Add callback onNewpage in order to draw a custom template on each page.
   - Define UDF "__ONNEWPAGE()" in .ipdf file or register it via method 'RegisterCustomUdf(..)' in your dotnet language.

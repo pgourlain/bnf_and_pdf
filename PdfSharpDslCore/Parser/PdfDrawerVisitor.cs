@@ -294,7 +294,8 @@ namespace PdfSharpDslCore.Parser
             {
                 //try to parse unit and cropping
                 unit = unitNode.Term.Name;
-                crop = cropNode?.ChildNodes.Count > 0;
+                crop = cropNode?.ChildNodes.Any(x =>
+                    string.Equals(x.Token?.Text, "crop", StringComparison.OrdinalIgnoreCase)) == true;
             }
 
             XImage image;
@@ -471,6 +472,7 @@ namespace PdfSharpDslCore.Parser
             "DEBUG_TEXT" => DebugOptions.DebugText,
             "DEBUG_RECT" => DebugOptions.DebugRect,
             "DEBUG_ROWTEMPLATE" => DebugOptions.DebugRowTemplate,
+            "DEBUG_IMAGE" => DebugOptions.DebugImage,
             "DEBUG_RULE" => DebugOptions.DebugRule,
             "DEBUG_ALL" => DebugOptions.DebugAll,
             _ => DebugOptions.None
@@ -566,11 +568,10 @@ namespace PdfSharpDslCore.Parser
                     for (var i = 0; i < rowCount; i++)
                     {
                         var rowDef = new RowDefinition();
-                        var cols = row.ChildNodes("TableCol").SelectMany(x => x.ChildNodes)
-                            .Where(x => x.Term?.Name != "COL").ToArray();
 
                         vars.Add("ROWINDEX", i);
-                        var rowData = cols.Select(x => EvaluateForObject(x)?.ToString()!).ToList();
+                        rowDef.Cells = row.ChildNodes("TableCol").Select(ParseTableCell).ToList();
+                        var rowData = rowDef.Cells.Select(cell => cell.Text).ToList();
 
                         while (rowData.Count < tbl.Columns.Count)
                         {
@@ -602,11 +603,8 @@ namespace PdfSharpDslCore.Parser
                     rowDef.DesiredHeight = rowHeight;
                 }
 
-                var cols = row.ChildNodes("TableCol").SelectMany(x => x.ChildNodes).Where(x => x.Term?.Name != "COL")
-                    .ToArray();
-
-
-                var rowData = cols.Select(x => x.Token.ValueString).ToList();
+                rowDef.Cells = row.ChildNodes("TableCol").Select(ParseTableCell).ToList();
+                var rowData = rowDef.Cells.Select(cell => cell.Text).ToList();
                 while (rowData.Count < tbl.Columns.Count)
                 {
                     rowData.Add(string.Empty);
@@ -651,6 +649,34 @@ namespace PdfSharpDslCore.Parser
 
                 tbl.Columns.Add(colDef);
             }
+        }
+
+        private CellDefinition ParseTableCell(ParseTreeNode node)
+        {
+            var cell = new CellDefinition
+            {
+                Text = EvaluateForObject(node.ChildNodes.Last())?.ToString() ?? string.Empty,
+                ColumnSpan = ParseTableCellSpan(node.ChildNode("TableCellColSpan")),
+                RowSpan = ParseTableCellSpan(node.ChildNode("TableCellRowSpan"))
+            };
+
+            var alignment = node.ChildNode("TextAlignment");
+            if (alignment is not null)
+            {
+                var hNode = alignment.ChildNode("HAlign");
+                var vNode = alignment.ChildNode("VAlign");
+                var (hAlign, vAlign) = ParseTextAlignment(hNode, vNode);
+                if (hNode?.ChildNodes.Count > 2) cell.HorizontalAlignment = hAlign;
+                if (vNode?.ChildNodes.Count > 2) cell.VerticalAlignment = vAlign;
+            }
+
+            return cell;
+        }
+
+        private int ParseTableCellSpan(ParseTreeNode? node)
+        {
+            if (node is null || node.ChildNodes.Count == 0) return 1;
+            return Math.Max(1, Convert.ToInt32(EvaluateForDouble(node.ChildNodes.Last())));
         }
 
         private static (XStringAlignment, XLineAlignment) ParseTextAlignment(ParseTreeNode alignNode)
