@@ -33,7 +33,7 @@ namespace PdfSharpDslCore.Drawing
         /// <returns></returns>
         public double ColMaxWidth(int i, double pageWidth)
         {
-            return Math.Min(Columns[i].MaxWidth ?? pageWidth, pageWidth);
+            return Math.Max(0, Math.Min(Columns[i].MaxWidth ?? pageWidth, pageWidth));
         }
 
         public XStringAlignment Alignment(int i)

@@ -450,7 +450,7 @@ namespace PdfSharpDslCore.Drawing
                         }
 
                         if (!testSize) continue;
-                        var w = Math.Min(column.DesiredWidth ?? 0, pageSpaceLeft);
+                        var w = Math.Max(0, Math.Min(column.DesiredWidth ?? 0, pageSpaceLeft));
                         var measure = sizeFormatter.CalculateTextSize(row.Data[i], xFonts[i], defaultBrush, w);
                         if (rowMeasure)
                         {
