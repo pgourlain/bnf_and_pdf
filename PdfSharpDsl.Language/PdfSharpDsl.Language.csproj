@@ -1,19 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <LangVersion>10.0</LangVersion>
-    <Nullable>enable</Nullable>
-    <IsPackable>false</IsPackable>
-  </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Irony" Version="1.5.3" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
-  </ItemGroup>
+	<PropertyGroup>
+		<TargetFramework>$(NetStandardTfm)</TargetFramework>
+		<IsPackable>false</IsPackable>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <InternalsVisibleTo Include="PdfSharpDslCore" />
-    <InternalsVisibleTo Include="PdfSharpDslCore.Generator" />
-    <InternalsVisibleTo Include="pdfsharpdslTests" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Irony" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="PdfSharpDslCore" />
+		<InternalsVisibleTo Include="PdfSharpDslCore.Generator" />
+		<InternalsVisibleTo Include="pdfsharpdslTests" />
+	</ItemGroup>
+
 </Project>

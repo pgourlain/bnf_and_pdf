@@ -2,10 +2,14 @@
 # Change log
 
 ## Version 2.0.0 (unreleased)
-* Migrated PDF generation from PdfSharpCore and its image/font/archive dependencies to TerraPDF 2.1.0.
+* Migrated PDF generation from PdfSharpCore and its image/font/archive dependencies to TerraPDF 2.2.0.
 * Added engine-independent drawing primitives and `PdfSharpDsl.Language` for the netstandard2.0 source generator.
 * Added `PublishPdf(Stream)`, `PublishPdf(string)` and `PublishPdf()` to `PdfDocumentDrawer`.
-* **Breaking:** `PdfSharpDslCore` now targets `net8.0` (was `netstandard2.0`).
+* **Breaking:** `PdfSharpDslCore` now multi-targets `net8.0` and `net10.0` (was `netstandard2.0`).
+* Centralized the build in a `_build/` folder: `Version.props` holds the single product version, `Common.props` the shared package metadata, licence and target-framework aliases, and `Packages.props` every NuGet version (central package management). `Directory.Build.props`, `Directory.Build.targets` and `Directory.Packages.props` at the repository root are thin stubs that import them.
+* All assemblies now ship the same version. `PdfSharpDslCore.Generator` moves from `1.0.2` to `2.0.0` and `PdfSharpDslConsole` no longer carries its own `0.1.0`.
+* The release workflow now derives the published package version from the GitHub release tag, and builds, tests and packs in `Release` so the tested binaries are the ones packed.
+* Updated `Microsoft.Extensions.Logging.Abstractions` and `Microsoft.Extensions.Logging.Console` to 10.0.12.
 
 ## Version 1.0.6 (September 20, 2026)
 * Migrated console and test projects to .NET 10 while retaining reusable projects on .NET Standard 2.0.

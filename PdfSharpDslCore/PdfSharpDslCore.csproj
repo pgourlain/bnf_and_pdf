@@ -1,30 +1,19 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>net8.0</TargetFramework>
+		<TargetFrameworks>$(NetLibTfms)</TargetFrameworks>
 		<PackageReadmeFile>Readme.md</PackageReadmeFile>
-		<LangVersion>9.0</LangVersion>
-		<Nullable>enable</Nullable>
 		<Title>Generate PDF using DSL</Title>
 		<PackageId>PdfSharpDslCore</PackageId>
-		<Version>2.0.0</Version>
-		<Authors>Pierrick Gourlain</Authors>
-		<Company></Company>
 		<UseLocalTerraPdf Condition="'$(UseLocalTerraPdf)' == '' and Exists('..\..\TerraPDF\src\TerraPDF\TerraPDF.csproj')">true</UseLocalTerraPdf>
 		<Description>A DSL using TerraPDF to generate PDF</Description>
-		<RepositoryUrl>https://github.com/pgourlain/bnf_and_pdf</RepositoryUrl>
 		<PackageIcon>Icon.jpg</PackageIcon>
-		<PackageLicenseFile>LICENSE.md</PackageLicenseFile>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<None Include="..\LICENSE.md">
-			<Pack>True</Pack>
-			<PackagePath>\</PackagePath>
-		</None>
-		<PackageReference Include="Irony" Version="1.5.3" />
-		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
-		<PackageReference Include="TerraPDF" Version="2.2.0" Condition="'$(UseLocalTerraPdf)' != 'true'" />
+		<PackageReference Include="Irony" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+		<PackageReference Include="TerraPDF" Condition="'$(UseLocalTerraPdf)' != 'true'" />
 	</ItemGroup>
 	<ItemGroup Condition="'$(UseLocalTerraPdf)' == 'true'">
 		<ProjectReference Include="..\..\TerraPDF\src\TerraPDF\TerraPDF.csproj" />
@@ -39,15 +28,15 @@
 	<ItemGroup>
 		<InternalsVisibleTo Include="pdfsharpdslTests" />
 	</ItemGroup>
-	<ItemGroup>
-	  <None Update="Icon.jpg">
-	    <Pack>True</Pack>
-	    <PackagePath>\</PackagePath>
-	  </None>
-	  <None Update="Readme.md">
-	    <Pack>True</Pack>
-	    <PackagePath>\</PackagePath>
-	  </None>
+	<!--
+		Now that this project multi-targets, pack runs in the cross-targeting (outer) build,
+		where the SDK does not expand its default None globs. So these must be Include, not
+		Update: an Update would have nothing to attach the Pack metadata to and the icon and
+		readme would silently drop out of the package (NU5046).
+	-->
+	<ItemGroup Condition="'$(TargetFramework)' == ''">
+		<None Include="Icon.jpg" Pack="true" PackagePath="\" />
+		<None Include="Readme.md" Pack="true" PackagePath="\" />
 	</ItemGroup>
 
 </Project>

@@ -7,9 +7,10 @@ This is a sample library that uses [Irony.Net](https://github.com/IronyProject/I
 
 ## Current support
 
-- `PdfSharpDslCore` targets `net8.0`; `PdfSharpDsl.Language` and `PdfSharpDslCore.Generator` target `netstandard2.0`.
+- `PdfSharpDslCore` multi-targets `net8.0` and `net10.0`; `PdfSharpDsl.Language` and `PdfSharpDslCore.Generator` target `netstandard2.0` because they are loaded by the compiler.
 - `PdfSharpDslConsole` and the test project target `net10.0`.
 - The repository is pinned to SDK `10.0.400` in `global.json`.
+- Version, licence, package metadata and every NuGet version are centralized in [`_build/`](_build/): `Version.props` (the single product version), `Common.props` (shared metadata and target-framework aliases) and `Packages.props` (central package management). The `Directory.Build.props`, `Directory.Build.targets` and `Directory.Packages.props` files at the repository root only import these. Change a version or a target framework there, never in an individual `.csproj`.
 - The generator package includes its analyzer dependencies and supports clean NuGet consumer builds.
 
 Run the full test and core coverage gate with:

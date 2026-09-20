@@ -1,0 +1,11 @@
+<Project>
+
+	<!--
+		Imported after the .csproj, so IsPackable is known here.
+		Packs the repository LICENSE.md into every package (PackageLicenseFile is set in Common.props).
+	-->
+	<ItemGroup Condition="'$(IsPackable)' != 'false'">
+		<None Include="$(MSBuildThisFileDirectory)..\LICENSE.md" Pack="true" PackagePath="\" Visible="false" />
+	</ItemGroup>
+
+</Project>
