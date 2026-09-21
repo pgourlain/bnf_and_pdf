@@ -1,9 +1,25 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>$(NetStandardTfm)</TargetFramework>
+    <LangVersion>10.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <IsPackable>true</IsPackable>
+    <PackageId>PdfSharpDsl.Language</PackageId>
+    <Version>2.0.0</Version>
+    <Authors>Pierrick Gourlain</Authors>
+    <Description>Language and drawing primitives used by PdfSharpDsl.</Description>
+    <RepositoryUrl>https://github.com/pgourlain/bnf_and_pdf</RepositoryUrl>
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+  </PropertyGroup>
 
-	<PropertyGroup>
-		<TargetFramework>$(NetStandardTfm)</TargetFramework>
-		<IsPackable>false</IsPackable>
-	</PropertyGroup>
+  <ItemGroup>
+    <None Include="..\LICENSE.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Irony" Version="1.5.3" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+  </ItemGroup>
 
 	<ItemGroup>
 		<PackageReference Include="Irony" />

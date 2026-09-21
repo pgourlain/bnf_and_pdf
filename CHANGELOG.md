@@ -1,7 +1,12 @@
 
 # Change log
 
-## Version 2.0.0 (unreleased)
+## Version 2.0.1 (September 21, 2026)
+
+* Fix missing DslLanguage dependency
+
+## Version 2.0.0 (September 19, 2026)
+
 * Migrated PDF generation from PdfSharpCore and its image/font/archive dependencies to TerraPDF 2.2.0.
 * Added engine-independent drawing primitives and `PdfSharpDsl.Language` for the netstandard2.0 source generator.
 * Added `PublishPdf(Stream)`, `PublishPdf(string)` and `PublishPdf()` to `PdfDocumentDrawer`.
@@ -12,6 +17,7 @@
 * Updated `Microsoft.Extensions.Logging.Abstractions` and `Microsoft.Extensions.Logging.Console` to 10.0.12.
 
 ## Version 1.0.6 (September 20, 2026)
+
 * Migrated console and test projects to .NET 10 while retaining reusable projects on .NET Standard 2.0.
 * Added reproducible core-only coverage enforcement at 90% line coverage.
 * Added Roslyn source-generator compilation and clean NuGet consumer validation.

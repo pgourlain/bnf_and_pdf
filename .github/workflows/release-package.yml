@@ -33,7 +33,10 @@ jobs:
       - name: Test
         run: dotnet test --no-build -c Release --verbosity normal
       - name: pack
-        run: dotnet pack --no-build -c Release PdfSharpDslCore/PdfSharpDslCore.csproj -p:Version=${{ steps.version.outputs.version }}
+        run: |
+          dotnet pack -c Release PdfSharpDsl.Language/PdfSharpDsl.Language.csproj
+          dotnet pack -c Release PdfSharpDslCore.Generator/PdfSharpDslCore.Generator.csproj
+          dotnet pack -c Release PdfSharpDslCore/PdfSharpDslCore.csproj
       # - name: add publish
       #   run: dotnet nuget add source --username pgourlain --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/pgourlain/index.json"
       # - name: publish package
@@ -47,4 +50,7 @@ jobs:
         with:
           user: ${{ secrets.NUGET_USER }}
       - name: Publish to NuGet
-        run: dotnet nuget push "PdfSharpDslCore/bin/Release/*.nupkg" --api-key ${{steps.login.outputs.NUGET_API_KEY}} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        run: |
+          dotnet nuget push "PdfSharpDsl.Language/bin/Release/*.nupkg" -s https://api.nuget.org/v3/index.json -k ${{ secrets.NUGET_KEY }} --skip-duplicate
+          dotnet nuget push "PdfSharpDslCore.Generator/bin/Release/*.nupkg" -s https://api.nuget.org/v3/index.json -k ${{ secrets.NUGET_KEY }} --skip-duplicate
+          dotnet nuget push "PdfSharpDslCore/bin/Release/*.nupkg" -s https://api.nuget.org/v3/index.json -k ${{ secrets.NUGET_KEY }} --skip-duplicate
