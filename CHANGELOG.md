@@ -4,6 +4,8 @@
 ## Unreleased
 
 * Add `PAGE` scope to `DEBUGOPTIONS` (`DEBUGOPTIONS PAGE DEBUG_RULE;`), options are reset on each new page. `GLOBAL` (default) keeps document-wide behavior.
+* Restore red debug overlays lost with the TerraPDF migration (DEBUG_TEXT, DEBUG_ROWTEMPLATE, DEBUG_RULE), and implement DEBUG_RECT and DEBUG_IMAGE. DEBUG_ALL now includes the rule.
+* `$PAGEINDEX` is available on the implicit first page.
 
 ## Version 2.0.1 (September 21, 2026)
 

@@ -53,6 +53,8 @@ namespace PdfSharpDslCore.Parser
         public override void Draw(IPdfDocumentDrawer state, ParseTree tree)
         {
             Variables = new VariablesDictionary(k => SystemVariableGet(state, k));
+            //implicit first page, overwritten by each NEWPAGE
+            Variables.Add("PAGEINDEX", 1);
             state.RegisterOnNewPage(pageIndex => OnNewPage(state, pageIndex));
             base.Draw(state, tree);
         }

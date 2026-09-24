@@ -134,6 +134,24 @@ namespace pdfsharpdslTests
             Assert.Equal(expectedPage, drawer.Object.PageDebugOptions);
         }
 
+        [Theory]
+        [InlineData("TEXT 10,20 Text=(\"p\"+$PAGEINDEX);", "p1")]
+        [InlineData("NEWPAGE;TEXT 10,20 Text=(\"p\"+$PAGEINDEX);", "p1")]
+        public void PageIndexIsAvailableOnFirstPage(string input, string expected)
+        {
+            var tree = ParseText(input);
+            Assert.False(tree.HasErrors());
+            using var drawer = new PdfDocumentDrawer();
+            var mock = new Mock<IPdfDocumentDrawer>();
+            mock.SetupGet(x => x.PageWidth).Returns(500);
+            mock.SetupGet(x => x.PageHeight).Returns(800);
+            mock.Setup(x => x.RegisterOnNewPage(It.IsAny<Action<int>>())).Callback<Action<int>>(cb => mock.Setup(x => x.NewPage(null, null)).Callback(() => cb(1)));
+
+            new PdfDrawerVisitor().Draw(mock.Object, tree);
+
+            mock.Verify(x => x.DrawText(expected, 10, 20, null, null), Times.Once);
+        }
+
         [Fact]
         public void PageDebugOptionsAreNotHoisted()
         {

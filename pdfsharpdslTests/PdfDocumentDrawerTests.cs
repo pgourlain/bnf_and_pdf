@@ -26,6 +26,10 @@ namespace pdfsharpdslTests
         [InlineData("DEBUGOPTIONS DEBUG_RULE;LINETEXT 10,10 Text=\"hello\";NEWPAGE;LINETEXT 10,10 Text=\"hello\";", 2)]
         [InlineData("LINETEXT 10,10 Text=\"hello\";DEBUGOPTIONS PAGE DEBUG_RULE;NEWPAGE;LINETEXT 10,10 Text=\"hello\";", 1)]
         [InlineData("LINETEXT 10,10 Text=\"hello\";DEBUGOPTIONS PAGE DEBUG_ALL;NEWPAGE;LINETEXT 10,10 Text=\"hello\";", 1)]
+        [InlineData("DEBUGOPTIONS DEBUG_RECT;SET PEN black 1;ELLIPSE 10,10,50,30;", 1)]
+        [InlineData("DEBUGOPTIONS DEBUG_RECT;SET PEN black 1;POLYGON 10,10,50,10,30,40;", 1)]
+        [InlineData("DEBUGOPTIONS DEBUG_IMAGE;IMAGE 10,10,50,30 point fit Data=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=\";", 1)]
+        [InlineData("DEBUGOPTIONS DEBUG_RECT;IMAGE 10,10,50,30 point fit Data=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=\";", 0)]
         [InlineData("LINETEXT 10,10 Text=\"hello\";", 0)]
         public void DebugOptionsAreDrawnInRed(string input, int expectedRedPages)
         {

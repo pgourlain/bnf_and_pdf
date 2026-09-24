@@ -116,6 +116,20 @@ visitor.RegisterFormulaFunction("SUM", (args) => args.Sum(x => Convert.ToDouble(
 SET VAR CSquare=Sum($A*$A, $B*$B+Sum(1,2,3))
 ```
 
+### System variables
+
+Set by the engine, read like any other variable.
+
+| Variable | Available | Value |
+|---|---|---|
+| $PAGEWIDTH | everywhere | current page width in points |
+| $PAGEHEIGHT | everywhere | current page height in points |
+| $PAGEINDEX | everywhere | 1-based index of the current page |
+| $ROWINDEX | inside ROWTEMPLATE (free or table) | 0-based index of the current iteration |
+| $LASTTEMPLATEHEIGHT | after a ROWTEMPLATE | height in points of the last template, when it did not break the page |
+
+See also the reserved UDF `__ONNEWPAGE` (called after each NEWPAGE).
+
 ## Color and Brush
 
 ```text
@@ -426,7 +440,10 @@ DEBUGOPTIONS PAGE DEBUG_RULE;
 
 Available options
 - DEBUG_TEXT : shows red rect around texts
+- DEBUG_RECT : shows red rect around each figure (rect, ellipse, pie, polygon)
+- DEBUG_IMAGE : shows red rect around images
 - DEBUG_RULE : shows rule on each page
+- DEBUG_ALL : all of the above
 - DEBUG_ROWTEMPLATE : shows red rect around each iteration and index number of each at topleft rectangle
   - text format is "{level}.{index}", where level is > 0 when ROWTEMPLATE is part of another ROWTEMPALTE 
 

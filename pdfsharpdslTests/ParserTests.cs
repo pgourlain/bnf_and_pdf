@@ -77,7 +77,10 @@ namespace pdfsharpdslTests
                     varValue = splittedLine[1];
                 }
                 Assert.True(visitor.Vars.ContainsKey(varName));
-                Assert.Equal(varValue, visitor.Vars[varName]);
+                var actual = visitor.Vars[varName];
+                //system variables like PAGEINDEX are int
+                if (varValue is double && actual is int) actual = Convert.ToDouble(actual);
+                Assert.Equal(varValue, actual);
             }
         }
     }

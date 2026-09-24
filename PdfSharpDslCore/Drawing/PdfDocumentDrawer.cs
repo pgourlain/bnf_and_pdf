@@ -186,6 +186,7 @@ namespace PdfSharpDslCore.Drawing
                 if (isFilled) canvas.FillRect(x, y, w, h, brush.Color.Hex, brush.Color.Opacity);
                 canvas.StrokeRect(x, y, w, h, pen.Color.Hex, pen.Width, pen.Color.Opacity, dashPattern);
             });
+            if (_drawingCtx.DebugRect) DebugRect(new PdfRect(x, y, w, h));
             _drawingCtx.PushInstruction(offset => InternalDrawRect(pen, brush, x, y + offset, w, h, isFilled),
                 new PdfRect(x, y, w, h));
         }
@@ -206,6 +207,7 @@ namespace PdfSharpDslCore.Drawing
                 if (isFilled) canvas.FillEllipse(cx, cy, w / 2, h / 2, brush.Color.Hex, brush.Color.Opacity);
                 canvas.StrokeEllipse(cx, cy, w / 2, h / 2, pen.Color.Hex, pen.Width, pen.Color.Opacity);
             });
+            if (_drawingCtx.DebugRect) DebugRect(new PdfRect(x, y, w, h));
             _drawingCtx.PushInstruction(offset => InternalDrawEllipse(pen, brush, x, y + offset, w, h, isFilled), new PdfRect(x, y, w, h));
         }
 
@@ -506,6 +508,8 @@ namespace PdfSharpDslCore.Drawing
             var fit = cropImage ? ImageFit.CropTopLeft : ImageFit.Stretch;
             AddCommand(canvas => canvas.Image(data, ScaleX(x, page), ScaleY(y, page),
                 ScaleX(width, page), ScaleY(height, page), fit));
+            if (_drawingCtx.DebugImage)
+                DebugRect(new PdfRect(ScaleX(x, page), ScaleY(y, page), ScaleX(width, page), ScaleY(height, page)));
             _drawingCtx.PushInstruction(offset => DrawImage(image, x, y + offset, w, h, sizeInPixel, cropImage),
                 new PdfRect(x, y, width, height), instrName: "DrawImage");
         }
@@ -533,6 +537,7 @@ namespace PdfSharpDslCore.Drawing
                     canvas.StrokePie(x, y, width, height, startAngle, sweepAngle,
                         pen.Color.Hex, pen.Width, pen.Color.Opacity);
             });
+            if (_drawingCtx.DebugRect) DebugRect(new PdfRect(x, y, width, height));
             _drawingCtx.PushInstruction(offset => InternalDrawPie(pen, brush, x, y + offset, width, height, startAngle, sweepAngle, isFilled),
                 new PdfRect(x, y, width, height), instrName: "DrawPie");
         }
@@ -553,6 +558,12 @@ namespace PdfSharpDslCore.Drawing
                 path.Polygon(tuples).Stroke(pen.Color.Hex, pen.Width).Opacity(pen.Color.Opacity);
                 if (isFilled) path.Fill(brush.Color.Hex).Opacity(brush.Color.Opacity);
             }));
+            if (_drawingCtx.DebugRect)
+            {
+                var bounds = PdfRect.Empty;
+                foreach (var point in points) bounds.Union(point);
+                DebugRect(bounds);
+            }
             _drawingCtx.PushInstruction(offset => InternalDrawPolygon(pen, brush, points.Select(point => point.OffsetY(offset)).ToArray(), isFilled), points);
         }
 
