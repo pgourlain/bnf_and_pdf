@@ -20,6 +20,41 @@ namespace pdfsharpdslTests
             Assert.Matches(@"0\.866025 -0\.500000 0\.500000 0\.866025 300\.00 [\d.]+ Tm\n\(30 degree rotation\) Tj", content);
         }
 
+        [Theory]
+        [InlineData("DEBUGOPTIONS DEBUG_TEXT;LINETEXT 10,10 Text=\"hello\";", 1)]
+        [InlineData("DEBUGOPTIONS DEBUG_ROWTEMPLATE;ROWTEMPLATE Count=1 Y=10 LINETEXT 10,0 Text=\"row\"; ENDROWTEMPLATE", 1)]
+        [InlineData("DEBUGOPTIONS DEBUG_RULE;LINETEXT 10,10 Text=\"hello\";NEWPAGE;LINETEXT 10,10 Text=\"hello\";", 2)]
+        [InlineData("LINETEXT 10,10 Text=\"hello\";DEBUGOPTIONS PAGE DEBUG_RULE;NEWPAGE;LINETEXT 10,10 Text=\"hello\";", 1)]
+        [InlineData("LINETEXT 10,10 Text=\"hello\";DEBUGOPTIONS PAGE DEBUG_ALL;NEWPAGE;LINETEXT 10,10 Text=\"hello\";", 1)]
+        [InlineData("LINETEXT 10,10 Text=\"hello\";", 0)]
+        public void DebugOptionsAreDrawnInRed(string input, int expectedRedPages)
+        {
+            var parser = new Irony.Parsing.Parser(new PdfSharpDslCore.Parser.PdfGrammar());
+            var tree = parser.Parse(input);
+            Assert.False(tree.HasErrors());
+            using var drawer = new PdfDocumentDrawer();
+            new PdfSharpDslCore.Parser.PdfDrawerVisitor().Draw(drawer, tree);
+
+            var redPages = ReadStreams(drawer.PublishPdf()).Count(content => content.Contains("1.0000 0.0000 0.0000 RG\n"));
+
+            Assert.Equal(expectedRedPages, redPages);
+        }
+
+        [Fact]
+        public void RowTemplateDebugRectIsDrawnAtRowPosition()
+        {
+            var parser = new Irony.Parsing.Parser(new PdfSharpDslCore.Parser.PdfGrammar());
+            var tree = parser.Parse("DEBUGOPTIONS DEBUG_ROWTEMPLATE;ROWTEMPLATE Count=1 Y=300 LINE 10,0,100,20; ENDROWTEMPLATE");
+            Assert.False(tree.HasErrors());
+            using var drawer = new PdfDocumentDrawer();
+            new PdfSharpDslCore.Parser.PdfDrawerVisitor().Draw(drawer, tree);
+
+            var content = ReadContent(drawer.PublishPdf());
+
+            //red rect from y=300 to y=320 on A4, pdf y axis is bottom up
+            Assert.Matches(@"1\.0000 0\.0000 0\.0000 RG\n10\.00 521\.89 90\.00 20\.00 re\n", content);
+        }
+
         [Fact]
         public void PolygonsKeepStylesFromTheirDrawingInstructions()
         {
@@ -112,20 +147,19 @@ namespace pdfsharpdslTests
             Assert.True(table.Rows[1].DesiredHeight > table.Rows[0].DesiredHeight);
         }
 
-        private static string ReadContent(byte[] pdf)
+        private static string ReadContent(byte[] pdf) => string.Concat(ReadStreams(pdf));
+
+        private static IEnumerable<string> ReadStreams(byte[] pdf)
         {
             var raw = System.Text.Encoding.Latin1.GetString(pdf);
-            var content = new System.Text.StringBuilder();
             foreach (System.Text.RegularExpressions.Match match in System.Text.RegularExpressions.Regex.Matches(
                 raw, @"stream\r?\n(?<data>.*?)\r?\nendstream", System.Text.RegularExpressions.RegexOptions.Singleline))
             {
                 using var compressed = new MemoryStream(System.Text.Encoding.Latin1.GetBytes(match.Groups["data"].Value));
                 using var inflated = new System.IO.Compression.ZLibStream(compressed, System.IO.Compression.CompressionMode.Decompress);
                 using var reader = new StreamReader(inflated, System.Text.Encoding.Latin1);
-                content.Append(reader.ReadToEnd());
+                yield return reader.ReadToEnd();
             }
-
-            return content.ToString();
         }
 
         [Fact]

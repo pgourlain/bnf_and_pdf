@@ -1,6 +1,10 @@
 
 # Change log
 
+## Unreleased
+
+* Add `PAGE` scope to `DEBUGOPTIONS` (`DEBUGOPTIONS PAGE DEBUG_RULE;`), options are reset on each new page. `GLOBAL` (default) keeps document-wide behavior.
+
 ## Version 2.0.1 (September 21, 2026)
 
 * Fix missing DslLanguage dependency

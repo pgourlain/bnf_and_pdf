@@ -396,7 +396,9 @@ namespace PdfSharpDslCore.Parser
             var debugOption = new IdentifierTerminal("debugOption");
             var debugOptionList = new NonTerminal("debugOptionList");
             debugOptionList.Rule = MakePlusRule(debugOptionList, comma, debugOption);
-            DebugOptionsSmt.Rule = "DEBUGOPTIONS" +  debugOptionList + semi;
+            var DebugScope = new NonTerminal("DebugScope");
+            DebugScope.Rule = Empty | ToTerm("GLOBAL") | "PAGE";
+            DebugOptionsSmt.Rule = "DEBUGOPTIONS" + DebugScope + debugOptionList + semi;
 
 
             RegisterBracePair("(", ")");

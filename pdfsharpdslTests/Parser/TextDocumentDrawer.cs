@@ -31,6 +31,8 @@ namespace pdfsharpdslTests
 
         public DebugOptions DebugOptions { get; set ; }
 
+        public DebugOptions PageDebugOptions { get; set; }
+
         public void DrawEllipse(double x, double y, double w, double h, bool isFilled)
         {
             throw new NotImplementedException();

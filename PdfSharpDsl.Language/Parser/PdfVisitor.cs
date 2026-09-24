@@ -34,8 +34,10 @@ namespace PdfSharpDslCore.Parser
 
             //define each udf before visiting in order to accept call before definition
             tree.Root.ChildNodes.Where(x => x.Term?.Name == "UdfSmt").ToList().ForEach(ExecuteUdfStatement);
-            //check for debug options
-            var debugOptions = ParseDebugOptions(tree.Root.ChildNodes("debugOption"));
+            //check for global debug options, page scoped ones are executed in order while visiting
+            var debugOptions = tree.Root.ChildNodes("DebugOptionsSmt")
+                .Where(x => !IsPageScoped(x))
+                .SelectMany(x => ParseDebugOptions(x.ChildNodes("debugOption")));
             ExecuteDebugOptions(state, debugOptions);
             Visit(state, tree.Root.ChildNodes);
         }
@@ -134,6 +136,12 @@ namespace PdfSharpDslCore.Parser
                     VisitImage(state, node);
                     break;
                 case "DebugOptionsSmt":
+                    if (IsPageScoped(node))
+                    {
+                        ExecutePageDebugOptions(state, ParseDebugOptions(node.ChildNodes("debugOption")));
+                    }
+                    //global options are already done before
+                    break;
                 case "UdfSmt":
                     //nothing to do, it's already done before
                     break;
@@ -152,6 +160,12 @@ namespace PdfSharpDslCore.Parser
         #region to be override
 
         protected virtual void ExecuteDebugOptions(TState state, IEnumerable<string> options)
+        { }
+
+        /// <summary>
+        /// debug options only available until the next page
+        /// </summary>
+        protected virtual void ExecutePageDebugOptions(TState state, IEnumerable<string> options)
         { }
         protected virtual void CustomVisit(TState state, ParseTreeNode node)
         {
@@ -273,6 +287,12 @@ namespace PdfSharpDslCore.Parser
         }
 
         #region private visit methods
+
+        private static bool IsPageScoped(ParseTreeNode debugOptionsNode)
+        {
+            var scopeNode = debugOptionsNode.ChildNode("DebugScope");
+            return scopeNode?.ChildNodes.Count > 0 && scopeNode.ChildNodes[0].Token?.Text == "PAGE";
+        }
 
         private IEnumerable<string> ParseDebugOptions(IEnumerable<ParseTreeNode> nodes)
         {

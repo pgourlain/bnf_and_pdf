@@ -461,6 +461,14 @@ namespace PdfSharpDslCore.Parser
             }
         }
 
+        protected override void ExecutePageDebugOptions(IPdfDocumentDrawer state, IEnumerable<string> options)
+        {
+            foreach (var option in options.Select(MapToDebugOption))
+            {
+                state.PageDebugOptions |= option;
+            }
+        }
+
         private DebugOptions MapToDebugOption(string s) => s switch
         {
             "DEBUG_TEXT" => DebugOptions.DebugText,

@@ -37,6 +37,10 @@ namespace PdfSharpDslCore.Drawing
         double PageHeight { get; }
         
         DebugOptions DebugOptions { get; set; }
+        /// <summary>
+        /// debug options for the current page, reset on each new page
+        /// </summary>
+        DebugOptions PageDebugOptions { get; set; }
 
         void NewPage(PdfPageSize? pageSize = null, PdfPageOrientation? pageOrientation = null);
         void DrawLine(double x, double y, double x1, double y1);

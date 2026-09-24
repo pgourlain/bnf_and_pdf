@@ -410,7 +410,18 @@ each parameter can be a Formula
 ## Debugging
 
 ```text
-DEBUGOPTIONS Option1 [, Option2];
+DEBUGOPTIONS [GLOBAL|PAGE] Option1 [, Option2];
+```
+
+Scope
+- GLOBAL (default when omitted) : options apply to the whole document, wherever the statement is written
+- PAGE : options apply from the statement to the end of the current page, they are reset on each new page (NEWPAGE or ROWTEMPLATE page break)
+
+```text
+DEBUGOPTIONS DEBUG_TEXT;
+NEWPAGE;
+# rule only on this page
+DEBUGOPTIONS PAGE DEBUG_RULE;
 ```
 
 Available options

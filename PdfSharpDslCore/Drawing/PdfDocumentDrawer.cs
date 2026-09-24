@@ -24,6 +24,10 @@ namespace PdfSharpDslCore.Drawing
             public List<Action<VectorCanvas>> Commands { get; } = new();
         }
 
+        private static readonly PdfPen DebugPen = new(PdfColor.RedColor, 0.5) { DashStyle = PdfDashStyle.DashDot };
+        private static readonly PdfPen DebugRulePen = new(PdfColor.RedColor, 1);
+        private static readonly PdfFont DebugFont = new("Courier", 6);
+
         private readonly ILogger? _logger;
         private readonly DrawingContext _drawingCtx;
         private readonly List<RecordedPage> _pages = new();
@@ -47,6 +51,17 @@ namespace PdfSharpDslCore.Drawing
         {
             get => _drawingCtx.DebugOptions;
             set => _drawingCtx.DebugOptions = value;
+        }
+
+        public DebugOptions PageDebugOptions
+        {
+            get => _drawingCtx.PageDebugOptions;
+            set
+            {
+                var hadRule = _drawingCtx.DebugRule;
+                _drawingCtx.PageDebugOptions = value;
+                if (!hadRule && _drawingCtx.DebugRule) DrawDebugRule();
+            }
         }
 
         public PdfPen CurrentPen
@@ -79,6 +94,8 @@ namespace PdfSharpDslCore.Drawing
                 if (_pages.Count == 0)
                 {
                     _pages.Add(new RecordedPage(_defaultPageSize, _defaultPageOrientation));
+                    //implicit first page
+                    if (_drawingCtx.DebugRule) DrawDebugRule();
                 }
 
                 return _pages[_pages.Count - 1];
@@ -259,6 +276,8 @@ namespace PdfSharpDslCore.Drawing
                 }
             });
 
+            if (_drawingCtx.DebugText) DebugRect(textRect);
+
             _drawingCtx.PushInstruction(offset => InternalDrawText(text, x, y + offset, w, h, hAlign, vAlign, font, brush, highlight, angle),
                 textRect, instrName: $"DrawText({text})");
         }
@@ -432,11 +451,34 @@ namespace PdfSharpDslCore.Drawing
             _defaultPageOrientation = pageOrientation ?? _defaultPageOrientation;
             _pages.Add(new RecordedPage(_defaultPageSize, _defaultPageOrientation));
             _logger?.WriteDebug(this, "AddPage");
+            _drawingCtx.PageDebugOptions = DebugOptions.None;
             _onNewPageHooks.ForEach(callback => callback(_pages.Count));
-            if ((DebugOptions & DebugOptions.DebugRule) == DebugOptions.DebugRule)
-                for (var position = 25d; position < PageHeight; position += 25)
-                    DrawLine(0, position, position % 50 == 0 ? 50 : 25, position);
+            if (_drawingCtx.DebugRule) DrawDebugRule();
         }
+
+        private void DrawDebugRule()
+        {
+            for (var position = 25d; position < PageHeight; position += 25)
+            {
+                var ten = position % 50 == 0;
+                DebugLine(DebugRulePen, 0, position, ten ? 50 : 25, position);
+                if (ten) DebugText($"{position}", 50, position);
+            }
+        }
+
+        private void DebugRect(PdfRect rect)
+        {
+            var dashPattern = GetDashPattern(DebugPen);
+            AddCommand(canvas => canvas.StrokeRect(rect.X, rect.Y, rect.Width, rect.Height,
+                DebugPen.Color.Hex, DebugPen.Width, DebugPen.Color.Opacity, dashPattern));
+        }
+
+        private void DebugLine(PdfPen pen, double x, double y, double x1, double y1) =>
+            AddCommand(canvas => DrawStyledLine(canvas, pen, x, y, x1, y1));
+
+        private void DebugText(string text, double x, double y) =>
+            AddCommand(canvas => canvas.Text(text, x, y + DebugFont.Size, DebugPen.Color.Hex, DebugFont.Size,
+                DebugFont.FamilyName, false, false, DebugPen.Color.Opacity, 0));
 
         public void MoveTo(double x, double y) => _currentPoint = new PdfPoint(x, y);
 
@@ -524,6 +566,8 @@ namespace PdfSharpDslCore.Drawing
         public DrawingResult EndDrawRowTemplate(int index)
         {
             var result = _drawingCtx.BlockRect;
+            //block rect includes block offset, instructions are relative to the block
+            if (!result.IsEmpty) InternalEndRowTemplate(index, _drawingCtx.Level - 1, result.OffsetY(-_drawingCtx.BlockOffsetY));
             var block = _drawingCtx.EndMeasure();
             _isMeasuring = _measurementStates.Pop();
             var pageOffsetY = 0d;
@@ -531,6 +575,20 @@ namespace PdfSharpDslCore.Drawing
             else if (_drawingCtx.Level == 0) pageOffsetY = block.Draw(this, 0, 0);
             _drawingCtx.CloseBlock();
             return new DrawingResult { DrawingRect = result, PageOffsetY = pageOffsetY };
+        }
+
+        private void InternalEndRowTemplate(int index, int level, PdfRect rect)
+        {
+            if (_drawingCtx.DebugRowTemplate)
+            {
+                DebugRect(rect);
+                DebugLine(DebugPen, rect.X, rect.Y, rect.X + 5, rect.Y + 2);
+                DebugLine(DebugPen, rect.X, rect.Y, rect.X + 2, rect.Y + 5);
+                DebugLine(DebugPen, rect.X, rect.Y, rect.X + 10, rect.Y + 10);
+                DebugText($"{level}.{index}", rect.X + 10, rect.Y + 10);
+            }
+            //replayed with the block, without growing it
+            _drawingCtx.PushInstruction(offset => InternalEndRowTemplate(index, level, rect.OffsetY(offset)), rect, false, "EndRowTemplate");
         }
 
         public void BeginIterationTemplate(int rowCount) { }
