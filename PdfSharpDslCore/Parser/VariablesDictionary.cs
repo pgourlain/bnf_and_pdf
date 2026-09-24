@@ -67,6 +67,7 @@ namespace PdfSharpDslCore.Parser
             {
                 case "PAGEHEIGHT":
                 case "PAGEWIDTH":
+                case "PAGECOUNT":
                     value = _systemVariablesGet(key);
                     return true;
                 default:

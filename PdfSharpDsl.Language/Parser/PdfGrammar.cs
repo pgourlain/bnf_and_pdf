@@ -135,6 +135,8 @@ namespace PdfSharpDslCore.Parser
             var FillPolygonSmt = new NonTerminal("FillPolygonSmt");
             var ForSmt = new NonTerminal("ForSmt");
             var UdfSmt = new NonTerminal("UdfSmt");
+            var MasterSmt = new NonTerminal("MasterSmt");
+            var MasterBlock = new NonTerminal("MasterBlock");
             var UdfInvokeSmt = new NonTerminal("UdfInvokeSmt");
             var IfSmt = new NonTerminal("IfSmt");
             var Else_clause_opt = new NonTerminal("Else_clause_opt");
@@ -197,7 +199,7 @@ namespace PdfSharpDslCore.Parser
             comma.ErrorAlias = "',' expected";
             semiOpt.Rule = Empty | semi;
 
-            PdfLine.Rule = UdfSmt | DebugOptionsSmt | PdfInstruction;
+            PdfLine.Rule = UdfSmt | MasterSmt | DebugOptionsSmt | PdfInstruction;
 
             PdfInstruction.Rule = PdfPrimaryInstruction + semiOpt;
 
@@ -299,6 +301,7 @@ namespace PdfSharpDslCore.Parser
 
             //simple line
             LineTextSmt.Rule = ToInstructionTerm("LINETEXT") + RectOrPointLocation + TextAlignment + TextOrientation
+                               + OptArg("Fit", "shrink") + OptArg("Overflow", "ellipsis")
                                + Arg("Text") + FormulaExpression;
             BrushType.Rule = Empty /* | GradientBrush*/;
 
@@ -313,7 +316,7 @@ namespace PdfSharpDslCore.Parser
             }
 
             PageOrientation.Rule = Empty | "portrait" | "landscape";
-            NewPageSmt.Rule = ToInstructionTerm("NEWPAGE") + PageSize + PageOrientation;
+            NewPageSmt.Rule = ToInstructionTerm("NEWPAGE") + PageSize + PageOrientation + OptArg("Master", variableLiteral);
 
             TitleSmt.Rule = ToInstructionTerm("TITLE") + MarginArg + HAlign + Arg("Text") + FormulaExpression;
             MarginArg.Rule = Empty | Arg("Margin") + FormulaExpression;
@@ -380,6 +383,9 @@ namespace PdfSharpDslCore.Parser
             UdfArgumentslist.Rule = MakePlusRule(UdfArgumentslist, comma, variableLiteral);
             UdfBlock.Rule = embbededSmtListOpt + "ENDUDF";
 
+            MasterSmt.Rule = ToTerm("MASTER") + variableLiteral + PreferShiftHere() + OptArg("MarginTop", FormulaExpression) + MasterBlock;
+            MasterBlock.Rule = embbededSmtListOpt + "ENDMASTER";
+
 
             var UdfInvokeArguments = new NonTerminal("UdfInvokeArguments");
             var UdfInvokeArgumentslistOpt = new NonTerminal("UdfInvokeArgumentslistOpt");
@@ -403,8 +409,8 @@ namespace PdfSharpDslCore.Parser
 
             RegisterBracePair("(", ")");
 
-            MarkPunctuation(";", ",", "(", ")", "TABLE", "ENDTABLE", "HEAD", "ENDHEAD", "ROW", "ROWTEMPLATE ", "ENDROW", "ENDFOR", "UDF", "ENDUDF", 
-                "IF", "THEN", "ELSE", "ENDIF", "ROWTEMPLATE", "ENDROWTEMPLATE");
+            MarkPunctuation(";", ",", "(", ")", "TABLE", "ENDTABLE", "HEAD", "ENDHEAD", "ROW", "ROWTEMPLATE ", "ENDROW", "ENDFOR", "UDF", "ENDUDF",
+                "IF", "THEN", "ELSE", "ENDIF", "ROWTEMPLATE", "ENDROWTEMPLATE", "MASTER", "ENDMASTER");
             RegisterBracePair("(", ")");
             MarkTransient(PdfLine, PdfPrimaryInstruction, SetContent, NumberOrAuto,
                  styleExpr, semiOpt, PixelOrPoint, HAlignValue, TextOrientationValue, VAlignValue,

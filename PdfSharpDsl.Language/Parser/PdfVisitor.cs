@@ -17,6 +17,8 @@ namespace PdfSharpDslCore.Parser
 
         protected IDictionary<string, ParseTreeNode> UserDefinedFunctions { get; set; } = new Dictionary<string, ParseTreeNode>();
 
+        protected IDictionary<string, ParseTreeNode> Masters { get; set; } = new Dictionary<string, ParseTreeNode>();
+
         protected string BaseDirectory { get; }
 
         public PdfVisitor(ILogger? logger) : this(Environment.CurrentDirectory, logger) { }
@@ -34,6 +36,8 @@ namespace PdfSharpDslCore.Parser
 
             //define each udf before visiting in order to accept call before definition
             tree.Root.ChildNodes.Where(x => x.Term?.Name == "UdfSmt").ToList().ForEach(ExecuteUdfStatement);
+            //same for masters, so NEWPAGE Master=name works regardless of source order
+            tree.Root.ChildNodes.Where(x => x.Term?.Name == "MasterSmt").ToList().ForEach(ExecuteMasterStatement);
             //check for global debug options, page scoped ones are executed in order while visiting
             var debugOptions = tree.Root.ChildNodes("DebugOptionsSmt")
                 .Where(x => !IsPageScoped(x))
@@ -145,6 +149,9 @@ namespace PdfSharpDslCore.Parser
                 case "UdfSmt":
                     //nothing to do, it's already done before
                     break;
+                case "MasterSmt":
+                    //nothing to do, it's already done before
+                    break;
                 case "UdfInvokeSmt":
                     VisitCalludf(state, node);
                     break;
@@ -200,12 +207,15 @@ namespace PdfSharpDslCore.Parser
             ParseTreeNode nodeLocation,
             ParseTreeNode nodeAlignment,
             ParseTreeNode? nodeOrientation,
+            bool shrinkToFit,
+            bool ellipsisOverflow,
             ParseTreeNode contentNode)
         { }
 
         protected virtual void ExecuteNewPage(TState state,
             ParseTreeNode? sizeNode,
-            ParseTreeNode? orientationNode)
+            ParseTreeNode? orientationNode,
+            ParseTreeNode? masterNameNode)
         { }
 
         protected virtual void ExecuteIfStatement(TState state, ParseTreeNode condNode,
@@ -284,6 +294,16 @@ namespace PdfSharpDslCore.Parser
                 throw new PdfParserException($"An another UDF '{fnName}' is already defined.");
             }
             UserDefinedFunctions.Add(fnName, node);
+        }
+
+        private void ExecuteMasterStatement(ParseTreeNode node)
+        {
+            var masterName = node.ChildNodes[0].Token.ValueString;
+            if (Masters.ContainsKey(masterName))
+            {
+                throw new PdfParserException($"An another MASTER '{masterName}' is already defined.");
+            }
+            Masters.Add(masterName, node);
         }
 
         #region private visit methods
@@ -461,7 +481,8 @@ namespace PdfSharpDslCore.Parser
             var orientationNode = node.ChildNode("PageOrientation")!;
             sizeNode = sizeNode?.ChildNodes.Count > 0 ? sizeNode.ChildNodes[0] : null;
             orientationNode = orientationNode.ChildNodes.Count > 0 ? orientationNode.ChildNodes[0] : null;
-            ExecuteNewPage(state, sizeNode, orientationNode);
+            var masterNameNode = GetOptArg(node, "Opt-Master");
+            ExecuteNewPage(state, sizeNode, orientationNode, masterNameNode);
         }
         private void VisitLinetext(TState state, ParseTreeNode node)
         {
@@ -477,7 +498,9 @@ namespace PdfSharpDslCore.Parser
             {
                 nodeOrientation = null;
             }
-            ExecuteLineText(state, nodeLocation, nodeAlignment, nodeOrientation, contentNode);
+            var shrinkToFit = node.ChildNode("Opt-Fit")?.ChildNodes.Count > 0;
+            var ellipsisOverflow = node.ChildNode("Opt-Overflow")?.ChildNodes.Count > 0;
+            ExecuteLineText(state, nodeLocation, nodeAlignment, nodeOrientation, shrinkToFit, ellipsisOverflow, contentNode);
         }
 
         private void VisitRect(TState state, ParseTreeNode node, bool isFilled)

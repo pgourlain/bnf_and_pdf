@@ -25,7 +25,7 @@ UDF __ONNEWPAGE()
     SET VAR CONTENTHEIGHT=$PAGEHEIGHT-72;
     SET FONT Name="Arial" Size=8 regular;
     SET BRUSH gray;
-    TITLE Margin=-18 HAlign=hcenter Text=("PdfSharpDsl demo | page "+$PAGEINDEX);
+    TITLE Margin=-18 HAlign=hcenter Text=("PdfSharpDsl demo | page "+$PAGEINDEX+" / "+$PAGECOUNT);
 ENDUDF
 
 # -----------------------------------------------------------------------------
@@ -429,6 +429,14 @@ SET FONT Name="Arial" Size=11 regular;
 TEXT 45,385 MaxWidth=220 Text="TEXT with a point and MaxWidth wraps a longer paragraph over several lines.";
 TEXT 300,385,245,95 Text="TEXT with a rectangle supports multiline content.\r\nSecond explicit line.\r\nThird explicit line.";
 
+SET PEN slategray 0.5;
+SET FONT Name="Arial" Size=20 regular;
+RECT 45,440,140,30;
+LINETEXT 45,440,140,30 HAlign=hcenter VAlign=vcenter Fit=shrink Text="Shrinks to fit this box";
+RECT 200,440,140,16;
+SET FONT Name="Arial" Size=10 regular;
+LINETEXT 200,440,140,16 Overflow=ellipsis Text="This line is longer than the box and gets truncated with an ellipsis";
+
 TITLE Margin=515 HAlign=left Text="Left title";
 TITLE Margin=515 HAlign=hcenter Text="Centered title";
 TITLE Margin=515 HAlign=right Text="Right title";
@@ -582,6 +590,38 @@ ROWTEMPLATE Count=16 Y=340 Name="paginated-list" BorderSize=4 NewPageTopMargin=7
 ENDROWTEMPLATE
 
 # -----------------------------------------------------------------------------
+# MASTER: a header/footer that runs on every page, including page breaks a
+# ROWTEMPLATE creates. Defined once, used by NEWPAGE ... Master=name;
+# -----------------------------------------------------------------------------
+MASTER report MarginTop=90
+    SET FONT Name="Arial" Size=14 bold;
+    SET BRUSH darkblue;
+    TITLE Margin=24 HAlign=hcenter Text="ACME report";
+    SET PEN steelblue 1;
+    LINE 36,50,$PAGEWIDTH-36,50;
+ENDMASTER
+
+# No CALL SECTION() here: it would draw its own title at the same Margin=24
+# the master's header uses. The master owns the header/footer band on this
+# page; __ONNEWPAGE's own footer (Margin=-18) still applies underneath it.
+NEWPAGE A4 portrait Master=report;
+SET FONT Name="Arial" Size=16 bold;
+SET BRUSH black;
+LINETEXT 45,65 Text="Master pages";
+SET FONT Name="Arial" Size=10 regular;
+LINETEXT 45,90 Text="Header comes from MASTER report, not from this page's own statements.";
+
+# No NewPageTopMargin: falls back to the master's MarginTop=90, so rows don't
+# start under the header on the page this creates.
+SET FONT Name="Arial" Size=9 regular;
+ROWTEMPLATE Count=16 Y=120 Name="master-list" BorderSize=4
+    SET PEN lightgray 0.5;
+    RECT 45,0,500,36;
+    SET BRUSH black;
+    LINETEXT 58,18 VAlign=vcenter Text=("Report row "+($ROWINDEX+1));
+ENDROWTEMPLATE
+
+# -----------------------------------------------------------------------------
 # Images: file/data sources, natural size, points/pixels, fit/crop
 # -----------------------------------------------------------------------------
 NEWPAGE A4 landscape;
@@ -624,6 +664,60 @@ FOR I=0 TO $FONTCOUNT-1 DO
 ENDFOR
 
 # -----------------------------------------------------------------------------
+# Built-in functions: no RegisterFormulaFunction needed; a host function of the
+# same name still overrides one of these.
+# -----------------------------------------------------------------------------
+NEWPAGE A4 portrait;
+CALL SECTION("Built-in functions");
+SET FONT Name="Arial" Size=9 regular;
+SET PEN slategray 0.6;
+TABLE 40,75
+HEAD 0xffe8eef7
+COL Width=105 MaxWidth=105 FONT="Consolas",9,bold white steelblue "Group";
+COL Width=210 MaxWidth=210 FONT="Consolas",9,bold white steelblue "Example";
+COL Width=200 MaxWidth=200 FONT="Consolas",9,bold white steelblue "Result";
+ENDHEAD
+ROW
+COL "Math";
+COL "Round(Sum(1,2,Max(3,7)),1)";
+COL Round(Sum(1,2,Max(3,7)),1);
+ENDROW
+ROW
+COL "String";
+COL "Upper(Trim(\"  pdf  \"))";
+COL Upper(Trim("  pdf  "));
+ENDROW
+ROW
+COL "Format";
+COL "Format(1284.5,\"N2\")";
+COL Format(1284.5,"N2");
+ENDROW
+ROW
+COL "Date";
+COL "Format(Today(),\"yyyy-MM-dd\")";
+COL Format(Today(),"yyyy-MM-dd");
+ENDROW
+ROW
+COL "Logic";
+COL "Iif(2>1,\"yes\",\"no\")";
+COL Iif(2>1,"yes","no");
+ENDROW
+ENDTABLE
+
+# TextWidth/TextHeight: measure with the current font to size a box to its content.
+SET FONT Name="Arial" Size=14 bold;
+SET VAR LABEL="Sized to fit";
+SET VAR LABELWIDTH=TextWidth($LABEL);
+SET PEN darkblue 1 solid;
+SET BRUSH lightblue;
+FILLRECT 40,335,$LABELWIDTH+20,26;
+SET BRUSH darkblue;
+LINETEXT 50,335,$LABELWIDTH,26 VAlign=vcenter Text=$LABEL;
+SET FONT Name="Arial" Size=9 regular;
+SET BRUSH black;
+LINETEXT 40,370 Text=("TextWidth(\""+$LABEL+"\") = "+$LABELWIDTH);
+
+# -----------------------------------------------------------------------------
 # System variables: set by the engine, read with $NAME in any formula
 # -----------------------------------------------------------------------------
 NEWPAGE A4 portrait;
@@ -653,6 +747,11 @@ ROW
 COL "$PAGEINDEX";
 COL "Everywhere";
 COL "1-based index of the current page. Now: "+$PAGEINDEX;
+ENDROW
+ROW
+COL "$PAGECOUNT";
+COL "Everywhere, text only (see footer below)";
+COL "Total number of pages, resolved when the document is published. Now: "+$PAGECOUNT;
 ENDROW
 ROW
 COL "$ROWINDEX";

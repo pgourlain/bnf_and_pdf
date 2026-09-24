@@ -116,6 +116,27 @@ visitor.RegisterFormulaFunction("SUM", (args) => args.Sum(x => Convert.ToDouble(
 SET VAR CSquare=Sum($A*$A, $B*$B+Sum(1,2,3))
 ```
 
+### Built-in functions
+
+Available without registration. A function registered with `RegisterFormulaFunction` under the same name overrides it.
+
+| Group | Functions |
+|---|---|
+| Math | `Min(a,b,…)`, `Max(a,b,…)`, `Sum(a,b,…)`, `Abs(x)`, `Round(x[,digits])`, `Floor(x)`, `Ceil(x)`, `Sqrt(x)`, `Pow(x,y)` |
+| String | `Upper(s)`, `Lower(s)`, `Len(s)`, `Substr(s,start[,len])`, `Replace(s,a,b)`, `Trim(s)` |
+| Format | `Format(value, fmt)`: .NET format string, invariant culture, e.g. `Format(1284.5,"N2")` → `1,284.50`, `Format(Now(),"yyyy-MM-dd")` |
+| Date | `Now()`, `Today()`: return a `DateTime`. Only usable through `Format`; concatenating one with `+` falls back to `DateTime`'s default, culture-dependent `ToString()` |
+| Logic | `Iif(cond, a, b)` |
+
+A wrong argument count raises a `PdfParserException` naming the function.
+
+`TextWidth(text)` and `TextHeight(text[, maxWidth])` measure text in points using the current font (`SET FONT`), e.g. to size a box to its content:
+
+```text
+SET VAR W=TextWidth("Total");
+FILLRECT 40,100,$W+20,20;
+```
+
 ### System variables
 
 Set by the engine, read like any other variable.
@@ -125,10 +146,19 @@ Set by the engine, read like any other variable.
 | $PAGEWIDTH | everywhere | current page width in points |
 | $PAGEHEIGHT | everywhere | current page height in points |
 | $PAGEINDEX | everywhere | 1-based index of the current page |
+| $PAGECOUNT | everywhere (text only, see below) | total number of pages, resolved when the document is published |
 | $ROWINDEX | inside ROWTEMPLATE (free or table) | 0-based index of the current iteration |
 | $LASTTEMPLATEHEIGHT | after a ROWTEMPLATE | height in points of the last template, when it did not break the page |
 
 See also the reserved UDF `__ONNEWPAGE` (called after each NEWPAGE).
+
+`$PAGECOUNT` is only known once every page has been recorded, so it only works inside `TITLE`/`LINETEXT` text, e.g. a footer set from `__ONNEWPAGE`:
+
+```text
+TITLE Margin=-18 Text=("page "+$PAGEINDEX+" / "+$PAGECOUNT);
+```
+
+It only supports string concatenation (`+`); using it in arithmetic or a comparison (`$PAGECOUNT-1`, `$PAGECOUNT>3`, …) raises a clear error, since its value does not exist yet while the script runs.
 
 ## Color and Brush
 
@@ -264,6 +294,25 @@ Legal, Letter, Medium, Post, QuadDemy, Quarto, RA0, RA1, RA2, RA3, RA4, RA5, Roy
 **[PageSize]** is one of 
 - portrait, landscape
 
+## MASTER
+
+```text
+# MASTER name [MarginTop=formula]
+#     statements (usually TITLE, for a header/footer)
+# ENDMASTER
+MASTER report MarginTop=60
+    TITLE Margin=20 Text="ACME report";
+    TITLE Margin=-18 Text=("page "+$PAGEINDEX+" / "+$PAGECOUNT);
+ENDMASTER
+
+NEWPAGE A4 portrait Master=report;
+```
+
+- Masters are hoisted like UDFs, so `Master=name` can reference one defined later in the file.
+- The master's statements run, right after `__ONNEWPAGE`, on the page a `NEWPAGE ... Master=name;` creates and on any page a `ROWTEMPLATE` page break creates from it. A later `NEWPAGE` without `Master=` has no master, even if the previous page had one — give it `Master=name` again to keep using it.
+- `MarginTop` becomes the default `NewPageTopMargin` for a `ROWTEMPLATE` that doesn't specify its own (see [ROWTEMPLATE](#rowtemplate)), so content doesn't start under the master's header.
+- `NEWPAGE Master=unknown;` raises a `PdfParserException`.
+
 ## Image
 
 ```text
@@ -309,6 +358,16 @@ LINETEXT 42,100 left bottom vertical Text="Horizontal text";
 
 **[Orientation]** is one of
 - horizontal, vertical
+
+With a rect location (`x,y,w,h`), two options handle text that doesn't fit:
+
+```text
+LINETEXT 40,100,120,20 Fit=shrink Text="This is a long label";
+LINETEXT 40,100,120,20 Overflow=ellipsis Text="This is a long label";
+```
+
+- `Fit=shrink` reduces the font size (down to 4pt) until the text fits the rect.
+- `Overflow=ellipsis` truncates the last line that fits the rect's height and appends `…`.
 
 
 ```text

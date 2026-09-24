@@ -3,6 +3,11 @@
 
 ## Unreleased
 
+* `MASTER`/`ENDMASTER` pages: `NEWPAGE ... Master=name;` runs the master's statements (header/footer) after `__ONNEWPAGE` on every page, including pages a `ROWTEMPLATE` break creates; `MarginTop` becomes the default `NewPageTopMargin` for a `ROWTEMPLATE` that doesn't specify its own.
+* `LINETEXT`'s `Fit=shrink` (reduce font size, down to 4pt, until the text fits its rect) and `Overflow=ellipsis` (truncate the last visible line with `…`) options.
+* `TextWidth(text)` / `TextHeight(text[, maxWidth])` formula functions, measuring text in points with the current font.
+* Built-in formula functions (Math, String, `Format`, `Now`/`Today`, `Iif`), usable without host registration; a host `RegisterFormulaFunction` of the same name still overrides.
+* `$PAGECOUNT` system variable: resolved once every page has been recorded (publish time), usable in `TITLE`/`LINETEXT`, including from `__ONNEWPAGE` footers.
 * Add `PAGE` scope to `DEBUGOPTIONS` (`DEBUGOPTIONS PAGE DEBUG_RULE;`), options are reset on each new page. `GLOBAL` (default) keeps document-wide behavior.
 * Restore red debug overlays lost with the TerraPDF migration (DEBUG_TEXT, DEBUG_ROWTEMPLATE, DEBUG_RULE), and implement DEBUG_RECT and DEBUG_IMAGE. DEBUG_ALL now includes the rule.
 * `$PAGEINDEX` is available on the implicit first page.

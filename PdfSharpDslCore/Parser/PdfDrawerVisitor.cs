@@ -24,12 +24,16 @@ namespace PdfSharpDslCore.Parser
         protected IDictionary<string, CustomUdfDelegate> CustomUdfs { get; set; } =
             new Dictionary<string, CustomUdfDelegate>();
 
+        /// <summary>Master set by the last NEWPAGE that specified one; pages created by ROWTEMPLATE breaks inherit it too.</summary>
+        private string? _currentMasterName;
+
         public PdfDrawerVisitor(ILogger? logger = null) : this(Environment.CurrentDirectory, logger)
         {
         }
 
         public PdfDrawerVisitor(string baseDirectory, ILogger? logger) : base(baseDirectory, logger)
         {
+            BuiltInFunctions.Register(this);
         }
 
         /// <summary>
@@ -56,6 +60,25 @@ namespace PdfSharpDslCore.Parser
             //implicit first page, overwritten by each NEWPAGE
             Variables.Add("PAGEINDEX", 1);
             state.RegisterOnNewPage(pageIndex => OnNewPage(state, pageIndex));
+            // Registered here (not in the constructor, like BuiltInFunctions) because they need `state`.
+            // Guarded so a host that registered its own TextWidth/TextHeight before calling Draw still wins.
+            if (!CustomFunctions.ContainsKey("TEXTWIDTH"))
+            {
+                RegisterFormulaFunction("TextWidth", args =>
+                {
+                    if (args.Length != 1) throw new PdfParserException($"'TextWidth' expects 1 argument(s), got {args.Length}.");
+                    return state.MeasureText(Convert.ToString(args[0]) ?? string.Empty, null).Width;
+                });
+            }
+            if (!CustomFunctions.ContainsKey("TEXTHEIGHT"))
+            {
+                RegisterFormulaFunction("TextHeight", args =>
+                {
+                    if (args.Length is < 1 or > 2) throw new PdfParserException($"'TextHeight' expects between 1 and 2 argument(s), got {args.Length}.");
+                    var maxWidth = args.Length > 1 ? Convert.ToDouble(args[1]) : (double?)null;
+                    return state.MeasureText(Convert.ToString(args[0]) ?? string.Empty, maxWidth).Height;
+                });
+            }
             base.Draw(state, tree);
         }
 
@@ -110,7 +133,8 @@ namespace PdfSharpDslCore.Parser
 
         protected override void ExecuteNewPage(IPdfDocumentDrawer drawer,
             ParseTreeNode? sizeNode,
-            ParseTreeNode? orientationNode)
+            ParseTreeNode? orientationNode,
+            ParseTreeNode? masterNameNode)
         {
             var nSize = sizeNode;
             var nOrientation = orientationNode;
@@ -125,6 +149,21 @@ namespace PdfSharpDslCore.Parser
                 Enum.TryParse<PdfPageOrientation>(nOrientation.Token.Text, true, out var orientation))
             {
                 pageOrientation = orientation;
+            }
+
+            //An explicit NEWPAGE always resets the current master: to the one it names, or to none.
+            //Only a page break a ROWTEMPLATE triggers (which calls drawer.NewPage() directly, bypassing
+            //this method) inherits whatever master was active, by leaving the field untouched.
+            _currentMasterName = null;
+            if (masterNameNode != null)
+            {
+                var masterName = masterNameNode.Token.ValueString;
+                if (!Masters.ContainsKey(masterName))
+                {
+                    throw new PdfParserException($"Unknown master '{masterName}'.");
+                }
+                //set before NewPage(): it synchronously fires OnNewPage, which runs this master.
+                _currentMasterName = masterName;
             }
 
             drawer.NewPage(pageSize, pageOrientation);
@@ -228,6 +267,8 @@ namespace PdfSharpDslCore.Parser
             ParseTreeNode nodeLocation,
             ParseTreeNode nodeAlignment,
             ParseTreeNode? nodeOrientation,
+            bool shrinkToFit,
+            bool ellipsisOverflow,
             ParseTreeNode contentNode)
         {
             var text = Convert.ToString(EvaluateForObject(contentNode));
@@ -251,7 +292,8 @@ namespace PdfSharpDslCore.Parser
             {
                 (double x, double y, double? w, double? h) = ParseTextLocation(nodeLocation.ChildNodes[0]);
                 var (hAlign, vAlign) = ParseTextAlignment(nodeAlignment.ChildNodes[0], nodeAlignment.ChildNodes[1]);
-                state.DrawLineText(text, x, y, w, h, hAlign, vAlign, textOrientation);
+                var fitOptions = shrinkToFit || ellipsisOverflow ? new TextFitOptions(shrinkToFit, ellipsisOverflow) : null;
+                state.DrawLineText(text, x, y, w, h, hAlign, vAlign, textOrientation, fitOptions);
             }
         }
 
@@ -403,7 +445,7 @@ namespace PdfSharpDslCore.Parser
 
             var rowCount = EvaluateForDouble(rowCountNode) ?? 0;
             var offsetY = (EvaluateForDouble(offsetYNode) ?? 0) + borderSize;
-            var newPageTopMargin = newPageTopMarginNode != null ? (EvaluateForDouble(newPageTopMarginNode) ?? 0) : 0;
+            var newPageTopMargin = newPageTopMarginNode != null ? (EvaluateForDouble(newPageTopMarginNode) ?? 0) : CurrentMasterMarginTop();
 
             //double pageOffsetY = 0;
             double drawHeight = borderSize;
@@ -493,6 +535,38 @@ namespace PdfSharpDslCore.Parser
                 //special function
                 ExecuteSpecialUdfByName(drawer, "__ONNEWPAGE", null);
             }
+            //run after __ONNEWPAGE, like a real master page's header/footer would layer over page content
+            if (_currentMasterName != null && Masters.TryGetValue(_currentMasterName, out var masterNode))
+            {
+                var body = masterNode.ChildNode("MasterBlock")?.ChildNode("EmbbededSmtList");
+                if (body != null) ExecuteSpecialBlock(drawer, body);
+            }
+        }
+
+        private void ExecuteSpecialBlock(IPdfDocumentDrawer drawer, ParseTreeNode body)
+        {
+            //set global scope to true to keep all executed 'SET' in the block (same as ExecuteSpecialUdfByName)
+            var vars = Variables as IVariablesDictionary;
+            if (vars != null) vars.GlobalScope = true;
+            try
+            {
+                Visit(drawer, body.ChildNodes);
+            }
+            finally
+            {
+                if (vars != null) vars.GlobalScope = false;
+            }
+        }
+
+        /// <summary>The active master's MarginTop, or 0 if none is active / it didn't specify one. Used as the
+        /// default NewPageTopMargin for a ROWTEMPLATE that doesn't specify its own.</summary>
+        private double CurrentMasterMarginTop()
+        {
+            if (_currentMasterName == null || !Masters.TryGetValue(_currentMasterName, out var masterNode)) return 0;
+            var marginNode = masterNode.ChildNode("Opt-MarginTop");
+            return marginNode != null && marginNode.ChildNodes.Count > 0
+                ? EvaluateForDouble(marginNode.ChildNodes[2]) ?? 0
+                : 0;
         }
 
         private void ExecuteSpecialUdfByName(IPdfDocumentDrawer drawer, string fnName, ParseTreeNode? arguments)
@@ -516,6 +590,7 @@ namespace PdfSharpDslCore.Parser
             {
                 "PAGEHEIGHT" => state.PageHeight,
                 "PAGEWIDTH" => state.PageWidth,
+                "PAGECOUNT" => SystemVariableTokens.PageCountSentinel,
                 _ => null!
             };
         }

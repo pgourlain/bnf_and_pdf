@@ -20,6 +20,105 @@ namespace pdfsharpdslTests
             Assert.Matches(@"0\.866025 -0\.500000 0\.500000 0\.866025 300\.00 [\d.]+ Tm\n\(30 degree rotation\) Tj", content);
         }
 
+        [Fact]
+        public void PageCountIsResolvedOnEveryPageAtPublishTime()
+        {
+            var parser = new Irony.Parsing.Parser(new PdfSharpDslCore.Parser.PdfGrammar());
+            var tree = parser.Parse(
+                "LINETEXT 10,10 Text=(\"page \"+$PAGEINDEX+\" / \"+$PAGECOUNT);" +
+                "NEWPAGE;LINETEXT 10,10 Text=(\"page \"+$PAGEINDEX+\" / \"+$PAGECOUNT);" +
+                "NEWPAGE;LINETEXT 10,10 Text=(\"page \"+$PAGEINDEX+\" / \"+$PAGECOUNT);");
+            Assert.False(tree.HasErrors());
+            using var drawer = new PdfDocumentDrawer();
+            new PdfSharpDslCore.Parser.PdfDrawerVisitor().Draw(drawer, tree);
+            var streams = ReadStreams(drawer.PublishPdf()).ToList();
+
+            Assert.Equal(3, streams.Count);
+            Assert.Contains(streams, s => s.Contains("(page 1 / 3) Tj"));
+            Assert.Contains(streams, s => s.Contains("(page 2 / 3) Tj"));
+            Assert.Contains(streams, s => s.Contains("(page 3 / 3) Tj"));
+        }
+
+        [Fact]
+        public void MasterBodyRunsOnItsOwnPageButNotAPlainNewPageAfterIt()
+        {
+            var parser = new Irony.Parsing.Parser(new PdfSharpDslCore.Parser.PdfGrammar());
+            var tree = parser.Parse(
+                "MASTER report MarginTop=60 TITLE Margin=20 Text=\"ACME report\"; ENDMASTER " +
+                "NEWPAGE A4 portrait Master=report; " +
+                "LINETEXT 10,10 Text=\"body1\"; " +
+                "NEWPAGE; " +
+                "LINETEXT 10,10 Text=\"body2\";");
+            Assert.False(tree.HasErrors());
+            using var drawer = new PdfDocumentDrawer();
+            new PdfSharpDslCore.Parser.PdfDrawerVisitor().Draw(drawer, tree);
+            var streams = ReadStreams(drawer.PublishPdf()).ToList();
+
+            Assert.Equal(2, streams.Count);
+            Assert.Contains("(ACME report) Tj", streams[0]);
+            Assert.DoesNotContain("(ACME report) Tj", streams[1]);
+        }
+
+        [Fact]
+        public void MasterIsInheritedByRowTemplatePageBreaks()
+        {
+            var parser = new Irony.Parsing.Parser(new PdfSharpDslCore.Parser.PdfGrammar());
+            var tree = parser.Parse(
+                "MASTER report MarginTop=90 TITLE Margin=20 Text=\"ACME report\"; ENDMASTER " +
+                "NEWPAGE A4 portrait Master=report; " +
+                "ROWTEMPLATE Count=16 Y=340 BorderSize=4 RECT 45,0,500,36; ENDROWTEMPLATE");
+            Assert.False(tree.HasErrors());
+            using var drawer = new PdfDocumentDrawer();
+            new PdfSharpDslCore.Parser.PdfDrawerVisitor().Draw(drawer, tree);
+            var streams = ReadStreams(drawer.PublishPdf()).ToList();
+
+            Assert.True(streams.Count > 1, "expected the row template to overflow onto a second page");
+            Assert.All(streams, s => Assert.Contains("(ACME report) Tj", s));
+        }
+
+        [Fact]
+        public void UnknownMasterThrows()
+        {
+            var parser = new Irony.Parsing.Parser(new PdfSharpDslCore.Parser.PdfGrammar());
+            var tree = parser.Parse("NEWPAGE A4 portrait Master=missing;");
+            Assert.False(tree.HasErrors());
+            using var drawer = new PdfDocumentDrawer();
+            Assert.Throws<PdfSharpDslCore.Parser.PdfParserException>(
+                () => new PdfSharpDslCore.Parser.PdfDrawerVisitor().Draw(drawer, tree));
+        }
+
+        [Fact]
+        public void FitShrinkReducesFontSizeToFitRect()
+        {
+            var parser = new Irony.Parsing.Parser(new PdfSharpDslCore.Parser.PdfGrammar());
+            var tree = parser.Parse(
+                "SET FONT Name=\"Arial\" Size=24 regular;" +
+                "LINETEXT 10,10,60,20 Fit=shrink Text=\"Long text that overflows\";");
+            Assert.False(tree.HasErrors());
+            using var drawer = new PdfDocumentDrawer();
+            new PdfSharpDslCore.Parser.PdfDrawerVisitor().Draw(drawer, tree);
+            var content = ReadContent(drawer.PublishPdf());
+
+            var match = System.Text.RegularExpressions.Regex.Match(content, @"/F1 ([\d.]+) Tf");
+            Assert.True(match.Success);
+            Assert.True(double.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture) < 24);
+        }
+
+        [Fact]
+        public void OverflowEllipsisTruncatesLastVisibleLine()
+        {
+            var parser = new Irony.Parsing.Parser(new PdfSharpDslCore.Parser.PdfGrammar());
+            var tree = parser.Parse(
+                "SET FONT Name=\"Arial\" Size=10 regular;" +
+                "LINETEXT 10,10,60,12 Overflow=ellipsis Text=\"this is a fairly long line of text that will wrap across many lines\";");
+            Assert.False(tree.HasErrors());
+            using var drawer = new PdfDocumentDrawer();
+            new PdfSharpDslCore.Parser.PdfDrawerVisitor().Draw(drawer, tree);
+            var content = ReadContent(drawer.PublishPdf());
+
+            Assert.Contains(@"\205", content);
+        }
+
         [Theory]
         [InlineData("DEBUGOPTIONS DEBUG_TEXT;LINETEXT 10,10 Text=\"hello\";", 1)]
         [InlineData("DEBUGOPTIONS DEBUG_ROWTEMPLATE;ROWTEMPLATE Count=1 Y=10 LINETEXT 10,0 Text=\"row\"; ENDROWTEMPLATE", 1)]

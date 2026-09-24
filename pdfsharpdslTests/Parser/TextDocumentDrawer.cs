@@ -29,6 +29,11 @@ namespace pdfsharpdslTests
 
         public double PageHeight => 29.7 * 28.34;
 
+        public PdfSize MeasureText(string text, double? maxWidth)
+        {
+            throw new NotImplementedException();
+        }
+
         public DebugOptions DebugOptions { get; set ; }
 
         public DebugOptions PageDebugOptions { get; set; }
@@ -72,7 +77,7 @@ namespace pdfsharpdslTests
         {
             throw new NotImplementedException();
         }
-        public void DrawLineText(string text, double x, double y, double? w, double? h, PdfHorizontalAlignment hAlign, PdfVerticalAlignment vAlign, TextOrientation textOrientation)
+        public void DrawLineText(string text, double x, double y, double? w, double? h, PdfHorizontalAlignment hAlign, PdfVerticalAlignment vAlign, TextOrientation textOrientation, TextFitOptions? fitOptions = null)
         {
             var halign = $"HAlign={ToHAlign(hAlign)}";
             OutputRendering.Append($"LINETEXT ");

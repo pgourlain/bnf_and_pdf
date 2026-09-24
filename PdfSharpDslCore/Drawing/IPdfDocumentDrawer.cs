@@ -27,7 +27,8 @@ namespace PdfSharpDslCore.Drawing
         void DrawRect(double x, double y, double w, double h, bool isFilled);
         void DrawText(string text, double x, double y, double? w, double? h);
         void DrawLineText(string text, double x, double y, double? w, double? h,
-            PdfHorizontalAlignment hAlign, PdfVerticalAlignment vAlign, TextOrientation textOrientation);
+            PdfHorizontalAlignment hAlign, PdfVerticalAlignment vAlign, TextOrientation textOrientation,
+            TextFitOptions? fitOptions = null);
         void SetViewSize(double w, double h);
         PdfPen CurrentPen { get; set; }
         PdfBrush CurrentBrush { get; set; }
@@ -35,6 +36,10 @@ namespace PdfSharpDslCore.Drawing
         PdfFont CurrentFont { get; set; }
         double PageWidth { get; }
         double PageHeight { get; }
+
+        /// <summary>Measures <paramref name="text"/> in points, using the current font (see <see cref="CurrentFont"/>).</summary>
+        /// <param name="maxWidth">When set, wraps the text as <see cref="DrawLineText"/> would before measuring.</param>
+        PdfSize MeasureText(string text, double? maxWidth);
         
         DebugOptions DebugOptions { get; set; }
         /// <summary>

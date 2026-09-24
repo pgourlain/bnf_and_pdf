@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using TerraPDF.Core;
+using static PdfSharpDslCore.Evaluation.SystemVariableTokens;
 
 namespace PdfSharpDslCore.Drawing
 {
@@ -86,6 +87,15 @@ namespace PdfSharpDslCore.Drawing
 
         public double PageWidth => CurrentPage.Width;
         public double PageHeight => CurrentPage.Height;
+
+        public PdfSize MeasureText(string text, double? maxWidth)
+        {
+            var font = ScaleFont(CurrentFont, CurrentPage);
+            var lines = WrapText(text, maxWidth, font);
+            var width = lines.Count == 0 ? 0 : lines.Max(line => MeasureText(line, font));
+            var height = lines.Count * font.Size * 1.2;
+            return new PdfSize(width, height);
+        }
 
         private RecordedPage CurrentPage
         {
@@ -221,7 +231,7 @@ namespace PdfSharpDslCore.Drawing
         }
 
         public void DrawLineText(string text, double x, double y, double? w, double? h, PdfHorizontalAlignment hAlign,
-            PdfVerticalAlignment vAlign, TextOrientation textOrientation)
+            PdfVerticalAlignment vAlign, TextOrientation textOrientation, TextFitOptions? fitOptions = null)
         {
             var page = CurrentPage;
             (x, y, w, h) = DrawingHelper.CoordRectToPage(page.Width, page.Height, x, y, w, h);
@@ -233,15 +243,30 @@ namespace PdfSharpDslCore.Drawing
                     TextOrientationEnum.HorizontalInvert => 180,
                     TextOrientationEnum.VerticalInvert => 270,
                     _ => 0,
-                });
+                }, fitOptions);
         }
 
+        private const double MinShrinkFontSize = 4;
+
         private void InternalDrawText(string text, double x, double y, double? w, double? h, PdfHorizontalAlignment hAlign,
-            PdfVerticalAlignment vAlign, PdfFont font, PdfBrush brush, PdfBrush? highlight, double angle = 0)
+            PdfVerticalAlignment vAlign, PdfFont font, PdfBrush brush, PdfBrush? highlight, double angle = 0,
+            TextFitOptions? fitOptions = null)
         {
-            var lines = WrapText(text, w, font);
+            // $PAGECOUNT is only known once every page is recorded (at publish time). It arrives here
+            // as a sentinel; measure it as a stable 3-digit guess, and substitute the real page count
+            // inside the AddCommand closure below, which only runs when the document is published.
+            var hasPageCount = text.Contains(PageCountSentinel);
+            double Measure(string s, PdfFont f) =>
+                MeasureText(hasPageCount ? s.Replace(PageCountSentinel, "999") : s, f);
+
+            if (fitOptions?.ShrinkToFit == true && w.HasValue && h.HasValue)
+                font = ShrinkFontToFit(text, w.Value, h.Value, font, Measure);
+
+            var lines = WrapText(text, w, font, Measure);
             var lineHeight = font.Size * 1.2;
-            var measuredWidth = lines.Count == 0 ? 0 : lines.Max(line => MeasureText(line, font));
+            if (fitOptions?.EllipsisOverflow == true && h.HasValue)
+                lines = ApplyEllipsisOverflow(lines, w, h.Value, lineHeight, font, Measure);
+            var measuredWidth = lines.Count == 0 ? 0 : lines.Max(line => Measure(line, font));
             var measuredHeight = lines.Count * lineHeight;
             var rect = new PdfRect(x, y, w ?? measuredWidth, h ?? measuredHeight);
             var textSize = new PdfSize(Math.Min(measuredWidth, rect.Width), Math.Min(measuredHeight, rect.Height));
@@ -258,7 +283,8 @@ namespace PdfSharpDslCore.Drawing
                 {
                     var line = lines[index];
                     if (string.IsNullOrWhiteSpace(line)) continue;
-                    var lineWidth = MeasureText(line, font);
+                    var renderLine = hasPageCount ? line.Replace(PageCountSentinel, _pages.Count.ToString()) : line;
+                    var lineWidth = MeasureText(renderLine, font);
                     var lineX = w.HasValue
                         ? hAlign switch
                         {
@@ -272,7 +298,7 @@ namespace PdfSharpDslCore.Drawing
                             PdfHorizontalAlignment.Far => x - lineWidth,
                             _ => x,
                         };
-                    canvas.Text(line, lineX, textRect.Y + font.Size + index * lineHeight, brush.Color.Hex, font.Size,
+                    canvas.Text(renderLine, lineX, textRect.Y + font.Size + index * lineHeight, brush.Color.Hex, font.Size,
                             font.FamilyName, font.Style.HasFlag(PdfFontStyle.Bold), font.Style.HasFlag(PdfFontStyle.Italic), brush.Color.Opacity,
                             angle);
                 }
@@ -629,22 +655,57 @@ namespace PdfSharpDslCore.Drawing
         private static int MeasureCellLineCount(string text, double width, PdfFont font) =>
             WrapText(text, width, font).Count;
 
-        private static List<string> WrapText(string text, double? maxWidth, PdfFont font)
+        private static List<string> WrapText(string text, double? maxWidth, PdfFont font, Func<string, PdfFont, double>? measure = null)
         {
+            measure ??= MeasureText;
             var lines = new List<string>();
             foreach (var sourceLine in text.Replace("\r\n", "\n").Split('\n'))
             {
-                if (maxWidth is null || maxWidth <= 0 || MeasureText(sourceLine, font) <= maxWidth) { lines.Add(sourceLine); continue; }
+                if (maxWidth is null || maxWidth <= 0 || measure(sourceLine, font) <= maxWidth) { lines.Add(sourceLine); continue; }
                 var current = string.Empty;
                 foreach (var word in sourceLine.Split(' ', StringSplitOptions.RemoveEmptyEntries))
                 {
                     var candidate = current.Length == 0 ? word : $"{current} {word}";
-                    if (current.Length > 0 && MeasureText(candidate, font) > maxWidth) { lines.Add(current); current = word; }
+                    if (current.Length > 0 && measure(candidate, font) > maxWidth) { lines.Add(current); current = word; }
                     else current = candidate;
                 }
                 lines.Add(current);
             }
             return lines;
+        }
+
+        private static PdfFont ShrinkFontToFit(string text, double w, double h, PdfFont font, Func<string, PdfFont, double> measure)
+        {
+            for (var size = font.Size; size > MinShrinkFontSize; size -= 0.5)
+            {
+                var candidate = new PdfFont(font.FamilyName, size, font.Style);
+                var lines = WrapText(text, w, candidate, measure);
+                var fits = lines.Count * (size * 1.2) <= h && lines.All(line => measure(line, candidate) <= w);
+                if (fits) return candidate;
+            }
+            return new PdfFont(font.FamilyName, MinShrinkFontSize, font.Style);
+        }
+
+        private static List<string> ApplyEllipsisOverflow(List<string> lines, double? w, double h, double lineHeight,
+            PdfFont font, Func<string, PdfFont, double> measure)
+        {
+            var maxLines = Math.Max(1, (int)(h / lineHeight));
+            if (lines.Count <= maxLines) return lines;
+
+            var visible = lines.Take(maxLines).ToList();
+            visible[^1] = TruncateWithEllipsis(visible[^1], w, font, measure);
+            return visible;
+        }
+
+        private static string TruncateWithEllipsis(string line, double? maxWidth, PdfFont font, Func<string, PdfFont, double> measure)
+        {
+            const string ellipsis = "…";
+            if (!maxWidth.HasValue || measure(line + ellipsis, font) <= maxWidth) return line + ellipsis;
+
+            var truncated = line;
+            while (truncated.Length > 0 && measure(truncated + ellipsis, font) > maxWidth)
+                truncated = truncated[..^1];
+            return truncated.TrimEnd() + ellipsis;
         }
 
         private static double ResolveX(double x, RecordedPage page) => x < 0 ? page.Width + x : x;
