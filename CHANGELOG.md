@@ -1,7 +1,7 @@
 
 # Change log
 
-## Unreleased
+## Version 2.0.2 (September 25, 2026)
 
 * `CHART bar|line|pie x,y,w,h Data=[...] [Labels=[...]] [Colors=[...]];`: one-line charts built from the drawing primitives (axes with round ticks, negative values, pie legend with percentages, default palette). A bare color name (`steelblue`) is now a valid formula, the text of that name. New `ChartRenderer` in `PdfSharpDslCore.Drawing.Charts`.
 * UDF return values: `RETURN formula;` and `SET VAR Y=DOUBLE(21);`. A formula can call a UDF of the script (registered functions come first); recursion is limited to 256 levels. `PdfVisitor` gains a `StopVisiting` hook and `ExecuteReturn`.
