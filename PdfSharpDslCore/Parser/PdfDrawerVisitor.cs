@@ -27,6 +27,28 @@ namespace PdfSharpDslCore.Parser
         /// <summary>Master set by the last NEWPAGE that specified one; pages created by ROWTEMPLATE breaks inherit it too.</summary>
         private string? _currentMasterName;
 
+        /// <summary>Half an inch, the margin of a FLOW that does not specify one.</summary>
+        private const double DefaultFlowMargin = 36;
+
+        /// <summary>Layout state of the FLOW being visited, null outside a FLOW.</summary>
+        private FlowState? _flow;
+
+        private sealed class FlowState
+        {
+            public FlowState(double margin, double pageTop, double cursor)
+            {
+                Margin = margin;
+                PageTop = pageTop;
+                Cursor = cursor;
+            }
+
+            public double Margin { get; }
+            /// <summary>y of the first element on the current page.</summary>
+            public double PageTop { get; set; }
+            /// <summary>y where the next element starts.</summary>
+            public double Cursor { get; set; }
+        }
+
         public PdfDrawerVisitor(ILogger? logger = null) : this(Environment.CurrentDirectory, logger)
         {
         }
@@ -332,6 +354,7 @@ namespace PdfSharpDslCore.Parser
             bool crop = false;
             var imagePath = ((string?)imagePathNode.Token?.Value) ?? string.Empty;
             var (x, y, w, h) = ParseTextLocation(locationNode);
+            var flow = _flow;
             if (w is not null && unitNode != null)
             {
                 //try to parse unit and cropping
@@ -358,6 +381,16 @@ namespace PdfSharpDslCore.Parser
                 }
 
                 image = new PdfImage(File.ReadAllBytes(imagePath));
+            }
+
+            if (flow != null)
+            {
+                //in a FLOW, x is relative to the left margin and y to the cursor
+                var size = drawer.MeasureImage(image, w, h, unit == "pixel");
+                EnsureFlowRoom(drawer, flow, y + size.Height);
+                drawer.DrawImage(image, flow.Margin + x, flow.Cursor + y, w, h, unit == "pixel", crop);
+                flow.Cursor += y + size.Height;
+                return;
             }
 
             drawer.DrawImage(image, x, y, w, h, unit == "pixel", crop);
@@ -497,6 +530,89 @@ namespace PdfSharpDslCore.Parser
             Variables.Add("LASTTEMPLATEHEIGHT", drawHeight);
         }
 
+        protected override void ExecuteFlow(IPdfDocumentDrawer state, ParseTreeNode? marginNode, ParseTreeNode? topNode,
+            ParseTreeNode body)
+        {
+            if (_flow != null) throw new PdfParserException("FLOW cannot be nested inside another FLOW.");
+
+            var margin = marginNode != null ? EvaluateForDouble(marginNode) ?? DefaultFlowMargin : DefaultFlowMargin;
+            var top = topNode != null ? EvaluateForDouble(topNode) : null;
+            var pageTop = FlowPageTop(margin);
+            //Top only moves the start on the first page; later pages start at pageTop
+            _flow = new FlowState(margin, pageTop, top ?? pageTop);
+            try
+            {
+                Visit(state, body.ChildNodes);
+            }
+            finally
+            {
+                _flow = null;
+            }
+        }
+
+        protected override void ExecuteParagraph(IPdfDocumentDrawer state, ParseTreeNode alignmentNode, ParseTreeNode contentNode)
+        {
+            var flow = RequireFlow("PARAGRAPH");
+            var text = Convert.ToString(EvaluateForObject(contentNode)) ?? string.Empty;
+            var (hAlign, _) = ParseTextAlignment(alignmentNode, null);
+            var width = state.PageWidth - 2 * flow.Margin;
+            if (width <= 0) throw new PdfParserException($"FLOW margin {flow.Margin} leaves no room for text on a page {state.PageWidth} wide.");
+
+            var lines = state.WrapText(text, width);
+            var lineHeight = state.MeasureText("Mg", null).Height;
+            var next = 0;
+            while (next < lines.Count)
+            {
+                var fitting = (int)Math.Floor((state.PageHeight - flow.Margin - flow.Cursor + 0.01) / lineHeight);
+                if (fitting < 1 && flow.Cursor > flow.PageTop + 0.01)
+                {
+                    FlowPageBreak(state, flow);
+                    continue;
+                }
+
+                //a page too small for even one line still gets one, otherwise this would loop forever
+                var count = Math.Min(Math.Max(fitting, 1), lines.Count - next);
+                var chunk = string.Join("\n", lines.Skip(next).Take(count));
+                var height = count * lineHeight;
+                state.DrawLineText(chunk, flow.Margin, flow.Cursor, width, height, hAlign, PdfVerticalAlignment.Near,
+                    new TextOrientation { Orientation = TextOrientationEnum.Horizontal });
+                flow.Cursor += height;
+                next += count;
+            }
+        }
+
+        protected override void ExecuteSpace(IPdfDocumentDrawer state, ParseTreeNode heightNode)
+        {
+            var flow = RequireFlow("SPACE");
+            flow.Cursor += EvaluateForDouble(heightNode) ?? 0;
+        }
+
+        private FlowState RequireFlow(string instruction) =>
+            _flow ?? throw new PdfParserException($"{instruction} can only be used inside FLOW ... ENDFLOW.");
+
+        /// <summary>y of the first element on a page a FLOW breaks to: the active master's MarginTop, else the FLOW margin.</summary>
+        private double FlowPageTop(double margin)
+        {
+            var masterTop = CurrentMasterMarginTop();
+            return masterTop > 0 ? masterTop : margin;
+        }
+
+        /// <summary>Moves to a new page first if an element of <paramref name="height"/> does not fit under the cursor.</summary>
+        private void EnsureFlowRoom(IPdfDocumentDrawer drawer, FlowState flow, double height)
+        {
+            var overflows = flow.Cursor + height > drawer.PageHeight - flow.Margin + 0.01;
+            //an element taller than a whole page stays where it is: breaking would not help
+            if (overflows && flow.Cursor > flow.PageTop + 0.01) FlowPageBreak(drawer, flow);
+        }
+
+        private void FlowPageBreak(IPdfDocumentDrawer drawer, FlowState flow)
+        {
+            //same as a page break a ROWTEMPLATE triggers: the current master (if any) is applied by OnNewPage
+            drawer.NewPage();
+            flow.PageTop = FlowPageTop(flow.Margin);
+            flow.Cursor = flow.PageTop;
+        }
+
         protected override void ExecuteDebugOptions(IPdfDocumentDrawer state, IEnumerable<string> options)
         {
             foreach (var option in options.Select(MapToDebugOption))
@@ -591,6 +707,7 @@ namespace PdfSharpDslCore.Parser
                 "PAGEHEIGHT" => state.PageHeight,
                 "PAGEWIDTH" => state.PageWidth,
                 "PAGECOUNT" => SystemVariableTokens.PageCountSentinel,
+                "CURSORY" => _flow?.Cursor ?? throw new PdfParserException("$CURSORY is only available inside FLOW."),
                 _ => null!
             };
         }
@@ -608,7 +725,31 @@ namespace PdfSharpDslCore.Parser
             //
             var (x, y) = ParsePointLocation(node.ChildNodes[0].ChildNodes[0]);
             var tblDef = GenerateTableDefinition(node.ChildNodes[1]);
-            drawer.DrawTable(x, y, tblDef);
+            var flow = _flow;
+            if (flow == null)
+            {
+                drawer.DrawTable(x, y, tblDef);
+                return;
+            }
+
+            //in a FLOW, x is relative to the left margin and y to the cursor; rows that do not fit move to a new page
+            tblDef.TopMarginOnPageBreak = FlowPageTop(flow.Margin);
+            tblDef.BottomMargin = flow.Margin;
+            var pageCount = 0;
+            void CountPages(int _) => pageCount++;
+            drawer.RegisterOnNewPage(CountPages);
+            PdfRect drawn;
+            try
+            {
+                drawn = drawer.DrawTable(flow.Margin + x, flow.Cursor + y, tblDef);
+            }
+            finally
+            {
+                drawer.UnRegisterOnNewPage(CountPages);
+            }
+
+            if (pageCount > 0) flow.PageTop = FlowPageTop(flow.Margin);
+            flow.Cursor = drawn.Bottom;
         }
 
         private TableDefinition GenerateTableDefinition(ParseTreeNode node)

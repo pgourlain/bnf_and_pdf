@@ -97,6 +97,18 @@ namespace PdfSharpDslCore.Drawing
             return new PdfSize(width, height);
         }
 
+        public IReadOnlyList<string> WrapText(string text, double maxWidth) =>
+            WrapText(text, maxWidth, ScaleFont(CurrentFont, CurrentPage));
+
+        public PdfSize MeasureImage(PdfImage image, double? w, double? h, bool sizeInPixel)
+        {
+            ArgumentNullException.ThrowIfNull(image);
+            var naturalSize = VectorCanvas.GetImageSizeInPoints(image.Data.ToArray());
+            var width = w.HasValue ? (sizeInPixel ? w.Value * 72d / 96d : w.Value) : naturalSize.Width;
+            var height = h.HasValue ? (sizeInPixel ? h.Value * 72d / 96d : h.Value) : naturalSize.Height;
+            return new PdfSize(width, height);
+        }
+
         private RecordedPage CurrentPage
         {
             get
@@ -317,7 +329,7 @@ namespace PdfSharpDslCore.Drawing
             InternalDrawText(text, 0, margin, PageWidth, height, hAlign, vAlign, CurrentFont, CurrentBrush, HighlightBrush);
         }
 
-        public void DrawTable(double x, double y, TableDefinition table)
+        public PdfRect DrawTable(double x, double y, TableDefinition table)
         {
             ArgumentNullException.ThrowIfNull(table);
             var availableWidth = PageWidth - x;
@@ -366,7 +378,8 @@ namespace PdfSharpDslCore.Drawing
                     rows[^1].DesiredHeight = (rows[^1].DesiredHeight ?? 0) + missingHeight;
             }
 
-            if (y + (table.HeaderHeight ?? 0) > PageHeight) { NewPage(); y = 1; }
+            var pageBottom = () => PageHeight - table.BottomMargin;
+            if (y + (table.HeaderHeight ?? 0) > pageBottom()) { NewPage(); y = Math.Max(1, table.TopMarginOnPageBreak); }
             var offsetY = 0d;
             if (table.ShowHeader)
             {
@@ -381,11 +394,13 @@ namespace PdfSharpDslCore.Drawing
                 var rowCells = cells.Where(cell => cell.Row == rowIndex).ToArray();
                 var requiredHeight = rowCells.Select(cell => table.Rows.Skip(rowIndex).Take(cell.Cell.RowSpan)
                     .Sum(spannedRow => spannedRow.DesiredHeight ?? 0)).DefaultIfEmpty(height).Max();
-                if (y + offsetY + requiredHeight > PageHeight) { NewPage(); y = table.TopMarginOnPageBreak; offsetY = 0; }
+                if (y + offsetY + requiredHeight > pageBottom()) { NewPage(); y = table.TopMarginOnPageBreak; offsetY = 0; }
                 foreach (var cell in rowCells)
                     DrawTableCell(x, y + offsetY, cell, table, fonts);
                 offsetY += height;
             }
+
+            return new PdfRect(x, y, table.Columns.Sum(column => column.DrawWidth), offsetY);
         }
 
         private static List<TableCellPlacement> LayoutTableCells(TableDefinition table)

@@ -3,6 +3,8 @@
 
 ## Unreleased
 
+* `FLOW`/`ENDFLOW` layout with `PARAGRAPH` (wrapping, splits across pages) and `SPACE`; `IMAGE` and `TABLE` inside a flow are placed relative to the cursor and page-break automatically. New `$CURSORY` system variable. `IPdfDocumentDrawer` gains `WrapText` and `MeasureImage`, and `DrawTable` now returns the `PdfRect` it occupied; `TableDefinition.BottomMargin` keeps rows off the page bottom.
+* Better errors: `PdfDslDiagnostics` reports unknown instructions ("Did you mean ...?"), missing `;`, and unclosed or mismatched blocks with their line/column; the console uses it. Undefined variables and unknown functions now throw `PdfParserException` with the source position and a suggestion (was `ArgumentOutOfRangeException` / `KeyNotFoundException`).
 * `MASTER`/`ENDMASTER` pages: `NEWPAGE ... Master=name;` runs the master's statements (header/footer) after `__ONNEWPAGE` on every page, including pages a `ROWTEMPLATE` break creates; `MarginTop` becomes the default `NewPageTopMargin` for a `ROWTEMPLATE` that doesn't specify its own.
 * `LINETEXT`'s `Fit=shrink` (reduce font size, down to 4pt, until the text fits its rect) and `Overflow=ellipsis` (truncate the last visible line with `…`) options.
 * `TextWidth(text)` / `TextHeight(text[, maxWidth])` formula functions, measuring text in points with the current font.

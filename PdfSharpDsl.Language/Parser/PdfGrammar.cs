@@ -137,6 +137,10 @@ namespace PdfSharpDslCore.Parser
             var UdfSmt = new NonTerminal("UdfSmt");
             var MasterSmt = new NonTerminal("MasterSmt");
             var MasterBlock = new NonTerminal("MasterBlock");
+            var FlowSmt = new NonTerminal("FlowSmt");
+            var FlowBlock = new NonTerminal("FlowBlock");
+            var ParagraphSmt = new NonTerminal("ParagraphSmt");
+            var SpaceSmt = new NonTerminal("SpaceSmt");
             var UdfInvokeSmt = new NonTerminal("UdfInvokeSmt");
             var IfSmt = new NonTerminal("IfSmt");
             var Else_clause_opt = new NonTerminal("Else_clause_opt");
@@ -226,6 +230,9 @@ namespace PdfSharpDslCore.Parser
                 | UdfInvokeSmt
                 | IfSmt
                 | RowTemplateSmt
+                | FlowSmt
+                | ParagraphSmt
+                | SpaceSmt
             ;
 
             #region basics rules
@@ -387,6 +394,11 @@ namespace PdfSharpDslCore.Parser
             MasterBlock.Rule = embbededSmtListOpt + "ENDMASTER";
 
 
+            FlowSmt.Rule = ToInstructionTerm("FLOW") + OptArg("Margin", FormulaExpression) + OptArg("Top", FormulaExpression) + FlowBlock;
+            FlowBlock.Rule = embbededSmtListOpt + "ENDFLOW";
+            ParagraphSmt.Rule = ToInstructionTerm("PARAGRAPH") + HAlign + Arg("Text") + FormulaExpression;
+            SpaceSmt.Rule = ToInstructionTerm("SPACE") + FormulaExpression;
+
             var UdfInvokeArguments = new NonTerminal("UdfInvokeArguments");
             var UdfInvokeArgumentslistOpt = new NonTerminal("UdfInvokeArgumentslistOpt");
             UdfInvokeSmt.Rule = ToInstructionTerm("CALL") + variableLiteral + PreferShiftHere() + UdfInvokeArguments;
@@ -410,7 +422,7 @@ namespace PdfSharpDslCore.Parser
             RegisterBracePair("(", ")");
 
             MarkPunctuation(";", ",", "(", ")", "TABLE", "ENDTABLE", "HEAD", "ENDHEAD", "ROW", "ROWTEMPLATE ", "ENDROW", "ENDFOR", "UDF", "ENDUDF",
-                "IF", "THEN", "ELSE", "ENDIF", "ROWTEMPLATE", "ENDROWTEMPLATE", "MASTER", "ENDMASTER");
+                "IF", "THEN", "ELSE", "ENDIF", "ROWTEMPLATE", "ENDROWTEMPLATE", "MASTER", "ENDMASTER", "FLOW", "ENDFLOW");
             RegisterBracePair("(", ")");
             MarkTransient(PdfLine, PdfPrimaryInstruction, SetContent, NumberOrAuto,
                  styleExpr, semiOpt, PixelOrPoint, HAlignValue, TextOrientationValue, VAlignValue,

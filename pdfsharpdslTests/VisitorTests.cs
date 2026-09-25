@@ -380,7 +380,7 @@ namespace pdfsharpdslTests
                 "CALL FAIL(9);");
             var visitor = new InspectablePdfDrawerVisitor();
 
-            Assert.Throws<ArgumentOutOfRangeException>(() => visitor.Draw(Mock.Of<IPdfDocumentDrawer>(), tree));
+            Assert.Throws<PdfParserException>(() => visitor.Draw(Mock.Of<IPdfDocumentDrawer>(), tree));
 
             Assert.Equal(1.0, visitor.Vars["VALUE"]);
             Assert.False(visitor.Vars.ContainsKey("TEMP"));

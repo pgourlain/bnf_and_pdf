@@ -158,6 +158,15 @@ namespace PdfSharpDslCore.Parser
                 case "RowTemplateSmt":
                     VisitRowtemplate(state, node);
                     break;
+                case "FlowSmt":
+                    VisitFlow(state, node);
+                    break;
+                case "ParagraphSmt":
+                    ExecuteParagraph(state, node.ChildNode("HAlign")!, node.ChildNodes.Last());
+                    break;
+                case "SpaceSmt":
+                    ExecuteSpace(state, node.ChildNodes.Last());
+                    break;
                 default:
                     CustomVisit(state, node);
                     break;
@@ -284,6 +293,19 @@ namespace PdfSharpDslCore.Parser
             ParseTreeNode body)
         { }
 
+
+        protected virtual void ExecuteFlow(TState drawer,
+            ParseTreeNode? marginNode,
+            ParseTreeNode? topNode,
+            ParseTreeNode body)
+        { }
+
+        protected virtual void ExecuteParagraph(TState drawer, ParseTreeNode alignmentNode, ParseTreeNode contentNode)
+        { }
+
+        protected virtual void ExecuteSpace(TState drawer, ParseTreeNode heightNode)
+        { }
+
         #endregion
 
         private void ExecuteUdfStatement(ParseTreeNode node)
@@ -336,6 +358,14 @@ namespace PdfSharpDslCore.Parser
 
             var body = node.ChildNode("RowTemplateBlock")?.ChildNode("EmbbededSmtList")!;
             ExecuteRowTemplateStatement(state, rowCount, offset, borderSizeNode, topMarginNode, nameNode, body);
+        }
+
+        private void VisitFlow(TState state, ParseTreeNode node)
+        {
+            var marginNode = GetOptArg(node, "Opt-Margin");
+            var topNode = GetOptArg(node, "Opt-Top");
+            var body = node.ChildNode("FlowBlock")?.ChildNode("EmbbededSmtList")!;
+            ExecuteFlow(state, marginNode, topNode, body);
         }
 
         private void VisitCalludf(TState state, ParseTreeNode node)

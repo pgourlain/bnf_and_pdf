@@ -152,7 +152,7 @@ namespace pdfsharpdslTests
         {
             var evaluation = new VariableEvaluation("missing", new Dictionary<string, object?>());
 
-            Assert.Throws<ArgumentOutOfRangeException>(() => evaluation.Value);
+            Assert.Throws<PdfParserException>(() => evaluation.Value);
         }
 
         [Fact]

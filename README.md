@@ -149,6 +149,7 @@ Set by the engine, read like any other variable.
 | $PAGECOUNT | everywhere (text only, see below) | total number of pages, resolved when the document is published |
 | $ROWINDEX | inside ROWTEMPLATE (free or table) | 0-based index of the current iteration |
 | $LASTTEMPLATEHEIGHT | after a ROWTEMPLATE | height in points of the last template, when it did not break the page |
+| $CURSORY | inside FLOW | y where the next element of the flow starts |
 
 See also the reserved UDF `__ONNEWPAGE` (called after each NEWPAGE).
 
@@ -312,6 +313,46 @@ NEWPAGE A4 portrait Master=report;
 - The master's statements run, right after `__ONNEWPAGE`, on the page a `NEWPAGE ... Master=name;` creates and on any page a `ROWTEMPLATE` page break creates from it. A later `NEWPAGE` without `Master=` has no master, even if the previous page had one — give it `Master=name` again to keep using it.
 - `MarginTop` becomes the default `NewPageTopMargin` for a `ROWTEMPLATE` that doesn't specify its own (see [ROWTEMPLATE](#rowtemplate)), so content doesn't start under the master's header.
 - `NEWPAGE Master=unknown;` raises a `PdfParserException`.
+
+## FLOW
+
+Place content top to bottom without computing y.
+
+```text
+# FLOW [Margin=formula] [Top=formula]
+#     PARAGRAPH [HAlign=left|right|hcenter] Text=formula;
+#     SPACE formula;
+#     IMAGE x,y,w,h ...;      # x relative to the left margin, y relative to the cursor
+#     TABLE x,y ... ENDTABLE  # same
+# ENDFLOW
+FLOW Margin=40
+    SET FONT Name="Arial" Size=10 regular;
+    PARAGRAPH Text="A long text that wraps to the flow width...";
+    SPACE 12;
+    PARAGRAPH HAlign=right Text=("Now at y = "+$CURSORY);
+ENDFLOW
+```
+
+- The flow is `PageWidth - 2*Margin` wide (`Margin` defaults to 36) and stops `Margin` above the bottom of the page.
+- `Top` is where the first element starts on the first page; it defaults to the active master's `MarginTop`, or else `Margin`. Pages created by the flow start there too.
+- `PARAGRAPH` wraps its text (current font and brush) and moves the cursor down. A paragraph taller than the space left is split between lines, and continues at the top of the next page. `SPACE` moves the cursor down (or up if negative) and draws nothing.
+- `IMAGE` and `TABLE` keep their syntax, but `x,y` are relative to the left margin and the cursor. An image that does not fit moves to the next page; a table breaks between rows (see `Top`), and the cursor ends below its last row.
+- A page break made by the flow calls `NEWPAGE` under the hood, so the current [MASTER](#master) and `__ONNEWPAGE` apply to the new page.
+- `$CURSORY` is only readable inside a flow. `PARAGRAPH`/`SPACE` outside a flow, and a `FLOW` inside a `FLOW`, raise a `PdfParserException`. Other statements can be used in a flow but do not move the cursor.
+- FLOW works in page points: don't combine it with `VIEWSIZE`.
+
+## Error messages
+
+The console (and `PdfDslDiagnostics.FormatParseErrors(parseTree)` for hosts) reports errors with line and column, and a suggestion when a name looks like a typo:
+
+```text
+Unknown instruction 'LINETXT' at line 12, col 1. Did you mean 'LINETEXT'?
+Missing ';' after '1' at line 3, col 14.
+Missing 'ENDFOR' for 'FOR' opened at line 5, col 1.
+'ENDFOR' at line 9, col 1 does not match 'IF' opened at line 6, col 1. Expected 'ENDIF'.
+```
+
+Run-time errors carry a position too: `Variable '$TOTL' is not defined at line 30, col 21. Did you mean '$TOTAL'?` and `Unknown function 'Uppr' at line 4, col 21. Did you mean 'UPPER'?`. Both are `PdfParserException`s (an undefined variable used to be an `ArgumentOutOfRangeException`).
 
 ## Image
 

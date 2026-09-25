@@ -99,12 +99,11 @@ var parsingResult = parser.Parse(File.ReadAllText(fileName));
 if (parsingResult.HasErrors())
 {
     //show Error
-    foreach (var error in parsingResult.ParserMessages)
+    foreach (var error in PdfDslDiagnostics.FormatParseErrors(parsingResult))
     {
-        Console.Write(error.Location.ToString());
-        Console.Write("=>");
-        Console.WriteLine(error);
+        Console.Error.WriteLine($"{Path.GetFileName(fileName)}: {error}");
     }
+    Environment.ExitCode = 1;
 }
 else
 {

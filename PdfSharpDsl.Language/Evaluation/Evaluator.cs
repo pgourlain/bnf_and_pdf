@@ -1,5 +1,6 @@
 ﻿using Irony.Parsing;
 using PdfSharpDslCore.Extensions;
+using PdfSharpDslCore.Parser;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -118,7 +119,7 @@ namespace PdfSharpDslCore.Evaluation
                         throw new NotImplementedException();
                     }
                 case "VarRef":
-                    return new VariableEvaluation((string)node.ChildNodes[1].Token.Value, variables);
+                    return new VariableEvaluation((string)node.ChildNodes[1].Token.Value, variables, node.Span.Location);
                 case "string":
                 case "textstring":
                     return new ConstantEvaluation<object>(node.Token.Value);
@@ -129,7 +130,11 @@ namespace PdfSharpDslCore.Evaluation
                     var fnName = (string)node.ChildNodes[0].Token.Value;
                     var args = node.ChildNode("CallInvokeArgumentslist");
                     var arguments = args?.ChildNodes.Select(n => PerformEvaluate(n, variables)).ToArray();
-                    return new CustomFunctionEvaluation(_funcs[fnName.ToUpperInvariant()], arguments!);
+                    if (!_funcs.TryGetValue(fnName.ToUpperInvariant(), out var func))
+                    {
+                        throw new PdfParserException(PdfDslDiagnostics.UnknownFunction(fnName, node.Span.Location, _funcs.Keys));
+                    }
+                    return new CustomFunctionEvaluation(func, arguments!);
             }
 
             throw new InvalidOperationException($"Unrecognizable term {node.Term.Name}.");

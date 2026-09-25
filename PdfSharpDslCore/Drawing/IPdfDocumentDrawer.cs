@@ -40,6 +40,12 @@ namespace PdfSharpDslCore.Drawing
         /// <summary>Measures <paramref name="text"/> in points, using the current font (see <see cref="CurrentFont"/>).</summary>
         /// <param name="maxWidth">When set, wraps the text as <see cref="DrawLineText"/> would before measuring.</param>
         PdfSize MeasureText(string text, double? maxWidth);
+
+        /// <summary>Splits <paramref name="text"/> into the lines <see cref="DrawLineText"/> would draw for a box of width <paramref name="maxWidth"/>.</summary>
+        IReadOnlyList<string> WrapText(string text, double maxWidth);
+
+        /// <summary>Size in points an image would take if drawn with the same arguments as <see cref="DrawImage"/>.</summary>
+        PdfSize MeasureImage(PdfImage image, double? w, double? h, bool sizeInPixel);
         
         DebugOptions DebugOptions { get; set; }
         /// <summary>
@@ -53,7 +59,8 @@ namespace PdfSharpDslCore.Drawing
         void DrawEllipse(double x, double y, double w, double h, bool isFilled);
         void MoveTo(double x, double y);
         void LineTo(double x, double y);
-        void DrawTable(double x, double y, TableDefinition tblDef);
+        /// <returns>The rectangle the table occupies on the last page it was drawn on.</returns>
+        PdfRect DrawTable(double x, double y, TableDefinition tblDef);
         void DrawImage(PdfImage image, double x, double y, double? w, double? h, bool sizeInPixel, bool cropImage);
         void DrawPie(double x, double y, double? w, double? h, double startAngle, double sweepAngle, bool isFilled);
         void DrawPolygon(IEnumerable<PdfPoint> points, bool isFilled);

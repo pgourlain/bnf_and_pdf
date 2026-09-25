@@ -34,6 +34,16 @@ namespace pdfsharpdslTests
             throw new NotImplementedException();
         }
 
+        public IReadOnlyList<string> WrapText(string text, double maxWidth)
+        {
+            throw new NotImplementedException();
+        }
+
+        public PdfSize MeasureImage(PdfImage image, double? w, double? h, bool sizeInPixel)
+        {
+            throw new NotImplementedException();
+        }
+
         public DebugOptions DebugOptions { get; set ; }
 
         public DebugOptions PageDebugOptions { get; set; }
@@ -68,7 +78,7 @@ namespace pdfsharpdslTests
             throw new NotImplementedException();
         }
 
-        public void DrawTable(double x, double y, TableDefinition tblDef)
+        public PdfRect DrawTable(double x, double y, TableDefinition tblDef)
         {
             throw new NotImplementedException();
         }
