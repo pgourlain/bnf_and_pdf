@@ -118,6 +118,9 @@ else
     //INCLUDE and relative image paths are resolved from the folder of the drawn file
     var visitor = new PdfDrawerVisitor(Path.GetDirectoryName(Path.GetFullPath(fileName))!, logger);
 
+    //host data: read in the script as $comments, $comments[0].date, $REPORTTITLE... (see demo-includes/21-udf-return-and-data.ipdf)
+    visitor.SetData("comments", globalComments);
+    visitor.SetData("REPORTTITLE", "Comments report");
     visitor.RegisterFormulaFunction("GetFontCount", (_) => LocalFontNames().Count());
     visitor.RegisterFormulaFunction("GetFont", GetFontNameByIndex);
     visitor.RegisterFormulaFunction("getGlobalCommentDate", getGlobalCommentDate);

@@ -212,6 +212,35 @@ SET VAR X=$M[1][0];                  # 3
 - A formula function registered by the host can return any array or list (not a string): it works with `FOREACH`, `Count` and `$VAR[index]`.
 - A list used in a text (`"items: "+$ITEMS`) is shown as `[a, b, c]`.
 
+## Host data
+
+The host gives the script structured data before drawing:
+
+```csharp
+var visitor = new PdfDrawerVisitor();
+visitor.SetData("orders", orders);          // any IEnumerable of objects or dictionaries
+visitor.SetData("REPORTTITLE", "Q3 report"); // or a plain value: a preset variable
+visitor.Draw(drawer, tree);
+```
+
+```text
+LINETEXT 40,40 Text=$REPORTTITLE;
+SET VAR Y=80;
+FOREACH O IN $orders DO
+    LINETEXT 40,$Y Text=($O.customer+": "+Format($O.amount,"N2"));
+    SET VAR Y=$Y+16;
+ENDFOREACH
+ROWTEMPLATE Count=Count($orders) Y=200
+    LINETEXT 40,0 Text=$orders[$ROWINDEX].customer;
+ENDROWTEMPLATE
+```
+
+- `$record.field` reads a field: from a dictionary by key, from any other object by public property or field (case-insensitive, an exact match wins). It chains with indexes: `$orders[0].customer`, `$order.parent.name`, `$o.tags[2]`; a list item can be a record.
+- A missing field raises a `PdfParserException` with the position and, when a name is close, a "Did you mean" (or the list of available fields); a field of an empty value (`$o.parent.name` with no parent) raises one too.
+- A dictionary is a record, not a list: `FOREACH` over one is an error. Any other `IEnumerable` except a string is a list, so `Count`, `FOREACH` and `$LIST[i]` work on it.
+- Values keep their .NET type: a `DateTime` field goes through `Format($o.date,"yyyy-MM-dd")`, a `decimal` works in arithmetic.
+- `SetData` names are case-sensitive, like variables. The values are copied into the variables at each `Draw`; the script can overwrite them with `SET VAR`.
+
 ## Named styles
 
 ```text
@@ -252,6 +281,22 @@ BARCODE 40,100,260,60 Type=code128 Text="ABC-123";
 - Code sets B and C are used automatically (runs of 4 or more digits use C, so numeric codes are shorter). The text must be printable ASCII (32 to 126). Other characters, an empty text or a missing/zero width or height raise a `PdfParserException`.
 - Works inside `ROWTEMPLATE` and with `DEBUG_RECT`. No human-readable text is printed; use `LINETEXT` under the bars.
 - QR codes are not available yet (see T25 in `tasks.md`).
+
+## CHART
+
+```text
+# CHART bar|line|pie x,y,w,h Data=list [Labels=list] [Colors=list];
+CHART bar 40,100,300,200 Data=[12,30,18] Labels=["Q1","Q2","Q3"] Colors=[steelblue];
+CHART line 380,100,300,200 Data=[5,-4,8,3] Labels=["a","b","c","d"] Colors=[tomato];
+CHART pie 40,340,300,200 Data=[50,30,20] Labels=["Direct","Search","Referral"] Colors=[steelblue,lightgreen,gold];
+```
+
+- One chart in one line, drawn with the drawing primitives (`FILLRECT`, `LINE`, `FILLPIE`, `LINETEXT`) inside the rectangle, so it works in a `ROWTEMPLATE`, in a `FLOW` (with absolute coordinates) and with `DEBUG_RECT`. The current pen, brush and font are restored afterwards; the font family is the current one, at 8 pt.
+- `Data` is a list (`[12,30,18]`, a variable, or a host list) or a text `"12,30,18"`. `Labels` and `Colors` are lists too (`Labels` before `Colors`, both optional).
+- **bar** and **line** have a value axis with round ticks (negative values are drawn below the zero line), one label per item under the axis, and the value above each bar. **pie** starts at the top and goes clockwise; with `Labels` a legend with the percentages is drawn at its right.
+- A color is a name (`steelblue`, bare in a list or as a text) or `"#RRGGBB"` / `"#AARRGGBB"`. When there are fewer colors than items they repeat; without `Colors` a default palette is used (a `line` chart uses the first color).
+- Errors raise a `PdfParserException`: empty data, a value that is not a number, an unknown color (with a suggestion), a pie with a negative value or a zero sum, a rectangle too small for the axes.
+- A bare color name is now also a valid formula: it is the text of that name (`SET VAR C=red;`).
 
 ## Color and Brush
 
@@ -603,6 +648,22 @@ visitor.RegisterCustomUdf("MyUdf", (drawer, argNames, argValues) => {
     return true;
     });
 ```
+
+### UDF return values
+
+```text
+UDF DOUBLE(X)
+    RETURN $X*2;
+ENDUDF
+SET VAR Y=DOUBLE(21);                 # 42
+LINETEXT 40,40 Text=("6! = "+FACT(6));  # a UDF may be recursive
+```
+
+- `RETURN formula;` ends the UDF (even from inside an `IF` or a loop) and gives the value. It is only allowed in a UDF body; anywhere else raises a `PdfParserException`.
+- A formula calls a UDF like any function (`NAME(args)`, the name is not case-sensitive there). Registered functions and built-ins come first: a UDF with the same name is not called from a formula (it still is by `CALL`).
+- A UDF used in a formula must `RETURN` a value, and get exactly its parameters. It may also draw (`RECT`, `LINETEXT`, ...): `SET VAR NEXTY=BOX(45,$Y,"label");` can draw a box and return the next y. Its variables stay local, as with `CALL`.
+- `CALL name(...)` still works, and a `RETURN` in the body ends it early (the value is ignored).
+- A UDF called more than 256 levels deep (endless recursion) raises a `PdfParserException`.
 
 ### Call an User Define Function
 

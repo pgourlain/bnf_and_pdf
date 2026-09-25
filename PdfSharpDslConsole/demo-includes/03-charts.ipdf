@@ -146,3 +146,24 @@ SET PEN lightgreen 8 solid;
 LINE 270,460,280,460;
 SET PEN gold 8 solid;
 LINE 270,490,280,490;
+
+# -----------------------------------------------------------------------------
+# CHART: the same kinds of charts in one line each. It is drawn with the
+# primitives above (FILLRECT, LINE, FILLPIE, LINETEXT), in the current font.
+# -----------------------------------------------------------------------------
+NEWPAGE A4 landscape;
+CALL SECTION("CHART: one line per chart");
+SET FONT Name="Arial" Size=9 regular;
+SET BRUSH black;
+LINETEXT 45,82 Text="CHART bar 45,105,340,200 Data=[12,30,18,26,9,22] Labels=[\"Jan\",\"Feb\",\"Mar\",\"Apr\",\"May\",\"Jun\"];";
+CHART bar 45,105,340,200 Data=[12,30,18,26,9,22] Labels=["Jan","Feb","Mar","Apr","May","Jun"];
+
+LINETEXT 430,82 Text="CHART line 430,105,340,200 Data=[5,-4,8,3,12] Colors=[tomato];";
+CHART line 430,105,340,200 Data=[5,-4,8,3,12] Labels=["A","B","C","D","E"] Colors=[tomato];
+
+LINETEXT 45,335 Text="CHART pie 45,355,300,200 Data=[50,30,20] Labels=[...] Colors=[steelblue,lightgreen,gold];";
+CHART pie 45,355,300,200 Data=[50,30,20] Labels=["Direct","Search","Referral"] Colors=[steelblue,lightgreen,gold];
+
+LINETEXT 430,335 Text="Data can be a variable, a list or a text: Data=\"4,8,15,16,23,42\"";
+SET VAR SERIES=[4,8,15,16,23,42];
+CHART bar 430,355,340,200 Data=$SERIES Colors=["#4472C4","#ED7D31"];

@@ -92,9 +92,14 @@ namespace PdfSharpDslCore.Parser
         {
             foreach (var node in nodes)
             {
+                //a RETURN ends the statements of a UDF body, wherever it is nested
+                if (StopVisiting) return;
                 Visit(state, node);
             }
         }
+
+        /// <summary>True when the statements being visited must not go on (a UDF executed RETURN).</summary>
+        protected virtual bool StopVisiting => false;
 
         protected void Visit(TState state, ParseTreeNode node)
         {
@@ -168,6 +173,13 @@ namespace PdfSharpDslCore.Parser
                     break;
                 case "ForEachSmt":
                     VisitForEach(state, node);
+                    break;
+                case "ChartSmt":
+                    ExecuteChart(state, node.ChildNode("ChartType")!.ChildNodes[0].Token.ValueString, node.ChildNode("RectLocation")!,
+                        node.ChildNodes[5], GetOptArg(node, "Opt-Labels"), GetOptArg(node, "Opt-Colors"));
+                    break;
+                case "ReturnSmt":
+                    ExecuteReturn(state, node.ChildNodes[1]);
                     break;
                 case "BarcodeSmt":
                     ExecuteBarcode(state, node.ChildNodes[1], node.ChildNode("BarcodeType")!.ChildNodes[0].Token.ValueString, node.ChildNodes.Last());
@@ -320,6 +332,14 @@ namespace PdfSharpDslCore.Parser
 
         /// <param name="type">Lower case type name as written after <c>Type=</c>, e.g. "code128".</param>
         protected virtual void ExecuteBarcode(TState state, ParseTreeNode locationNode, string type, ParseTreeNode contentNode)
+        { }
+
+        /// <param name="type">"bar", "line" or "pie".</param>
+        protected virtual void ExecuteChart(TState state, string type, ParseTreeNode locationNode, ParseTreeNode dataNode,
+            ParseTreeNode? labelsNode, ParseTreeNode? colorsNode)
+        { }
+
+        protected virtual void ExecuteReturn(TState state, ParseTreeNode valueNode)
         { }
 
         protected virtual void ExecuteForEachStatement(TState state, ParseTreeNode varNameNode, ParseTreeNode listNode, ParseTreeNode? body)

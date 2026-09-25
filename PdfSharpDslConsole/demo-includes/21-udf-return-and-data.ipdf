@@ -1,0 +1,65 @@
+INCLUDE "../demo-common.ipdf";
+
+# -----------------------------------------------------------------------------
+# UDF return values (a UDF used as a function in a formula) and host data
+# -----------------------------------------------------------------------------
+NEWPAGE A4 portrait;
+CALL SECTION("UDF return values and host data");
+
+UDF DOUBLE(X)
+    RETURN $X*2;
+ENDUDF
+
+UDF FACT(N)
+    IF $N <= 1 THEN
+        RETURN 1;
+    ENDIF
+    RETURN $N*FACT($N-1);
+ENDUDF
+
+UDF GRADE(SCORE)
+    IF $SCORE >= 90 THEN
+        RETURN "A";
+    ELSE IF $SCORE >= 70 THEN
+        RETURN "B";
+    ENDIF
+    RETURN "C";
+ENDUDF
+
+# A UDF that draws may also RETURN: it is a function once it is used in a formula.
+UDF BOX(X,Y,LABEL)
+    SET PEN darkblue 1;
+    RECT $X,$Y,120,24;
+    LINETEXT $X,$Y,120,24 HAlign=hcenter VAlign=vcenter Text=$LABEL;
+    RETURN $Y+30;
+ENDUDF
+
+USE body;
+LINETEXT 45,85 Text=("DOUBLE(21) = "+DOUBLE(21));
+LINETEXT 45,105 Text=("FACT(6) = "+FACT(6)+"   (recursive)");
+LINETEXT 45,125 Text=("GRADE(95) = "+GRADE(95)+", GRADE(75) = "+GRADE(75)+", GRADE(10) = "+GRADE(10));
+SET VAR NEXTY=BOX(45,150,"first box");
+SET VAR NEXTY=BOX(45,$NEXTY,"second box");
+SET VAR NEXTY=BOX(45,$NEXTY,"third box");
+USE caption;
+LINETEXT 190,155 Text=("each BOX(x,y,label) draws and returns the y of the next one: now "+$NEXTY);
+
+USE body;
+SET FONT Name="Arial" Size=12 bold;
+LINETEXT 45,270 Text=$REPORTTITLE;
+USE body;
+LINETEXT 45,290 Text=("Host data set with visitor.SetData(\"comments\", ...): "+Count($comments)+" groups");
+SET VAR Y=315;
+FOREACH G IN $comments DO
+    SET FONT Name="Arial" Size=11 bold;
+    LINETEXT 45,$Y Text=(Format($G.date,"yyyy-MM-dd")+" - "+Count($G.comments)+" comment(s)");
+    SET VAR Y=$Y+18;
+    SET FONT Name="Arial" Size=10 regular;
+    FOREACH C IN $G.comments DO
+        LINETEXT 70,$Y Text=($C.author+": "+$C.comment);
+        SET VAR Y=$Y+16;
+    ENDFOREACH
+    SET VAR Y=$Y+6;
+ENDFOREACH
+USE caption;
+LINETEXT 45,$Y+6 Text=("first author: "+$comments[0].comments[0].author);

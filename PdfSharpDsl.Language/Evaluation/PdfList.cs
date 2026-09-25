@@ -38,6 +38,10 @@ namespace PdfSharpDslCore.Evaluation
                 case string _:
                     items = Array.Empty<object?>();
                     return false;
+                case object dictionary when PdfMembers.IsDictionary(dictionary):
+                    //a record (read by field name), even though it enumerates its entries
+                    items = Array.Empty<object?>();
+                    return false;
                 case IReadOnlyList<object?> list:
                     items = list;
                     return true;

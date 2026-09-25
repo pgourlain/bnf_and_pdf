@@ -3,6 +3,9 @@
 
 ## Unreleased
 
+* `CHART bar|line|pie x,y,w,h Data=[...] [Labels=[...]] [Colors=[...]];`: one-line charts built from the drawing primitives (axes with round ticks, negative values, pie legend with percentages, default palette). A bare color name (`steelblue`) is now a valid formula, the text of that name. New `ChartRenderer` in `PdfSharpDslCore.Drawing.Charts`.
+* UDF return values: `RETURN formula;` and `SET VAR Y=DOUBLE(21);`. A formula can call a UDF of the script (registered functions come first); recursion is limited to 256 levels. `PdfVisitor` gains a `StopVisiting` hook and `ExecuteReturn`.
+* Host data: `PdfDrawerVisitor.SetData(name, value)` and `$record.field` access (dictionaries by key, objects by public property/field, case-insensitive), chainable with indexes (`$orders[0].customer`). New public `PdfMembers`. A dictionary is a record, not a list.
 * **Behavior change:** `__ONNEWPAGE` and `MASTER` bodies no longer leave their font, brush, pen and highlight brush behind: whatever created the page (`NEWPAGE`, `FLOW`, `ROWTEMPLATE`, `TABLE` rows), the ones current before the page break are restored afterwards. Variables set there stay set. A script that relied on the footer's `SET FONT`/`SET BRUSH` still applying after `NEWPAGE` must set its own.
 * `BARCODE x,y,w,h Type=code128 Text=...;`: Code 128 (sets B and C) drawn as one vector path in the current brush. `IPdfDocumentDrawer` gains `DrawBarcode`.
 * Lists and `FOREACH`: `[a, b, c]` literals, `$LIST[index]` (chainable), `Count(list)` and `FOREACH var IN list DO ... ENDFOREACH`. A host formula function can return an array or list.

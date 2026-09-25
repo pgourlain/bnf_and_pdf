@@ -1,5 +1,6 @@
 ﻿using Irony.Parsing;
 using PdfSharpDslCore.Drawing;
+using PdfSharpDslCore.Drawing.Charts;
 using PdfSharpDslCore.Evaluation;
 using PdfSharpDslCore.Extensions;
 using System;
@@ -29,6 +30,26 @@ namespace PdfSharpDslCore.Parser
 
         /// <summary>Half an inch, the margin of a FLOW that does not specify one.</summary>
         private const double DefaultFlowMargin = 36;
+
+        /// <summary>Host data and preset variables, copied into the variables at the start of <see cref="Draw"/>.</summary>
+        private readonly Dictionary<string, object?> _data = new Dictionary<string, object?>();
+
+        /// <summary>One per running UDF: where its RETURN puts the value.</summary>
+        private sealed class UdfFrame
+        {
+            public bool Returned { get; set; }
+            public bool HasValue { get; set; }
+            public object? Value { get; set; }
+        }
+
+        private readonly Stack<UdfFrame> _udfFrames = new Stack<UdfFrame>();
+
+        /// <summary>Deeper UDF calls than this (recursion) throw instead of overflowing the stack.</summary>
+        private const int MaxUdfDepth = 256;
+
+        private IPdfDocumentDrawer? _drawer;
+
+        protected override bool StopVisiting => _udfFrames.Count > 0 && _udfFrames.Peek().Returned;
 
         /// <summary>Layout state of the FLOW being visited, null outside a FLOW.</summary>
         private FlowState? _flow;
@@ -76,9 +97,27 @@ namespace PdfSharpDslCore.Parser
             }
         }
 
+        /// <summary>
+        /// Gives the script a value to read as <c>$name</c>, before <see cref="Draw"/>: a number or text (a preset
+        /// variable), a list (any <see cref="System.Collections.IEnumerable"/> except a string), or a record read
+        /// with <c>$name.field</c> (a dictionary, or an object with public properties or fields, matched
+        /// case-insensitively). Lists of records work too: <c>$orders[0].customer</c>, <c>FOREACH O IN $orders</c>.
+        /// The script can still change the variable with <c>SET VAR</c>. Names are case-sensitive.
+        /// </summary>
+        public void SetData(string name, object? value)
+        {
+            if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("A data name is required.", nameof(name));
+            _data[name] = value;
+        }
+
         public override void Draw(IPdfDocumentDrawer state, ParseTree tree)
         {
+            _drawer = state;
             Variables = new VariablesDictionary(k => SystemVariableGet(state, k));
+            foreach (var item in _data)
+            {
+                Variables.Add(item.Key, item.Value);
+            }
             //implicit first page, overwritten by each NEWPAGE
             Variables.Add("PAGEINDEX", 1);
             state.RegisterOnNewPage(pageIndex => OnNewPage(state, pageIndex));
@@ -366,8 +405,76 @@ namespace PdfSharpDslCore.Parser
                 {
                     Variables.Add(varName, i);
                     Visit(state, forbody.ChildNodes);
+                    if (StopVisiting) break;
                 }
             }
+        }
+
+        protected override void ExecuteChart(IPdfDocumentDrawer state, string type, ParseTreeNode locationNode, ParseTreeNode dataNode,
+            ParseTreeNode? labelsNode, ParseTreeNode? colorsNode)
+        {
+            var where = PdfDslDiagnostics.AtLocation(locationNode.Span.Location);
+            var (x, y, w, h) = ParseRectLocation(locationNode);
+            if (w is null || h is null || w <= 0 || h <= 0)
+            {
+                throw new PdfParserException($"CHART needs a positive width and height: CHART {type} x,y,w,h Data=[...]{where}.");
+            }
+
+            //like the other primitives, a negative x or y counts from the right / bottom edge of the page
+            if (x < 0) x += state.PageWidth;
+            if (y < 0) y += state.PageHeight;
+            var data = ChartValues(EvaluateForObject(dataNode), dataNode);
+            var labels = labelsNode != null ? ChartItems(EvaluateForObject(labelsNode)).Select(l => Convert.ToString(l) ?? string.Empty).ToList() : null;
+            var colors = colorsNode != null
+                ? ChartItems(EvaluateForObject(colorsNode)).Select(c => ParseColorText(Convert.ToString(c) ?? string.Empty, colorsNode)).ToList()
+                : null;
+            var chartType = type == "pie" ? PdfChartType.Pie : type == "line" ? PdfChartType.Line : PdfChartType.Bar;
+
+            ChartRenderer.Draw(state, chartType, x, y, w.Value, h.Value, data, labels, colors);
+        }
+
+        /// <summary>The items of a chart argument: a list, a text "a,b,c", or a single value.</summary>
+        private static IReadOnlyList<object?> ChartItems(object? value)
+        {
+            if (PdfList.TryGetItems(value, out var items)) return items;
+            if (value is string text) return text.Split(',').Select(s => (object?)s.Trim()).ToList();
+            return value == null ? new List<object?>() : new List<object?> { value };
+        }
+
+        private static List<double> ChartValues(object? value, ParseTreeNode node)
+        {
+            var result = new List<double>();
+            foreach (var item in ChartItems(value))
+            {
+                try
+                {
+                    result.Add(Convert.ToDouble(item, System.Globalization.CultureInfo.InvariantCulture));
+                }
+                catch (Exception e) when (e is FormatException || e is InvalidCastException)
+                {
+                    throw new PdfParserException($"CHART Data item {result.Count} ('{item}') is not a number{PdfDslDiagnostics.AtLocation(node.Span.Location)}.");
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>A color given as a name ("steelblue") or as "#RRGGBB" / "#AARRGGBB".</summary>
+        private static PdfColor ParseColorText(string text, ParseTreeNode node)
+        {
+            var trimmed = text.Trim();
+            if (trimmed.StartsWith("#", StringComparison.Ordinal) && (trimmed.Length == 7 || trimmed.Length == 9)
+                && uint.TryParse(trimmed.Substring(1), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out var argb))
+            {
+                return trimmed.Length == 7 ? PdfColor.FromArgb(0xFF000000 | argb) : PdfColor.FromArgb(argb);
+            }
+
+            var name = trimmed.ToLowerInvariant();
+            if (PdfColors.Names.Contains(name)) return PdfColors.FromName(name);
+
+            var suggestion = PdfDslDiagnostics.Suggest(name, PdfColors.Names);
+            throw new PdfParserException($"Unknown color '{text}'{PdfDslDiagnostics.AtLocation(node.Span.Location)}."
+                + (suggestion != null ? $" Did you mean '{suggestion}'?" : " Use a color name or #RRGGBB."));
         }
 
         protected override void ExecuteBarcode(IPdfDocumentDrawer state, ParseTreeNode locationNode, string type, ParseTreeNode contentNode)
@@ -396,6 +503,7 @@ namespace PdfSharpDslCore.Parser
             {
                 Variables.Add(varName, item);
                 if (body != null) Visit(state, body.ChildNodes);
+                if (StopVisiting) break;
             }
         }
 
@@ -421,6 +529,7 @@ namespace PdfSharpDslCore.Parser
                 }
 
                 if (body != null) Visit(state, body.ChildNodes);
+                if (StopVisiting) break;
             }
         }
 
@@ -515,33 +624,50 @@ namespace PdfSharpDslCore.Parser
             if (udfBody != null)
             {
                 //udfBody != null indicate that we have an udf in parsed file(s)
-                var vars = Variables as IVariablesDictionary;
-                vars?.SaveVariables();
-                try
-                {
-                    if (parameterNames != null)
-                    {
-                        for (int i = 0; i < parameterNames.Length; i++)
-                        {
-                            Variables.Add(parameterNames[i], parameterValues[i] ?? null!);
-                        }
-                    }
-
-                    using (UseFileOf(udfBody))
-                    {
-                        Visit(drawer, udfBody.ChildNodes);
-                    }
-                }
-                finally
-                {
-                    //restore variables before call
-                    vars?.RestoreVariables();
-                }
+                RunUdfBody(drawer, udfName, parameterNames, parameterValues, udfBody);
             }
             else
             {
                 throw new PdfParserException($"UDF {udfName} is not found.");
             }
+        }
+
+        /// <summary>Runs a UDF body with its parameters bound; the returned frame holds what RETURN produced, if anything.</summary>
+        private UdfFrame RunUdfBody(IPdfDocumentDrawer drawer, string udfName, string[]? parameterNames, object?[] parameterValues,
+            ParseTreeNode udfBody)
+        {
+            if (_udfFrames.Count >= MaxUdfDepth)
+            {
+                throw new PdfParserException($"UDF '{udfName}' is called more than {MaxUdfDepth} levels deep (endless recursion?).");
+            }
+
+            var frame = new UdfFrame();
+            var vars = Variables as IVariablesDictionary;
+            vars?.SaveVariables();
+            _udfFrames.Push(frame);
+            try
+            {
+                if (parameterNames != null)
+                {
+                    for (int i = 0; i < parameterNames.Length; i++)
+                    {
+                        Variables.Add(parameterNames[i], parameterValues[i] ?? null!);
+                    }
+                }
+
+                using (UseFileOf(udfBody))
+                {
+                    Visit(drawer, udfBody.ChildNodes);
+                }
+            }
+            finally
+            {
+                _udfFrames.Pop();
+                //restore variables before call
+                vars?.RestoreVariables();
+            }
+
+            return frame;
         }
 
         protected override void ExecuteBrush(IPdfDocumentDrawer state, ParseTreeNode colorNode)
@@ -1069,25 +1195,70 @@ namespace PdfSharpDslCore.Parser
 
         private double? EvaluateForDouble(ParseTreeNode node)
         {
-            return EvaluateForDouble(node, Variables, CustomFunctions);
-        }
-
-        private static double? EvaluateForDouble(ParseTreeNode node, IDictionary<string, object?> variables,
-            IDictionary<string, Func<object[], object>> funcs)
-        {
-            return new Evaluator(node, funcs).EvaluateForDouble(variables);
+            return new Evaluator(node, CustomFunctions, UserFunctions).EvaluateForDouble(Variables);
         }
 
         private object? EvaluateForObject(ParseTreeNode? node)
         {
             if (node is null) return null;
-            return EvaluateForObject(node, Variables, CustomFunctions);
+            return new Evaluator(node, CustomFunctions, UserFunctions).Evaluate(Variables);
         }
 
-        private static object? EvaluateForObject(ParseTreeNode node, IDictionary<string, object?> variables,
-            IDictionary<string, Func<object[], object>> funcs)
+        private IUserFunctionResolver? _userFunctionsInstance;
+
+        private IUserFunctionResolver UserFunctions => _userFunctionsInstance ??= new UserFunctionResolver(this);
+
+        /// <summary>Lets a formula call a UDF of the script: <c>SET VAR Y=DOUBLE(21);</c></summary>
+        private sealed class UserFunctionResolver : IUserFunctionResolver
         {
-            return new Evaluator(node, funcs).Evaluate(variables);
+            private readonly PdfDrawerVisitor _visitor;
+
+            public UserFunctionResolver(PdfDrawerVisitor visitor)
+            {
+                _visitor = visitor;
+            }
+
+            public IEnumerable<string> Names => _visitor.UserDefinedFunctions.Keys.Where(k => !k.StartsWith("__", StringComparison.Ordinal));
+
+            public Func<object[], object>? Resolve(string upperCaseName)
+            {
+                //UDF names are case-sensitive for CALL, a formula function name is not
+                var udfName = _visitor.UserDefinedFunctions.Keys.FirstOrDefault(k => string.Equals(k, upperCaseName, StringComparison.OrdinalIgnoreCase));
+                return udfName == null ? null : args => _visitor.CallUdfAsFunction(udfName, args)!;
+            }
+        }
+
+        private object? CallUdfAsFunction(string udfName, object[] arguments)
+        {
+            var defNode = UserDefinedFunctions[udfName];
+            var parameterNames = defNode.ChildNode("UdfArgumentslist")?.ChildNodes.Select(x => x.Token.ValueString).ToArray()
+                                 ?? Array.Empty<string>();
+            if (parameterNames.Length != arguments.Length)
+            {
+                throw new PdfParserException($"UDF '{udfName}' arguments count does not match, provided {arguments.Length}, expected {parameterNames.Length}.");
+            }
+
+            var body = defNode.ChildNode("UdfBlock")?.ChildNode("EmbbededSmtList");
+            var frame = RunUdfBody(_drawer!, udfName, parameterNames, arguments, body!);
+            if (!frame.HasValue)
+            {
+                throw new PdfParserException($"UDF '{udfName}' is used in a formula but did not RETURN a value.");
+            }
+
+            return frame.Value;
+        }
+
+        protected override void ExecuteReturn(IPdfDocumentDrawer state, ParseTreeNode valueNode)
+        {
+            if (_udfFrames.Count == 0)
+            {
+                throw new PdfParserException($"RETURN can only be used inside a UDF{PdfDslDiagnostics.AtLocation(valueNode.Span.Location)}.");
+            }
+
+            var frame = _udfFrames.Peek();
+            frame.Value = EvaluateForObject(valueNode);
+            frame.HasValue = true;
+            frame.Returned = true;
         }
 
         protected override void ExecuteSetVar(IPdfDocumentDrawer drawer, ParseTreeNode node)

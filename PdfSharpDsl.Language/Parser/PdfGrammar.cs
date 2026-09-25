@@ -143,6 +143,9 @@ namespace PdfSharpDslCore.Parser
             var StyleSet = new NonTerminal("SetSmt");
             var StyleSetContent = new NonTerminal("StyleSetContent");
             var UseSmt = new NonTerminal("UseSmt");
+            var ReturnSmt = new NonTerminal("ReturnSmt");
+            var ChartSmt = new NonTerminal("ChartSmt");
+            var ChartType = new NonTerminal("ChartType");
             var BarcodeSmt = new NonTerminal("BarcodeSmt");
             var BarcodeType = new NonTerminal("BarcodeType");
             var ForEachSmt = new NonTerminal("ForEachSmt");
@@ -185,13 +188,16 @@ namespace PdfSharpDslCore.Parser
             FormulaExpression.Rule = BinaryExpression | FormulaPrimary;
             var ListExpression = new NonTerminal("ListExpression");
             var ListItemsOpt = new NonTerminal("ListItemsOpt");
-            var IndexExpression = new NonTerminal("IndexExpression");
-            var IndexList = new NonTerminal("IndexList");
+            var AccessExpression = new NonTerminal("AccessExpression");
+            var AccessList = new NonTerminal("AccessList");
+            var AccessSuffix = new NonTerminal("AccessSuffix");
             var IndexSuffix = new NonTerminal("IndexSuffix");
+            var MemberSuffix = new NonTerminal("MemberSuffix");
             FormulaPrimary.Rule = LiteralExpression | UnaryExpression | Parenthesized_Expression | CustomFunctionExpression
-                | ListExpression | IndexExpression;
+                | ListExpression | AccessExpression;
 
-            LiteralExpression.Rule = number_literal | VarRef | sstring;
+            // a bare color name is the text of that name, so it can be an item of Colors=[steelblue, tomato]
+            LiteralExpression.Rule = number_literal | VarRef | sstring | NamedColor;
             UnaryExpression.Rule = UnOp + FormulaExpression;
             Parenthesized_Expression.Rule = lpar + FormulaExpression + rpar;
             BinaryExpression.Rule = FormulaExpression + BinOp + FormulaExpression;
@@ -205,12 +211,14 @@ namespace PdfSharpDslCore.Parser
             CustomFunctionArgs.Rule = lpar + CustomFunctionArgsOpt + rpar;
             CustomFunctionArgsOpt.Rule = Empty | CallInvokeArgumentslist;
 
-            // lists: [1, 2, 3], [] and $LIST[index] (chainable: $MATRIX[0][1])
+            // lists: [1, 2, 3], [] and $LIST[index]; host records: $ORDER.customer; chainable: $M[0][1], $ORDERS[0].customer
             ListExpression.Rule = ToTerm("[") + ListItemsOpt + "]";
             ListItemsOpt.Rule = Empty | CallInvokeArgumentslist;
-            IndexExpression.Rule = VarRef + IndexList;
-            IndexList.Rule = MakePlusRule(IndexList, null, IndexSuffix);
+            AccessExpression.Rule = VarRef + AccessList;
+            AccessList.Rule = MakePlusRule(AccessList, null, AccessSuffix);
+            AccessSuffix.Rule = IndexSuffix | MemberSuffix;
             IndexSuffix.Rule = ToTerm("[") + FormulaExpression + "]";
+            MemberSuffix.Rule = ToTerm(".") + variableLiteral;
 
             UnOp.Rule = ToTerm("+") | "-";
             VarRef.Rule = "$" + variableLiteral;
@@ -266,6 +274,8 @@ namespace PdfSharpDslCore.Parser
                 | WhileSmt
                 | ForEachSmt
                 | BarcodeSmt
+                | ReturnSmt
+                | ChartSmt
             ;
 
             #region basics rules
@@ -414,6 +424,11 @@ namespace PdfSharpDslCore.Parser
             embbededSmtListOpt.Rule = Empty + EmbbededSmtList;
             BarcodeSmt.Rule = ToInstructionTerm("BARCODE") + RectLocation + Arg("Type") + BarcodeType + Arg("Text") + FormulaExpression;
             BarcodeType.Rule = ToTerm("code128");
+            ChartSmt.Rule = ToInstructionTerm("CHART") + ChartType + RectLocation + Arg("Data") + FormulaExpression
+                            + OptArg("Labels", FormulaExpression) + OptArg("Colors", FormulaExpression);
+            ChartType.Rule = ToTerm("bar") | "line" | "pie";
+            // only meaningful inside a UDF body, the visitor refuses it anywhere else
+            ReturnSmt.Rule = ToInstructionTerm("RETURN") + FormulaExpression;
             ForEachSmt.Rule = ToInstructionTerm("FOREACH") + variableLiteral + "IN" + FormulaExpression + ForEachBlock;
             ForEachBlock.Rule = ToTerm("DO") + embbededSmtListOpt + "ENDFOREACH";
             WhileSmt.Rule = ToInstructionTerm("WHILE") + FormulaExpression + WhileBlock;
@@ -478,7 +493,7 @@ namespace PdfSharpDslCore.Parser
             RegisterBracePair("(", ")");
 
             MarkPunctuation(";", ",", "(", ")", "TABLE", "ENDTABLE", "HEAD", "ENDHEAD", "ROW", "ROWTEMPLATE ", "ENDROW", "ENDFOR", "UDF", "ENDUDF",
-                "IF", "THEN", "ELSE", "ENDIF", "ROWTEMPLATE", "ENDROWTEMPLATE", "MASTER", "ENDMASTER", "FLOW", "ENDFLOW", "STYLE", "ENDSTYLE", "ENDWHILE", "ENDFOREACH", "[", "]");
+                "IF", "THEN", "ELSE", "ENDIF", "ROWTEMPLATE", "ENDROWTEMPLATE", "MASTER", "ENDMASTER", "FLOW", "ENDFLOW", "STYLE", "ENDSTYLE", "ENDWHILE", "ENDFOREACH", "[", "]", ".");
             MarkPunctuation(elseIf);
             RegisterBracePair("(", ")");
             MarkTransient(PdfLine, PdfPrimaryInstruction, SetContent, StyleSetContent, NumberOrAuto,
@@ -486,7 +501,7 @@ namespace PdfSharpDslCore.Parser
                  embbededSmtListOpt,
                  UdfArguments, UdfArgumentslistOpt,
                  UdfInvokeArguments, UdfInvokeArgumentslistOpt, stylePenOpt,
-                 CustomFunctionArgs, CustomFunctionArgsOpt, TableRowTemplateCount, ListItemsOpt);
+                 CustomFunctionArgs, CustomFunctionArgsOpt, TableRowTemplateCount, ListItemsOpt, AccessSuffix);
 
             this.AddTermsReportGroup("punctuation", comma);
             this.AddToNoReportGroup("(", "++", "--");
