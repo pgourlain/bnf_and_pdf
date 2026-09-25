@@ -1,0 +1,22 @@
+INCLUDE "../demo-common.ipdf";
+
+# -----------------------------------------------------------------------------
+# Barcodes: Code 128, drawn as vector bars in the current brush
+# -----------------------------------------------------------------------------
+NEWPAGE A4 portrait;
+CALL SECTION("Barcodes");
+USE body;
+LINETEXT 45,85 Text="BARCODE x,y,w,h Type=code128 Text=formula; the rectangle includes a 10-module quiet zone.";
+SET BRUSH black;
+BARCODE 45,110,260,60 Type=code128 Text="ABC-123";
+USE caption;
+LINETEXT 45,175 Text="ABC-123 (code set B)";
+SET BRUSH darkblue;
+BARCODE 45,215,260,60 Type=code128 Text="2026000123456";
+USE caption;
+LINETEXT 45,280 Text="2026000123456 (digit runs use code set C, so it is shorter)";
+SET VAR ORDER="SKU-"+Format(42,"00000");
+SET BRUSH 0xff1a3c5e;
+BARCODE 45,320,400,80 Type=code128 Text=$ORDER;
+USE caption;
+LINETEXT 45,405 Text=("Text can be any formula: "+$ORDER);

@@ -127,6 +127,7 @@ Available without registration. A function registered with `RegisterFormulaFunct
 | Format | `Format(value, fmt)`: .NET format string, invariant culture, e.g. `Format(1284.5,"N2")` → `1,284.50`, `Format(Now(),"yyyy-MM-dd")` |
 | Date | `Now()`, `Today()`: return a `DateTime`. Only usable through `Format`; concatenating one with `+` falls back to `DateTime`'s default, culture-dependent `ToString()` |
 | Logic | `Iif(cond, a, b)` |
+| List | `Count(list)`: number of items of a [list](#lists) |
 
 A wrong argument count raises a `PdfParserException` naming the function.
 
@@ -151,7 +152,7 @@ Set by the engine, read like any other variable.
 | $LASTTEMPLATEHEIGHT | after a ROWTEMPLATE | height in points of the last template, when it did not break the page |
 | $CURSORY | inside FLOW | y where the next element of the flow starts |
 
-See also the reserved UDF `__ONNEWPAGE` (called after each NEWPAGE).
+See also the reserved UDF `__ONNEWPAGE` (called after each new page). It and the `MASTER` body can draw with their own font, brush and pen: the ones in use before the page was created are restored afterwards (variables they set stay set).
 
 `$PAGECOUNT` is only known once every page has been recorded, so it only works inside `TITLE`/`LINETEXT` text, e.g. a footer set from `__ONNEWPAGE`:
 
@@ -160,6 +161,97 @@ TITLE Margin=-18 Text=("page "+$PAGEINDEX+" / "+$PAGECOUNT);
 ```
 
 It only supports string concatenation (`+`); using it in arithmetic or a comparison (`$PAGECOUNT-1`, `$PAGECOUNT>3`, …) raises a clear error, since its value does not exist yet while the script runs.
+
+## Control flow
+
+```text
+# IF ... THEN ... [ELSE IF ... THEN ...]... [ELSE ...] ENDIF
+IF $X > 10 THEN
+    SET VAR SIZE="big";
+ELSE IF $X > 5 THEN
+    SET VAR SIZE="medium";
+ELSE
+    SET VAR SIZE="small";
+ENDIF
+
+# FOR var=from TO to [STEP n] DO ... ENDFOR  (bounds are inclusive)
+FOR I=0 TO 10 STEP 5 DO ... ENDFOR      # 0, 5, 10
+FOR I=10 TO 0 STEP -2 DO ... ENDFOR     # counts down
+
+# WHILE condition DO ... ENDWHILE
+SET VAR Y=100;
+WHILE $Y < $PAGEHEIGHT-50 DO
+    LINE 40,$Y,300,$Y;
+    SET VAR Y=$Y+20;
+ENDWHILE
+```
+
+- `ELSE IF` (with any whitespace between the words) continues the same `IF`: the whole chain has a single `ENDIF`, and conditions are only evaluated until one is true. **Breaking change:** `ELSE` followed by a nested `IF` used to need two `ENDIF`s; to nest an `IF` inside an `ELSE` now, put something (a statement or a `#` comment) between `ELSE` and `IF`.
+- `STEP` is an integer formula, `1` by default. A negative step counts down; `STEP 0` raises a `PdfParserException`. A loop whose direction does not reach `to` (`FOR I=5 TO 1`) does not run.
+- `WHILE` stops with a `PdfParserException` after 10 000 iterations, so a condition that never becomes false cannot hang the generation.
+- Loop variables and variables set in a loop stay available after it.
+
+## Lists
+
+```text
+SET VAR ITEMS=["a","b","c"];
+SET VAR FIRST=$ITEMS[0];             # indexes start at 0
+SET VAR N=Count($ITEMS);
+SET VAR Y=100;
+FOREACH ITEM IN $ITEMS DO
+    LINETEXT 40,$Y Text=$ITEM;
+    SET VAR Y=$Y+16;
+ENDFOREACH
+SET VAR M=[[1,2],[3,4]];
+SET VAR X=$M[1][0];                  # 3
+```
+
+- A list literal is `[formula, formula, …]` (`[]` is an empty list); items can be any formula, including other lists.
+- `$VAR[index]` reads an item; the index is a formula. It can be chained for lists of lists. It only applies to a variable (`Names()[0]` is not supported; store the result in a variable first). An index that is not a whole number inside the list raises a `PdfParserException` with the position.
+- `FOREACH var IN formula DO … ENDFOREACH` visits the items in order; the formula must give a list.
+- A formula function registered by the host can return any array or list (not a string): it works with `FOREACH`, `Count` and `$VAR[index]`.
+- A list used in a text (`"items: "+$ITEMS`) is shown as `[a, b, c]`.
+
+## Named styles
+
+```text
+STYLE h1
+    SET FONT Name="Arial" Size=20 bold;
+    SET BRUSH darkblue;
+ENDSTYLE
+USE h1;
+LINETEXT 40,60 Text="Title";
+```
+
+- A style is a list of `SET PEN`, `SET BRUSH`, `SET HBRUSH` and `SET FONT` statements (no `SET VAR`); `USE name;` replays them, and they stay set afterwards like any other `SET`.
+- Styles are hoisted like UDFs: `USE` can come before the `STYLE` definition. `USE` of an unknown style raises a `PdfParserException` (with a "Did you mean" suggestion when a style has a similar name); defining the same style twice does too.
+
+## INCLUDE
+
+```text
+INCLUDE "common.ipdf";
+```
+
+- The statements of the file replace the `INCLUDE` line, so a shared file can define `UDF`s, `STYLE`s, `MASTER`s and variables (`SET VAR`), and can also draw.
+- Paths are relative to the file that contains the `INCLUDE` (so nested includes work from any folder). `INCLUDE` is only accepted at the top level of a file, not inside a block.
+- A file is included **once** per document: a later `INCLUDE` of the same file is skipped. So every file can `INCLUDE` the shared files it needs (and still be drawn alone) without defining their UDFs twice.
+- A missing file, a circular include (`a.ipdf -> b.ipdf -> a.ipdf`), a nesting deeper than 16 files or a syntax error in the included file raise a `PdfParserException`; the last one names the file and the line *in that file*. Run-time errors inside an included file (undefined variable, unknown function, list index…) say `at line 2, col 12 of file.ipdf`, including from a UDF or MASTER defined there.
+- Relative `IMAGE Source=` paths are resolved from the folder of the file that contains the statement.
+- The visitor resolves the main file's relative paths from its base directory (`new PdfDrawerVisitor(baseDirectory, logger)`, the current directory by default); the console uses the folder of the drawn file. It also works in the source generator. Since an included file is parsed when the document is drawn, the syntax of `INCLUDE`d files is not checked by the first `Parse` of the main file.
+- `PdfSharpDslConsole/demo.ipdf` is only a list of `INCLUDE`s of `demo-common.ipdf` (shared UDFs, styles, master) and `demo-includes/NN-feature.ipdf`, one file per feature; each of them can be drawn alone, e.g. `dotnet run -- demo-includes/11-flow.ipdf`.
+
+## BARCODE
+
+```text
+# BARCODE x,y,w,h Type=code128 Text=formula;
+SET BRUSH black;
+BARCODE 40,100,260,60 Type=code128 Text="ABC-123";
+```
+
+- Draws a Code 128 barcode as vector bars in the current brush. The rectangle includes a quiet zone of 10 modules on each side; scale it so the bars stay wide enough for your scanner.
+- Code sets B and C are used automatically (runs of 4 or more digits use C, so numeric codes are shorter). The text must be printable ASCII (32 to 126). Other characters, an empty text or a missing/zero width or height raise a `PdfParserException`.
+- Works inside `ROWTEMPLATE` and with `DEBUG_RECT`. No human-readable text is printed; use `LINETEXT` under the bars.
+- QR codes are not available yet (see T25 in `tasks.md`).
 
 ## Color and Brush
 
@@ -544,6 +636,7 @@ Available options
 - DEBUG_IMAGE : shows red rect around images
 - DEBUG_RULE : shows rule on each page
 - DEBUG_ALL : all of the above
+- DEBUG_GRID : shows a light grid every 50 points, labelled with its coordinates, to help place elements
 - DEBUG_ROWTEMPLATE : shows red rect around each iteration and index number of each at topleft rectangle
   - text format is "{level}.{index}", where level is > 0 when ROWTEMPLATE is part of another ROWTEMPALTE 
 

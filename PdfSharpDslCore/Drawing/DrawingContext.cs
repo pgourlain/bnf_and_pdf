@@ -21,6 +21,7 @@ namespace PdfSharpDslCore.Drawing
         public bool DebugRect => (EffectiveDebugOptions & (DebugOptions.DebugRect | DebugOptions.DebugAll)) > 0;
         public bool DebugImage => (EffectiveDebugOptions & (DebugOptions.DebugImage | DebugOptions.DebugAll)) > 0;
         public bool DebugRowTemplate => (EffectiveDebugOptions & (DebugOptions.DebugRowTemplate | DebugOptions.DebugAll)) > 0;
+        public bool DebugGrid => (EffectiveDebugOptions & (DebugOptions.DebugGrid | DebugOptions.DebugAll)) > 0;
         public bool DebugRule => (EffectiveDebugOptions & (DebugOptions.DebugRule | DebugOptions.DebugAll)) > 0;
 
         public DrawingContext(ILogger? logger)

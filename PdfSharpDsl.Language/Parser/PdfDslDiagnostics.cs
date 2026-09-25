@@ -37,6 +37,9 @@ namespace PdfSharpDslCore.Parser
             ["UDF"] = "ENDUDF",
             ["MASTER"] = "ENDMASTER",
             ["FLOW"] = "ENDFLOW",
+            ["WHILE"] = "ENDWHILE",
+            ["FOREACH"] = "ENDFOREACH",
+            ["STYLE"] = "ENDSTYLE",
             ["TABLE"] = "ENDTABLE",
             ["HEAD"] = "ENDHEAD",
             ["ROW"] = "ENDROW",
@@ -162,8 +165,34 @@ namespace PdfSharpDslCore.Parser
             return msg;
         }
 
-        internal static string AtLocation(SourceLocation? location) =>
-            location == null ? string.Empty : $" at line {location.Value.Line + 1}, col {location.Value.Column + 1}";
+        [ThreadStatic]
+        private static string? _currentFile;
+
+        /// <summary>
+        /// Name of the INCLUDEd file whose statements are being executed, null for the main file. Run-time
+        /// messages built with <see cref="AtLocation"/> mention it, since a line number alone is ambiguous.
+        /// </summary>
+        internal static IDisposable UseFile(string? file) => new FileScope(file);
+
+        internal static string AtLocation(SourceLocation? location)
+        {
+            if (location == null) return string.Empty;
+            var text = $" at line {location.Value.Line + 1}, col {location.Value.Column + 1}";
+            return _currentFile == null ? text : $"{text} of {_currentFile}";
+        }
+
+        private sealed class FileScope : IDisposable
+        {
+            private readonly string? _previous;
+
+            public FileScope(string? file)
+            {
+                _previous = _currentFile;
+                _currentFile = file;
+            }
+
+            public void Dispose() => _currentFile = _previous;
+        }
 
         private static PdfDslDiagnostic Generic(LogMessage message, int line, int col) =>
             new PdfDslDiagnostic(line, col, $"{message.Message} at line {line}, col {col}.");
@@ -253,24 +282,22 @@ namespace PdfSharpDslCore.Parser
 
         private static int Levenshtein(string a, string b)
         {
-            var previous = new int[b.Length + 1];
-            var current = new int[b.Length + 1];
-            for (var j = 0; j <= b.Length; j++) previous[j] = j;
+            // optimal string alignment: like Levenshtein, but swapping two neighbours ("titel") costs 1
+            var d = new int[a.Length + 1, b.Length + 1];
+            for (var i = 0; i <= a.Length; i++) d[i, 0] = i;
+            for (var j = 0; j <= b.Length; j++) d[0, j] = j;
             for (var i = 1; i <= a.Length; i++)
             {
-                current[0] = i;
                 for (var j = 1; j <= b.Length; j++)
                 {
                     var cost = a[i - 1] == b[j - 1] ? 0 : 1;
-                    current[j] = Math.Min(Math.Min(current[j - 1] + 1, previous[j] + 1), previous[j - 1] + cost);
+                    d[i, j] = Math.Min(Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1), d[i - 1, j - 1] + cost);
+                    if (i > 1 && j > 1 && a[i - 1] == b[j - 2] && a[i - 2] == b[j - 1])
+                        d[i, j] = Math.Min(d[i, j], d[i - 2, j - 2] + 1);
                 }
-
-                var tmp = previous;
-                previous = current;
-                current = tmp;
             }
 
-            return previous[b.Length];
+            return d[a.Length, b.Length];
         }
     }
 }

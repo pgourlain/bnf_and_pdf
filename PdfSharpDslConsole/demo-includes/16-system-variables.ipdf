@@ -1,0 +1,73 @@
+INCLUDE "../demo-common.ipdf";
+
+# -----------------------------------------------------------------------------
+# System variables: set by the engine, read with $NAME in any formula
+# -----------------------------------------------------------------------------
+NEWPAGE A4 portrait;
+CALL SECTION("System variables");
+SET FONT Name="Arial" Size=10 regular;
+SET BRUSH black;
+LINETEXT 40,75 Text="The engine sets these variables; read them like any other variable, with a $ prefix.";
+SET FONT Name="Arial" Size=9 regular;
+SET PEN slategray 0.6;
+TABLE 40,100
+HEAD 0xffe8eef7
+COL Width=110 MaxWidth=110 FONT="Consolas",9,bold white steelblue "Variable";
+COL Width=165 MaxWidth=165 FONT="Arial",9,bold white steelblue "Available";
+COL Width=240 MaxWidth=240 FONT="Arial",9,bold white steelblue "Value / notes";
+ENDHEAD
+ROW
+COL "$PAGEWIDTH";
+COL "Everywhere";
+COL "Current page width in points. Now: "+$PAGEWIDTH;
+ENDROW
+ROW
+COL "$PAGEHEIGHT";
+COL "Everywhere";
+COL "Current page height in points. Now: "+$PAGEHEIGHT;
+ENDROW
+ROW
+COL "$PAGEINDEX";
+COL "Everywhere";
+COL "1-based index of the current page. Now: "+$PAGEINDEX;
+ENDROW
+ROW
+COL "$PAGECOUNT";
+COL "Everywhere, text only (see footer below)";
+COL "Total number of pages, resolved when the document is published. Now: "+$PAGECOUNT;
+ENDROW
+ROW
+COL "$ROWINDEX";
+COL "Inside ROWTEMPLATE (free or table)";
+COL "0-based index of the current iteration";
+ENDROW
+ROW
+COL "$LASTTEMPLATEHEIGHT";
+COL "After a ROWTEMPLATE";
+COL "Height in points of the last drawn template, when it did not break the page";
+ENDROW
+ENDTABLE
+
+# Live values: ROWINDEX inside a template, LASTTEMPLATEHEIGHT right after it.
+SET BRUSH darkblue;
+SET FONT Name="Arial" Size=11 bold;
+LINETEXT 40,330 Text="Live example";
+SET FONT Name="Consolas" Size=9 regular;
+SET PEN lightgray 0.5;
+ROWTEMPLATE Count=3 Y=355 Name="system-vars" BorderSize=2
+    RECT 40,0,300,20;
+    SET BRUSH black;
+    LINETEXT 50,10 VAlign=vcenter Text=("$ROWINDEX = "+$ROWINDEX);
+ENDROWTEMPLATE
+SET BRUSH darkblue;
+LINETEXT 40,440 Text=("$LASTTEMPLATEHEIGHT = "+$LASTTEMPLATEHEIGHT);
+
+# Special UDF: not a variable, but the usual place to use page variables.
+SET FONT Name="Arial" Size=11 bold;
+LINETEXT 40,490 Text="UDF __ONNEWPAGE()";
+SET FONT Name="Arial" Size=10 regular;
+SET BRUSH black;
+LINETEXT 40,510,515,60 HAlign=left VAlign=top Text="Called after every NEWPAGE, once $PAGEINDEX is set. SET VAR inside it is global, so it can publish derived values (this demo sets $CONTENTWIDTH and $CONTENTHEIGHT) and draw headers or footers.";
+SET FONT Name="Consolas" Size=9 regular;
+SET BRUSH darkslategray;
+LINETEXT 40,570 Text=("$CONTENTWIDTH = "+$CONTENTWIDTH+", $CONTENTHEIGHT = "+$CONTENTHEIGHT);

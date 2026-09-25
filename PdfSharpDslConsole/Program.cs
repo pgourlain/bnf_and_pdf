@@ -115,7 +115,8 @@ else
 
     //draw parsing result
     using var drawer = new PdfDocumentDrawer(logger);
-    var visitor = new PdfDrawerVisitor(logger);
+    //INCLUDE and relative image paths are resolved from the folder of the drawn file
+    var visitor = new PdfDrawerVisitor(Path.GetDirectoryName(Path.GetFullPath(fileName))!, logger);
 
     visitor.RegisterFormulaFunction("GetFontCount", (_) => LocalFontNames().Count());
     visitor.RegisterFormulaFunction("GetFont", GetFontNameByIndex);

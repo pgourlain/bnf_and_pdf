@@ -1,0 +1,27 @@
+INCLUDE "../demo-common.ipdf";
+
+# -----------------------------------------------------------------------------
+# Images: file/data sources, natural size, points/pixels, fit/crop
+# -----------------------------------------------------------------------------
+NEWPAGE A4 landscape;
+CALL SECTION("Images from files and embedded data");
+SET FONT Name="Consolas" Size=9 regular;
+SET BRUSH black;
+# Images use 96 DPI: one pixel is 72/96 points.
+SET VAR PIXEL_TO_POINT=72/96;
+LINETEXT 45,82 Text="Natural size from Source";
+IMAGE 45,105 Source="../imageTest.jpg";
+
+SET PEN lightgray 1;
+RECT 45,105,200*$PIXEL_TO_POINT,200*$PIXEL_TO_POINT;
+
+LINETEXT 300,82 Text="Point rectangle, fit";
+IMAGE 300,105,180,120 point fit Source="../imageTest.jpg";
+RECT 300,105,180,120;
+
+LINETEXT 520,82 Text="Pixel rectangle, crop";
+IMAGE 520,105,180,120 pixel crop Source="../imageTest.jpg";
+RECT 520,105,180*$PIXEL_TO_POINT,120*$PIXEL_TO_POINT;
+
+LINETEXT 45,330 Text="Embedded one-pixel PNG using Data";
+IMAGE 45,355,160,100 point fit Data="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";

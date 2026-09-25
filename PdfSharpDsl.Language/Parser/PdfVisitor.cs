@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Irony.Parsing;
 using Microsoft.Extensions.Logging;
@@ -16,6 +17,19 @@ namespace PdfSharpDslCore.Parser
         protected IDictionary<string, Func<object[], object>> CustomFunctions { get; set; } = new Dictionary<string, Func<object[], object>>();
 
         protected IDictionary<string, ParseTreeNode> UserDefinedFunctions { get; set; } = new Dictionary<string, ParseTreeNode>();
+
+        /// <summary>Statements (and UDF/MASTER bodies) that come from an INCLUDEd file, with that file's name.</summary>
+        private readonly Dictionary<ParseTreeNode, string> _nodeFiles = new Dictionary<ParseTreeNode, string>();
+        private readonly Dictionary<ParseTreeNode, string> _nodeDirectories = new Dictionary<ParseTreeNode, string>();
+        private string? _currentDirectory;
+
+        /// <summary>
+        /// Folder relative paths (IMAGE Source=...) are resolved from: the folder of the INCLUDEd file being executed,
+        /// or <see cref="BaseDirectory"/> for the main file.
+        /// </summary>
+        protected string CurrentDirectory => _currentDirectory ?? BaseDirectory;
+
+        protected IDictionary<string, ParseTreeNode> Styles { get; set; } = new Dictionary<string, ParseTreeNode>();
 
         protected IDictionary<string, ParseTreeNode> Masters { get; set; } = new Dictionary<string, ParseTreeNode>();
 
@@ -34,16 +48,26 @@ namespace PdfSharpDslCore.Parser
             if (tree == null) return;
             if (state == null) throw new ArgumentNullException(nameof(state));
 
+            //INCLUDE "file"; is replaced by the statements of that file, before anything else
+            var rootNodes = ExpandIncludes(tree.Root.ChildNodes, BaseDirectory, null, new List<string>(), new HashSet<string>());
             //define each udf before visiting in order to accept call before definition
-            tree.Root.ChildNodes.Where(x => x.Term?.Name == "UdfSmt").ToList().ForEach(ExecuteUdfStatement);
+            rootNodes.Where(x => x.Term?.Name == "UdfSmt").ToList().ForEach(ExecuteUdfStatement);
+            //and for styles, so USE works before the STYLE definition too
+            rootNodes.Where(x => x.Term?.Name == "StyleSmt").ToList().ForEach(ExecuteStyleStatement);
             //same for masters, so NEWPAGE Master=name works regardless of source order
-            tree.Root.ChildNodes.Where(x => x.Term?.Name == "MasterSmt").ToList().ForEach(ExecuteMasterStatement);
+            rootNodes.Where(x => x.Term?.Name == "MasterSmt").ToList().ForEach(ExecuteMasterStatement);
             //check for global debug options, page scoped ones are executed in order while visiting
-            var debugOptions = tree.Root.ChildNodes("DebugOptionsSmt")
+            var debugOptions = rootNodes.Where(x => x.Term?.Name == "DebugOptionsSmt")
                 .Where(x => !IsPageScoped(x))
                 .SelectMany(x => ParseDebugOptions(x.ChildNodes("debugOption")));
             ExecuteDebugOptions(state, debugOptions);
-            Visit(state, tree.Root.ChildNodes);
+            foreach (var node in rootNodes)
+            {
+                using (UseFileOf(node))
+                {
+                    Visit(state, node);
+                }
+            }
         }
         
         /// <summary>
@@ -77,6 +101,9 @@ namespace PdfSharpDslCore.Parser
             switch (node.Term.Name)
             {
                 case "PdfInstruction":
+                    Visit(state, node.ChildNodes[0]);
+                    break;
+                case "StyleInstruction":
                     Visit(state, node.ChildNodes[0]);
                     break;
                 case "SetSmt":
@@ -136,6 +163,15 @@ namespace PdfSharpDslCore.Parser
                 case "ForSmt":
                     VisitFor(state, node);
                     break;
+                case "WhileSmt":
+                    VisitWhile(state, node);
+                    break;
+                case "ForEachSmt":
+                    VisitForEach(state, node);
+                    break;
+                case "BarcodeSmt":
+                    ExecuteBarcode(state, node.ChildNodes[1], node.ChildNode("BarcodeType")!.ChildNodes[0].Token.ValueString, node.ChildNodes.Last());
+                    break;
                 case "ImageSmt":
                     VisitImage(state, node);
                     break;
@@ -151,6 +187,15 @@ namespace PdfSharpDslCore.Parser
                     break;
                 case "MasterSmt":
                     //nothing to do, it's already done before
+                    break;
+                case "StyleSmt":
+                    //nothing to do, it's already done before
+                    break;
+                case "IncludeSmt":
+                    //nothing to do, includes are expanded before visiting
+                    break;
+                case "UseSmt":
+                    VisitUse(state, node);
                     break;
                 case "UdfInvokeSmt":
                     VisitCalludf(state, node);
@@ -227,8 +272,9 @@ namespace PdfSharpDslCore.Parser
             ParseTreeNode? masterNameNode)
         { }
 
+        /// <param name="elseIfList">Node whose children are the ELSE IF clauses, each "condition, body"; may be null.</param>
         protected virtual void ExecuteIfStatement(TState state, ParseTreeNode condNode,
-            ParseTreeNode? ifNode, ParseTreeNode? elseNode)
+            ParseTreeNode? ifNode, ParseTreeNode? elseIfList, ParseTreeNode? elseNode)
         { }
         protected virtual void ExecutePie(TState state, ParseTreeNode locationNode,
             ParseTreeNode startAngleNode,
@@ -268,7 +314,18 @@ namespace PdfSharpDslCore.Parser
             ParseTreeNode varNameNode,
             ParseTreeNode fromNode,
             ParseTreeNode toNode,
+            ParseTreeNode? stepNode,
             ParseTreeNode forbody)
+        { }
+
+        /// <param name="type">Lower case type name as written after <c>Type=</c>, e.g. "code128".</param>
+        protected virtual void ExecuteBarcode(TState state, ParseTreeNode locationNode, string type, ParseTreeNode contentNode)
+        { }
+
+        protected virtual void ExecuteForEachStatement(TState state, ParseTreeNode varNameNode, ParseTreeNode listNode, ParseTreeNode? body)
+        { }
+
+        protected virtual void ExecuteWhileStatement(TState state, ParseTreeNode condNode, ParseTreeNode? body)
         { }
 
         protected virtual void ExecuteImage(TState state, ParseTreeNode locationNode,
@@ -316,6 +373,146 @@ namespace PdfSharpDslCore.Parser
                 throw new PdfParserException($"An another UDF '{fnName}' is already defined.");
             }
             UserDefinedFunctions.Add(fnName, node);
+        }
+
+        /// <summary>
+        /// Makes run-time error messages name the INCLUDEd file <paramref name="node"/> comes from (nothing for the main
+        /// file). Wrap the execution of a UDF or MASTER body in it, since it may live in another file than its caller.
+        /// </summary>
+        protected IDisposable UseFileOf(ParseTreeNode node)
+        {
+            var previousDirectory = _currentDirectory;
+            _currentDirectory = _nodeDirectories.TryGetValue(node, out var directory) ? directory : null;
+            var fileScope = PdfDslDiagnostics.UseFile(_nodeFiles.TryGetValue(node, out var file) ? file : null);
+            return new ActionDisposable(() =>
+            {
+                fileScope.Dispose();
+                _currentDirectory = previousDirectory;
+            });
+        }
+
+        private sealed class ActionDisposable : IDisposable
+        {
+            private readonly Action _action;
+            public ActionDisposable(Action action) { _action = action; }
+            public void Dispose() => _action();
+        }
+
+        /// <summary>Includes nested deeper than this are refused, in addition to the circular check.</summary>
+        private const int MaxIncludeDepth = 16;
+
+        /// <summary>
+        /// Replaces every top-level INCLUDE node by the statements of the file it names, recursively. Paths are
+        /// relative to the including file. The included file is parsed on its own, so its errors carry its own
+        /// line numbers and file name. A file is only included once per document: later INCLUDEs of it are skipped, so
+        /// every file can include the shared files it needs without defining their UDFs twice.
+        /// </summary>
+        /// <param name="fileName">Name of the file <paramref name="nodes"/> come from, null for the main file.</param>
+        private List<ParseTreeNode> ExpandIncludes(IEnumerable<ParseTreeNode> nodes, string directory, string? fileName,
+            List<string> chain, HashSet<string> included)
+        {
+            var result = new List<ParseTreeNode>();
+            foreach (var node in nodes)
+            {
+                if (node.Term?.Name != "IncludeSmt")
+                {
+                    result.Add(node);
+                    if (fileName != null) RegisterFile(node, fileName, directory);
+                    continue;
+                }
+
+                var pathNode = node.ChildNodes[1];
+                var relativePath = Convert.ToString(pathNode.Token.Value) ?? string.Empty;
+                var where = PdfDslDiagnostics.AtLocation(pathNode.Span.Location);
+                var fullPath = Path.GetFullPath(Path.IsPathRooted(relativePath) ? relativePath : Path.Combine(directory, relativePath));
+
+                if (chain.Contains(fullPath))
+                {
+                    var cycle = string.Join(" -> ", chain.SkipWhile(x => x != fullPath).Concat(new[] { fullPath }).Select(Path.GetFileName));
+                    throw new PdfParserException($"Circular INCLUDE{where}: {cycle}.");
+                }
+
+                if (!included.Add(fullPath))
+                {
+                    continue;
+                }
+
+                if (chain.Count >= MaxIncludeDepth)
+                {
+                    throw new PdfParserException($"INCLUDE nested more than {MaxIncludeDepth} levels deep{where}.");
+                }
+
+                if (!File.Exists(fullPath))
+                {
+                    throw new PdfParserException($"INCLUDE file '{relativePath}' not found{where}.");
+                }
+
+                var includedTree = new Irony.Parsing.Parser(new PdfGrammar()).Parse(File.ReadAllText(fullPath), fullPath);
+                if (includedTree.HasErrors())
+                {
+                    var errors = PdfDslDiagnostics.FormatParseErrors(includedTree).Select(e => $"{Path.GetFileName(fullPath)}: {e}");
+                    throw new PdfParserException($"INCLUDE file '{relativePath}'{where} has errors:{Environment.NewLine}{string.Join(Environment.NewLine, errors)}");
+                }
+
+                chain.Add(fullPath);
+                try
+                {
+                    result.AddRange(ExpandIncludes(includedTree.Root.ChildNodes, Path.GetDirectoryName(fullPath) ?? directory,
+                        Path.GetFileName(fullPath), chain, included));
+                }
+                finally
+                {
+                    chain.RemoveAt(chain.Count - 1);
+                }
+            }
+
+            return result;
+        }
+
+        private void RegisterFile(ParseTreeNode node, string fileName, string directory)
+        {
+            _nodeFiles[node] = fileName;
+            _nodeDirectories[node] = directory;
+            //the body of a UDF or MASTER runs when it is called, from any file
+            foreach (var body in new[]
+            {
+                node.ChildNode("UdfBlock")?.ChildNode("EmbbededSmtList"),
+                node.ChildNode("MasterBlock")?.ChildNode("EmbbededSmtList"),
+            })
+            {
+                if (body == null) continue;
+                _nodeFiles[body] = fileName;
+                _nodeDirectories[body] = directory;
+            }
+        }
+
+        private void ExecuteStyleStatement(ParseTreeNode node)
+        {
+            var styleName = node.ChildNodes[0].Token.ValueString;
+            if (Styles.ContainsKey(styleName))
+            {
+                throw new PdfParserException($"An another STYLE '{styleName}' is already defined.");
+            }
+            Styles.Add(styleName, node);
+        }
+
+        private void VisitUse(TState state, ParseTreeNode node)
+        {
+            var nameNode = node.ChildNodes[1];
+            var styleName = nameNode.Token.ValueString;
+            if (!Styles.TryGetValue(styleName, out var styleNode))
+            {
+                throw new PdfParserException($"Unknown style '{styleName}'{PdfDslDiagnostics.AtLocation(nameNode.Span.Location)}."
+                    + SuggestionFor(styleName, Styles.Keys));
+            }
+            //pen, brush and font live in the drawer, so replaying the SET statements is all a style is
+            Visit(state, styleNode.ChildNode("StyleBody")!.ChildNodes);
+        }
+
+        private static string SuggestionFor(string name, IEnumerable<string> candidates)
+        {
+            var suggestion = PdfDslDiagnostics.Suggest(name, candidates);
+            return suggestion == null ? string.Empty : $" Did you mean '{suggestion}'?";
         }
 
         private void ExecuteMasterStatement(ParseTreeNode node)
@@ -419,7 +616,25 @@ namespace PdfSharpDslCore.Parser
             var toNode = node.ChildNodes[5];
             var forbody = node.ChildNode("ForBlock")?.ChildNode("EmbbededSmtList")!;
 
-            ExecuteForStatement(state, varNameNode, fromNode, toNode, forbody);
+            var stepNode = node.ChildNode("ForStep");
+            stepNode = stepNode?.ChildNodes.Count > 0 ? stepNode.ChildNodes[1] : null;
+
+            ExecuteForStatement(state, varNameNode, fromNode, toNode, stepNode, forbody);
+        }
+
+        private void VisitForEach(TState state, ParseTreeNode node)
+        {
+            var varNameNode = node.ChildNodes[1];
+            var listNode = node.ChildNodes[3];
+            var body = node.ChildNode("ForEachBlock")?.ChildNode("EmbbededSmtList");
+            ExecuteForEachStatement(state, varNameNode, listNode, body);
+        }
+
+        private void VisitWhile(TState state, ParseTreeNode node)
+        {
+            var condNode = node.ChildNodes[1];
+            var body = node.ChildNode("WhileBlock")?.ChildNode("EmbbededSmtList");
+            ExecuteWhileStatement(state, condNode, body);
         }
 
         private void VisitLine(TState state, ParseTreeNode node)
@@ -502,7 +717,8 @@ namespace PdfSharpDslCore.Parser
             {
                 elseNode = elseNode.ChildNode("EmbbededSmtList");
             }
-            ExecuteIfStatement(state, condNode, ifNode, elseNode);
+            var elseIfList = node.ChildNode("ElseIfList");
+            ExecuteIfStatement(state, condNode, ifNode, elseIfList, elseNode);
         }
 
         private void VisitNewpage(TState state, ParseTreeNode node)

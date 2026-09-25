@@ -1,0 +1,58 @@
+INCLUDE "../demo-common.ipdf";
+
+# -----------------------------------------------------------------------------
+# FOR loops, UDF parameters/scoping, IF/ELSE and formula-driven geometry
+# -----------------------------------------------------------------------------
+NEWPAGE A4 portrait;
+CALL SECTION("Control flow and reusable drawing");
+# same values as the cover page, so this file also draws alone
+SET VAR A=17;
+SET VAR B=5;
+SET FONT Name="Consolas" Size=10 regular;
+SET BRUSH black;
+LINETEXT 45,85 Text="FOR is inclusive; UDF parameters are locally scoped.";
+
+FOR ROW=0 TO 6 DO
+    SET PEN 0x4472c4 1;
+    LINE 70,130+$ROW*55,520,130+$ROW*55;
+    CALL BADGE(80,142+$ROW*55,"Iteration "+$ROW);
+ENDFOR
+
+IF (($A >= $B) and ($B <= $A)) THEN
+    SET BRUSH darkgreen;
+    LINETEXT 45,555 Text="IF branch selected: A >= B and B <= A";
+ELSE
+    SET BRUSH red;
+    LINETEXT 45,555 Text="ELSE branch selected";
+ENDIF
+
+# ELSE IF chains share one ENDIF; STEP counts up or down; WHILE needs a condition that ends.
+SET FONT Name="Arial" Size=10 regular;
+SET BRUSH black;
+FOR SCORE=95 TO 45 STEP -25 DO
+    IF $SCORE >= 90 THEN
+        SET VAR GRADE="A";
+    ELSE IF $SCORE >= 70 THEN
+        SET VAR GRADE="B";
+    ELSE
+        SET VAR GRADE="C";
+    ENDIF
+    LINETEXT 45,575+(95-$SCORE)*0.6 Text=("FOR STEP -25 + ELSE IF: score "+$SCORE+" -> grade "+$GRADE);
+ENDFOR
+SET VAR W=0;
+SET VAR WY=630;
+WHILE $WY < 700 DO
+    SET PEN steelblue 1;
+    LINE 45,$WY,45+$W*40,$WY;
+    SET VAR W=$W+1;
+    SET VAR WY=$WY+14;
+ENDWHILE
+LINETEXT 260,630 Text="WHILE: lines grow until y >= 700";
+
+# Lists: [a, b, c], $LIST[index] (0-based), Count($LIST) and FOREACH.
+SET VAR NAMES=["red","green","blue"];
+SET VAR K=0;
+FOREACH N IN $NAMES DO
+    LINETEXT 45+$K*170,725 Text=("FOREACH "+$K+"/"+(Count($NAMES)-1)+": "+$N+" = "+$NAMES[$K]);
+    SET VAR K=$K+1;
+ENDFOREACH

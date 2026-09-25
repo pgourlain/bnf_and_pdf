@@ -1,0 +1,47 @@
+INCLUDE "../demo-common.ipdf";
+
+# -----------------------------------------------------------------------------
+# Cover: pages, page variables, titles, colors, fonts, variables, formulas
+# -----------------------------------------------------------------------------
+NEWPAGE A4 portrait;
+SET BRUSH darkblue;
+SET FONT Name="Arial" Size=28 bold;
+TITLE Margin=72 HAlign=hcenter Text="PdfSharpDsl";
+SET FONT Name="Arial" Size=16 italic;
+TITLE Margin=112 HAlign=hcenter Text="Complete feature demonstration";
+
+SET HBRUSH 0x50ffe9b2;
+SET FONT Name="Consolas" Size=10 regular;
+TITLE Margin=160 HAlign=hcenter Text=("A4 portrait: "+$PAGEWIDTH+" x "+$PAGEHEIGHT+" points");
+SET HBRUSH 0x00000000;
+
+SET VAR A=17;
+SET VAR B=5;
+SET VAR NEGATIVE=-5;
+SET VAR POSITIVE=+5;
+SET VAR MESSAGE="Variables, arithmetic, comparison and concatenation";
+SET BRUSH black;
+LINETEXT 54,220 HAlign=left VAlign=top Text=$MESSAGE;
+LINETEXT 54,246 HAlign=left VAlign=top Text=("A+B="+($A+$B)+", A-B="+($A-$B)+", A*B="+($A*$B));
+LINETEXT 54,270 HAlign=left VAlign=top Text=("A/B="+($A/$B)+", A%B="+($A%$B)+", unary values="+$NEGATIVE+" and "+$POSITIVE);
+
+IF (($A > $B) and ($A >= 17)) THEN
+    CALL BADGE(54,310,"AND condition: true");
+ELSE
+    CALL BADGE(54,310,"AND condition: false");
+ENDIF
+
+IF (($A < $B) or ($A <= 17)) THEN
+    CALL BADGE(184,310,"OR condition: true");
+ENDIF
+
+IF ("alpha" <> "beta") THEN
+    CALL BADGE(314,310,"<> comparison");
+ENDIF
+
+IF ($A == 17) THEN
+    CALL BADGE(444,310,"== comparison");
+ENDIF
+
+SET FONT Name="Arial" Size=11 regular;
+TEXT 54,380,487,100 MaxWidth=487 Text="This document is itself the example source. Each page groups related commands and uses comments, optional semicolons, expressions, variables, built-in page variables, host formula functions, control flow and reusable UDFs.";

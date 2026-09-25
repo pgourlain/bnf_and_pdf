@@ -16,6 +16,11 @@ namespace PdfSharpDslCore.Drawing
         public double? Angle { get; set; }
     }
 
+    public enum PdfBarcodeType
+    {
+        Code128,
+    }
+
     public record DrawingResult
     {
         public PdfRect DrawingRect { get; set; }
@@ -64,6 +69,9 @@ namespace PdfSharpDslCore.Drawing
         void DrawImage(PdfImage image, double x, double y, double? w, double? h, bool sizeInPixel, bool cropImage);
         void DrawPie(double x, double y, double? w, double? h, double startAngle, double sweepAngle, bool isFilled);
         void DrawPolygon(IEnumerable<PdfPoint> points, bool isFilled);
+
+        /// <summary>Draws a barcode of <paramref name="text"/> in the current brush, filling the rectangle (a quiet zone is included in it).</summary>
+        void DrawBarcode(double x, double y, double w, double h, PdfBarcodeType type, string text);
         void BeginDrawRowTemplate(string name, int index, double offsetY, double newPageTopMargin);
         DrawingResult EndDrawRowTemplate(int index);
         void BeginIterationTemplate(int rowCount);

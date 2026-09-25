@@ -192,10 +192,28 @@ namespace PdfSharpDslCore.Parser
         }
 
         protected override void ExecuteIfStatement(IPdfDocumentDrawer state, ParseTreeNode condNode,
-            ParseTreeNode? ifNode, ParseTreeNode? elseNode)
+            ParseTreeNode? ifNode, ParseTreeNode? elseIfList, ParseTreeNode? elseNode)
         {
-            var condition = Convert.ToBoolean(EvaluateForObject(condNode));
-            ParseTreeNode? nodeToVisit = condition ? ifNode : elseNode;
+            ParseTreeNode? nodeToVisit = null;
+            if (Convert.ToBoolean(EvaluateForObject(condNode)))
+            {
+                nodeToVisit = ifNode;
+            }
+            else
+            {
+                //conditions are only evaluated until one is true
+                var matched = false;
+                foreach (var clause in elseIfList?.ChildNodes ?? new ParseTreeNodeList())
+                {
+                    if (!Convert.ToBoolean(EvaluateForObject(clause.ChildNodes[0]))) continue;
+                    nodeToVisit = clause.ChildNode("EmbbededSmtList");
+                    matched = true;
+                    break;
+                }
+
+                if (!matched) nodeToVisit = elseNode;
+            }
+
             if (nodeToVisit != null)
             {
                 Visit(state, nodeToVisit.ChildNodes);
@@ -329,18 +347,80 @@ namespace PdfSharpDslCore.Parser
             ParseTreeNode varNameNode,
             ParseTreeNode fromNode,
             ParseTreeNode toNode,
+            ParseTreeNode? stepNode,
             ParseTreeNode forbody)
         {
             var varName = InternalSetVar(varNameNode, fromNode);
             var from = Convert.ToInt32(Variables[varName]);
             var to = Convert.ToInt32(EvaluateForObject(toNode));
+            var step = stepNode != null ? Convert.ToInt32(EvaluateForObject(stepNode)) : 1;
+            if (step == 0)
+            {
+                throw new PdfParserException($"FOR STEP must not be 0{PdfDslDiagnostics.AtLocation(stepNode!.Span.Location)}.");
+            }
+
             if (forbody != null)
             {
-                for (int i = from; i <= to; i++)
+                //bounds are inclusive; a negative step counts down
+                for (int i = from; step > 0 ? i <= to : i >= to; i += step)
                 {
                     Variables.Add(varName, i);
                     Visit(state, forbody.ChildNodes);
                 }
+            }
+        }
+
+        protected override void ExecuteBarcode(IPdfDocumentDrawer state, ParseTreeNode locationNode, string type, ParseTreeNode contentNode)
+        {
+            var text = Convert.ToString(EvaluateForObject(contentNode)) ?? string.Empty;
+            var (x, y, w, h) = ParseRectLocation(locationNode);
+            if (w is null || h is null || w <= 0 || h <= 0)
+            {
+                throw new PdfParserException($"BARCODE needs a positive width and height: BARCODE x,y,w,h Type=... Text=...{PdfDslDiagnostics.AtLocation(locationNode.Span.Location)}.");
+            }
+
+            state.DrawBarcode(x, y, w.Value, h.Value, PdfBarcodeType.Code128, text);
+        }
+
+        protected override void ExecuteForEachStatement(IPdfDocumentDrawer state, ParseTreeNode varNameNode,
+            ParseTreeNode listNode, ParseTreeNode? body)
+        {
+            var value = EvaluateForObject(listNode);
+            if (!PdfList.TryGetItems(value, out var items))
+            {
+                throw new PdfParserException($"FOREACH expects a list, got {DescribeValue(value)}{PdfDslDiagnostics.AtLocation(listNode.Span.Location)}.");
+            }
+
+            var varName = varNameNode.Token.ValueString;
+            foreach (var item in items)
+            {
+                Variables.Add(varName, item);
+                if (body != null) Visit(state, body.ChildNodes);
+            }
+        }
+
+        private static string DescribeValue(object? value) => value switch
+        {
+            null => "nothing",
+            string s => $"the text \"{s}\"",
+            _ => $"'{value}'",
+        };
+
+        /// <summary>Safety net against a WHILE whose condition never becomes false.</summary>
+        internal const int MaxWhileIterations = 10000;
+
+        protected override void ExecuteWhileStatement(IPdfDocumentDrawer state, ParseTreeNode condNode, ParseTreeNode? body)
+        {
+            var iterations = 0;
+            while (Convert.ToBoolean(EvaluateForObject(condNode)))
+            {
+                if (++iterations > MaxWhileIterations)
+                {
+                    throw new PdfParserException(
+                        $"WHILE loop exceeded {MaxWhileIterations} iterations{PdfDslDiagnostics.AtLocation(condNode.Span.Location)}; its condition never became false.");
+                }
+
+                if (body != null) Visit(state, body.ChildNodes);
             }
         }
 
@@ -375,9 +455,9 @@ namespace PdfSharpDslCore.Parser
             }
             else
             {
-                if (Directory.Exists(this.BaseDirectory) && !Path.IsPathRooted(imagePath))
+                if (Directory.Exists(CurrentDirectory) && !Path.IsPathRooted(imagePath))
                 {
-                    imagePath = Path.Combine(this.BaseDirectory, imagePath);
+                    imagePath = Path.Combine(CurrentDirectory, imagePath);
                 }
 
                 image = new PdfImage(File.ReadAllBytes(imagePath));
@@ -447,7 +527,10 @@ namespace PdfSharpDslCore.Parser
                         }
                     }
 
-                    Visit(drawer, udfBody.ChildNodes);
+                    using (UseFileOf(udfBody))
+                    {
+                        Visit(drawer, udfBody.ChildNodes);
+                    }
                 }
                 finally
                 {
@@ -636,6 +719,7 @@ namespace PdfSharpDslCore.Parser
             "DEBUG_ROWTEMPLATE" => DebugOptions.DebugRowTemplate,
             "DEBUG_IMAGE" => DebugOptions.DebugImage,
             "DEBUG_RULE" => DebugOptions.DebugRule,
+            "DEBUG_GRID" => DebugOptions.DebugGrid,
             "DEBUG_ALL" => DebugOptions.DebugAll,
             _ => DebugOptions.None
         };
@@ -646,6 +730,10 @@ namespace PdfSharpDslCore.Parser
         protected virtual void OnNewPage(IPdfDocumentDrawer drawer, int page)
         {
             Variables.Add("PAGEINDEX", page);
+            //__ONNEWPAGE and the master draw a header/footer: they must not leave their font, brush or pen behind,
+            //whatever created the page (NEWPAGE, FLOW, ROWTEMPLATE, TABLE rows), or they would change the look of
+            //everything drawn next.
+            var savedState = (drawer.CurrentPen, drawer.CurrentBrush, drawer.CurrentFont, drawer.HighlightBrush);
             if (UserDefinedFunctions.ContainsKey("__ONNEWPAGE"))
             {
                 //special function
@@ -657,6 +745,8 @@ namespace PdfSharpDslCore.Parser
                 var body = masterNode.ChildNode("MasterBlock")?.ChildNode("EmbbededSmtList");
                 if (body != null) ExecuteSpecialBlock(drawer, body);
             }
+
+            (drawer.CurrentPen, drawer.CurrentBrush, drawer.CurrentFont, drawer.HighlightBrush) = savedState;
         }
 
         private void ExecuteSpecialBlock(IPdfDocumentDrawer drawer, ParseTreeNode body)
@@ -666,7 +756,10 @@ namespace PdfSharpDslCore.Parser
             if (vars != null) vars.GlobalScope = true;
             try
             {
-                Visit(drawer, body.ChildNodes);
+                using (UseFileOf(body))
+                {
+                    Visit(drawer, body.ChildNodes);
+                }
             }
             finally
             {

@@ -1,0 +1,38 @@
+INCLUDE "../demo-common.ipdf";
+
+# -----------------------------------------------------------------------------
+# FLOW: place content top to bottom without computing y. Paragraphs wrap to the
+# flow width, and everything that does not fit moves to a new page, which gets
+# the same master (header) as the first one.
+# -----------------------------------------------------------------------------
+NEWPAGE A4 portrait Master=report;
+FLOW Margin=45
+    SET FONT Name="Arial" Size=16 bold;
+    SET BRUSH black;
+    PARAGRAPH Text="Flow layout";
+    SPACE 6;
+    SET FONT Name="Arial" Size=10 regular;
+    PARAGRAPH Text="FLOW keeps a cursor ($CURSORY). PARAGRAPH wraps its text to the page width minus the margins and moves the cursor down; SPACE moves it down by a fixed amount. When the next element does not fit above the bottom margin, the flow starts a new page (with the current master) and goes on from its top.";
+    SPACE 10;
+    FOR I = 1 TO 14 DO
+        SET FONT Name="Arial" Size=11 bold;
+        PARAGRAPH Text=("Section "+$I);
+        SET FONT Name="Arial" Size=10 regular;
+        PARAGRAPH Text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.";
+        SPACE 8;
+    ENDFOR
+    SET FONT Name="Arial" Size=9 regular;
+    SET PEN slategray 0.6;
+    TABLE 0,0
+    HEAD 0xffe8eef7
+    COL Width=auto MaxWidth=120 FONT="Arial",9,bold white steelblue "Index";
+    COL Width=auto MaxWidth=300 FONT="Arial",9,bold white steelblue "Text";
+    ENDHEAD
+    ROWTEMPLATE 12
+    COL $ROWINDEX+1;
+    COL "A table inside a FLOW starts at the cursor and continues on the next page";
+    ENDROW
+    ENDTABLE
+    SPACE 10;
+    PARAGRAPH Text=("The flow ends at y = "+$CURSORY);
+ENDFLOW

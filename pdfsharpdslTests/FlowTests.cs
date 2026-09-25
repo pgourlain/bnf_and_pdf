@@ -116,6 +116,45 @@ namespace pdfsharpdslTests
         }
 
         [Fact]
+        public void PageBreakDoesNotLeaveTheHeaderFontBrushOrPenBehind()
+        {
+            var tree = new Parser(new PdfGrammar()).Parse(
+                "UDF __ONNEWPAGE() SET FONT Name=\"Courier\" Size=8 regular; SET BRUSH red; SET PEN green 3; TITLE Margin=10 Text=\"header\"; ENDUDF " +
+                "MASTER m MarginTop=50 SET FONT Name=\"Arial\" Size=20 bold; SET BRUSH blue; ENDMASTER " +
+                "NEWPAGE A4 portrait Master=m; " +
+                "SET FONT Name=\"Arial\" Size=10 regular; SET BRUSH black; SET PEN slategray 0.5; " +
+                "FLOW Margin=40 Top=50 " +
+                "FOR i = 1 TO 120 DO PARAGRAPH Text=\"paragraph \" + $i; ENDFOR " +
+                "ENDFLOW");
+            Assert.False(tree.HasErrors());
+            using var drawer = new PdfDocumentDrawer();
+            new PdfDrawerVisitor().Draw(drawer, tree);
+
+            // 120 paragraphs of 12pt do not fit one page: the flow broke at least once
+            Assert.Equal(2, PageCount(drawer.PublishPdf()));
+            Assert.Equal(10, drawer.CurrentFont.Size);
+            Assert.Equal(PdfColors.FromName("black"), drawer.CurrentBrush.Color);
+            Assert.Equal(PdfColors.FromName("slategray"), drawer.CurrentPen.Color);
+        }
+
+        [Fact]
+        public void ParagraphsOnTheNewPageKeepTheFlowFont()
+        {
+            var (_, pdf) = Render(
+                "UDF __ONNEWPAGE() SET FONT Name=\"Courier\" Size=8 regular; SET BRUSH red; ENDUDF " +
+                "SET FONT Name=\"Arial\" Size=10 regular; SET BRUSH black; " +
+                "FLOW Margin=40 Top=50 FOR i = 1 TO 120 DO PARAGRAPH Text=\"paragraph \" + $i; ENDFOR ENDFLOW");
+            var streams = ReadStreams(pdf).ToList();
+
+            var lastPage = streams[^1];
+            // "paragraph 120" is on the 2nd page, drawn in Helvetica 10 black, not in the header's Courier 8 red
+            var index = lastPage.IndexOf("(paragraph 120) Tj", StringComparison.Ordinal);
+            Assert.True(index > 0);
+            var before = lastPage.Substring(0, index);
+            Assert.Contains(" 10.00 Tf", before.Substring(before.LastIndexOf("Tf", StringComparison.Ordinal) - 12));
+        }
+
+        [Fact]
         public void ParagraphAtPageBottomMovesWholeElementWhenItDoesNotFit()
         {
             var (visitor, pdf) = Render(

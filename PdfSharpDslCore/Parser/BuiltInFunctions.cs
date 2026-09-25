@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Linq;
+using PdfSharpDslCore.Evaluation;
 
 namespace PdfSharpDslCore.Parser
 {
@@ -65,6 +66,15 @@ namespace PdfSharpDslCore.Parser
             // string operator does not special-case DateTime.
             visitor.RegisterFormulaFunction("Now", args => { RequireArity("Now", args, 0, 0); return DateTime.Now; });
             visitor.RegisterFormulaFunction("Today", args => { RequireArity("Today", args, 0, 0); return DateTime.Today; });
+
+            // List
+            visitor.RegisterFormulaFunction("Count", args =>
+            {
+                RequireArity("Count", args, 1, 1);
+                if (!PdfList.TryGetItems(args[0], out var items))
+                    throw new PdfParserException("'Count' expects a list, e.g. Count([1,2,3]) or Count($ITEMS).");
+                return (double)items.Count;
+            });
 
             // Logic
             visitor.RegisterFormulaFunction("Iif", args =>

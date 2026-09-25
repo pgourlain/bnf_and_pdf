@@ -77,6 +77,38 @@ namespace pdfsharpdslTests
         }
 
         [Fact]
+        public void RowTemplatePageBreakDoesNotLeaveTheHeaderStyleBehind()
+        {
+            var parser = new Irony.Parsing.Parser(new PdfSharpDslCore.Parser.PdfGrammar());
+            var tree = parser.Parse(
+                "UDF __ONNEWPAGE() SET FONT Name=\"Courier\" Size=8 regular; SET BRUSH red; SET PEN green 3; ENDUDF " +
+                "SET FONT Name=\"Arial\" Size=10 regular; SET BRUSH black; SET PEN slategray 0.5; " +
+                "ROWTEMPLATE Count=40 Y=100 BorderSize=4 RECT 45,0,500,36; ENDROWTEMPLATE");
+            Assert.False(tree.HasErrors());
+            using var drawer = new PdfDocumentDrawer();
+            new PdfSharpDslCore.Parser.PdfDrawerVisitor().Draw(drawer, tree);
+
+            Assert.True(ReadStreams(drawer.PublishPdf()).Count() > 1, "expected the row template to break the page");
+            Assert.Equal(10, drawer.CurrentFont.Size);
+            Assert.Equal(PdfColors.FromName("black"), drawer.CurrentBrush.Color);
+            Assert.Equal(PdfColors.FromName("slategray"), drawer.CurrentPen.Color);
+        }
+
+        [Fact]
+        public void NewPageAlsoRestoresWhatTheHeaderSet()
+        {
+            var parser = new Irony.Parsing.Parser(new PdfSharpDslCore.Parser.PdfGrammar());
+            var tree = parser.Parse(
+                "UDF __ONNEWPAGE() SET FONT Name=\"Courier\" Size=8 regular; SET BRUSH red; ENDUDF " +
+                "SET FONT Name=\"Arial\" Size=10 regular; NEWPAGE;");
+            using var drawer = new PdfDocumentDrawer();
+            new PdfSharpDslCore.Parser.PdfDrawerVisitor().Draw(drawer, tree);
+
+            Assert.Equal(10, drawer.CurrentFont.Size);
+            Assert.NotEqual(PdfColors.FromName("red"), drawer.CurrentBrush.Color);
+        }
+
+        [Fact]
         public void UnknownMasterThrows()
         {
             var parser = new Irony.Parsing.Parser(new PdfSharpDslCore.Parser.PdfGrammar());
@@ -141,6 +173,55 @@ namespace pdfsharpdslTests
             var redPages = ReadStreams(drawer.PublishPdf()).Count(content => content.Contains("1.0000 0.0000 0.0000 RG\n"));
 
             Assert.Equal(expectedRedPages, redPages);
+        }
+
+        private const string GridPen = "1.0000 0.8000 0.8000 RG";
+
+        private static List<string> RenderPages(string input)
+        {
+            var parser = new Irony.Parsing.Parser(new PdfSharpDslCore.Parser.PdfGrammar());
+            var tree = parser.Parse(input);
+            Assert.False(tree.HasErrors());
+            using var drawer = new PdfDocumentDrawer();
+            new PdfSharpDslCore.Parser.PdfDrawerVisitor().Draw(drawer, tree);
+            return ReadStreams(drawer.PublishPdf()).ToList();
+        }
+
+        [Fact]
+        public void DebugGridDrawsLabelledLinesEvery50Points()
+        {
+            var pages = RenderPages("DEBUGOPTIONS DEBUG_GRID;LINETEXT 10,10 Text=\"hello\";");
+
+            var page = Assert.Single(pages);
+            Assert.Contains(GridPen, page);
+            Assert.Contains("(50) Tj", page);
+            Assert.Contains("(800) Tj", page);
+            Assert.Contains("(550) Tj", page);
+        }
+
+        [Fact]
+        public void DebugGridOnPageScopeStopsAtNextPage()
+        {
+            var pages = RenderPages("DEBUGOPTIONS PAGE DEBUG_GRID;LINETEXT 10,10 Text=\"one\";NEWPAGE;LINETEXT 10,10 Text=\"two\";");
+
+            Assert.Equal(2, pages.Count);
+            Assert.Contains(GridPen, pages[0]);
+            Assert.DoesNotContain(GridPen, pages[1]);
+        }
+
+        [Fact]
+        public void DebugGridIsDrawnOnEveryPageWhenGlobal()
+        {
+            var pages = RenderPages("DEBUGOPTIONS DEBUG_GRID;LINETEXT 10,10 Text=\"one\";NEWPAGE;LINETEXT 10,10 Text=\"two\";");
+
+            Assert.All(pages, page => Assert.Contains(GridPen, page));
+        }
+
+        [Fact]
+        public void DebugAllIncludesTheGridAndNoOptionDrawsNone()
+        {
+            Assert.Contains(GridPen, Assert.Single(RenderPages("DEBUGOPTIONS DEBUG_ALL;LINETEXT 10,10 Text=\"one\";")));
+            Assert.DoesNotContain(GridPen, Assert.Single(RenderPages("DEBUGOPTIONS DEBUG_RULE;LINETEXT 10,10 Text=\"one\";")));
         }
 
         [Fact]

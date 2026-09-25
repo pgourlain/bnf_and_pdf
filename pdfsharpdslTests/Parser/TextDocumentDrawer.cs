@@ -83,6 +83,11 @@ namespace pdfsharpdslTests
             throw new NotImplementedException();
         }
 
+        public void DrawBarcode(double x, double y, double w, double h, PdfBarcodeType type, string text)
+        {
+            throw new NotImplementedException();
+        }
+
         public void DrawText(string text, double x, double y, double? w, double? h)
         {
             throw new NotImplementedException();

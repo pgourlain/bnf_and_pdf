@@ -124,6 +124,17 @@ namespace PdfSharpDslCore.Evaluation
                 case "textstring":
                     return new ConstantEvaluation<object>(node.Token.Value);
 
+                case "ListExpression":
+                    var listItems = node.ChildNode("CallInvokeArgumentslist")?.ChildNodes
+                        .Select(n => PerformEvaluate(n, variables)).ToArray() ?? Array.Empty<IEvaluation<object>>();
+                    return new ListEvaluation(listItems);
+                case "IndexExpression":
+                    var indexed = PerformEvaluate(node.ChildNodes[0], variables);
+                    var indexes = node.ChildNodes[1].ChildNodes
+                        .Select(suffix => (Index: PerformEvaluate(suffix.ChildNodes[0], variables), suffix.Span.Location))
+                        .ToArray();
+                    return new IndexEvaluation(indexed, indexes.Select(i => i.Index).ToArray(),
+                        indexes.Select(i => (Irony.Parsing.SourceLocation?)i.Location).ToArray());
                 case "auto":
                     return new ConstantEvaluation<object>(null!);
                 case "CustomFunctionExpression":

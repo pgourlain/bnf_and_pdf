@@ -1,0 +1,37 @@
+INCLUDE "../demo-common.ipdf";
+
+# -----------------------------------------------------------------------------
+# shapes, transparency and visual composition
+# -----------------------------------------------------------------------------
+NEWPAGE A4 landscape;
+CALL SECTION("Shapes, transparency and composition");
+SET FONT Name="Arial" Size=10 regular;
+SET BRUSH black;
+LINETEXT 45,85 Text="Layered shapes can create panels, badges and visual emphasis.";
+SET PEN steelblue 1.5 solid;
+SET BRUSH 0x405f9ed1;
+FILLRECT 60,120,260,180;
+SET BRUSH 0x5094d36b;
+FILLRECT 180,180,260,180;
+SET BRUSH 0x50f5b642;
+FILLRECT 300,120,260,180;
+SET BRUSH black;
+LINETEXT 110,205 Text="panel A";
+LINETEXT 230,265 Text="panel B";
+LINETEXT 430,205 Text="panel C";
+SET PEN darkslategray 2 solid;
+SET BRUSH 0x80ffffff;
+FILLPOLYGON 610,130,700,110,770,180,735,280,640,300,585,220;
+SET BRUSH black;
+LINETEXT 625,205 Text="polygon";
+SET PEN purple 3 dashdot;
+SET BRUSH 0x60ff7f50;
+FILLPIE 90,390,130,130 Start=20 Angle=220;
+SET BRUSH 0x6050c878;
+FILLPIE 270,390,130,130 Start=140 Angle=220;
+SET BRUSH 0x60f5b642;
+FILLPIE 450,390,130,130 Start=260 Angle=220;
+SET BRUSH black;
+LINETEXT 95,535 Text="transparency";
+LINETEXT 275,535 Text="overlapping arcs";
+LINETEXT 455,535 Text="alpha colors";

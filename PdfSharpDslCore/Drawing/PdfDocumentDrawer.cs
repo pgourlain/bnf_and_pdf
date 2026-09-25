@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfSharpDslCore.Extensions;
 using System;
+using PdfSharpDslCore.Drawing.Barcodes;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -27,6 +28,8 @@ namespace PdfSharpDslCore.Drawing
 
         private static readonly PdfPen DebugPen = new(PdfColor.RedColor, 0.5) { DashStyle = PdfDashStyle.DashDot };
         private static readonly PdfPen DebugRulePen = new(PdfColor.RedColor, 1);
+        private static readonly PdfPen DebugGridPen = new(PdfColor.FromRgb(255, 204, 204), 0.3);
+        private const double DebugGridStep = 50;
         private static readonly PdfFont DebugFont = new("Courier", 6);
 
         private readonly ILogger? _logger;
@@ -60,8 +63,10 @@ namespace PdfSharpDslCore.Drawing
             set
             {
                 var hadRule = _drawingCtx.DebugRule;
+                var hadGrid = _drawingCtx.DebugGrid;
                 _drawingCtx.PageDebugOptions = value;
                 if (!hadRule && _drawingCtx.DebugRule) DrawDebugRule();
+                if (!hadGrid && _drawingCtx.DebugGrid) DrawDebugGrid();
             }
         }
 
@@ -118,6 +123,7 @@ namespace PdfSharpDslCore.Drawing
                     _pages.Add(new RecordedPage(_defaultPageSize, _defaultPageOrientation));
                     //implicit first page
                     if (_drawingCtx.DebugRule) DrawDebugRule();
+                    if (_drawingCtx.DebugGrid) DrawDebugGrid();
                 }
 
                 return _pages[_pages.Count - 1];
@@ -497,6 +503,24 @@ namespace PdfSharpDslCore.Drawing
             _drawingCtx.PageDebugOptions = DebugOptions.None;
             _onNewPageHooks.ForEach(callback => callback(_pages.Count));
             if (_drawingCtx.DebugRule) DrawDebugRule();
+            if (_drawingCtx.DebugGrid) DrawDebugGrid();
+        }
+
+        private void DrawDebugGrid()
+        {
+            var width = PageWidth;
+            var height = PageHeight;
+            for (var x = DebugGridStep; x < width; x += DebugGridStep)
+            {
+                DebugLine(DebugGridPen, x, 0, x, height);
+                DebugText($"{x}", x + 1, 0);
+            }
+
+            for (var y = DebugGridStep; y < height; y += DebugGridStep)
+            {
+                DebugLine(DebugGridPen, 0, y, width, y);
+                DebugText($"{y}", 1, y);
+            }
         }
 
         private void DrawDebugRule()
@@ -553,6 +577,59 @@ namespace PdfSharpDslCore.Drawing
                 DebugRect(new PdfRect(ScaleX(x, page), ScaleY(y, page), ScaleX(width, page), ScaleY(height, page)));
             _drawingCtx.PushInstruction(offset => DrawImage(image, x, y + offset, w, h, sizeInPixel, cropImage),
                 new PdfRect(x, y, width, height), instrName: "DrawImage");
+        }
+
+        public void DrawBarcode(double x, double y, double w, double h, PdfBarcodeType type, string text)
+        {
+            var bars = type switch
+            {
+                PdfBarcodeType.Code128 => Code128Encoder.Encode(text),
+                _ => throw new NotSupportedException($"Barcode type '{type}' is not supported."),
+            };
+            var modules = new bool[1, bars.Length];
+            for (var i = 0; i < bars.Length; i++) modules[0, i] = bars[i];
+            DrawModules(x, y, w, h, modules);
+        }
+
+        /// <summary>Fills the "true" cells of a module matrix scaled to the rectangle, as one vector path.</summary>
+        private void DrawModules(double x, double y, double w, double h, bool[,] modules)
+        {
+            var page = CurrentPage;
+            (x, y, w, h) = DrawingHelper.CoordRectToPage(page.Width, page.Height, x, y, w, h);
+            if (w <= 0 || h <= 0) throw new ArgumentOutOfRangeException(nameof(w), "Barcode dimensions must be positive.");
+            InternalDrawModules(CurrentBrush, ScaleX(x, page), ScaleY(y, page), ScaleX(w, page), ScaleY(h, page), modules);
+        }
+
+        private void InternalDrawModules(PdfBrush brush, double x, double y, double w, double h, bool[,] modules)
+        {
+            var rows = modules.GetLength(0);
+            var columns = modules.GetLength(1);
+            var cellWidth = w / columns;
+            var cellHeight = h / rows;
+            var runs = new List<PdfRect>();
+            for (var row = 0; row < rows; row++)
+            {
+                for (var column = 0; column < columns; column++)
+                {
+                    if (!modules[row, column]) continue;
+                    var start = column;
+                    while (column + 1 < columns && modules[row, column + 1]) column++;
+                    runs.Add(new PdfRect(x + start * cellWidth, y + row * cellHeight, (column - start + 1) * cellWidth, cellHeight));
+                }
+            }
+
+            if (runs.Count > 0)
+            {
+                AddCommand(canvas => canvas.Path(path =>
+                {
+                    foreach (var run in runs) path.Rect(run.X, run.Y, run.Width, run.Height);
+                    path.Fill(brush.Color.Hex).Opacity(brush.Color.Opacity);
+                }));
+            }
+
+            var rect = new PdfRect(x, y, w, h);
+            if (_drawingCtx.DebugRect) DebugRect(rect);
+            _drawingCtx.PushInstruction(offset => InternalDrawModules(brush, x, y + offset, w, h, modules), rect, instrName: "DrawModules");
         }
 
         public void DrawPie(double x, double y, double? w, double? h, double startAngle, double sweepAngle, bool isFilled)

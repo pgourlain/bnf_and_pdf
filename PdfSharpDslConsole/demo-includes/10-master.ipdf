@@ -1,0 +1,25 @@
+INCLUDE "../demo-common.ipdf";
+
+# -----------------------------------------------------------------------------
+# MASTER: a header/footer that runs on every page, including page breaks a
+# ROWTEMPLATE creates. Defined once, used by NEWPAGE ... Master=name;
+# -----------------------------------------------------------------------------
+# No CALL SECTION() here: it would draw its own title at the same Margin=24
+# the master's header uses. The master owns the header/footer band on this
+# page; __ONNEWPAGE's own footer (Margin=-18) still applies underneath it.
+NEWPAGE A4 portrait Master=report;
+SET FONT Name="Arial" Size=16 bold;
+SET BRUSH black;
+LINETEXT 45,65 Text="Master pages";
+SET FONT Name="Arial" Size=10 regular;
+LINETEXT 45,90 Text="Header comes from MASTER report, not from this page's own statements.";
+
+# No NewPageTopMargin: falls back to the master's MarginTop=90, so rows don't
+# start under the header on the page this creates.
+SET FONT Name="Arial" Size=9 regular;
+ROWTEMPLATE Count=16 Y=120 Name="master-list" BorderSize=4
+    SET PEN lightgray 0.5;
+    RECT 45,0,500,36;
+    SET BRUSH black;
+    LINETEXT 58,18 VAlign=vcenter Text=("Report row "+($ROWINDEX+1));
+ENDROWTEMPLATE

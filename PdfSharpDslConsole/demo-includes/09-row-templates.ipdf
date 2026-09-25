@@ -1,0 +1,32 @@
+INCLUDE "../demo-common.ipdf";
+
+# -----------------------------------------------------------------------------
+# Free row templates: nesting, names, borders, pagination and measured height
+# -----------------------------------------------------------------------------
+NEWPAGE A4 portrait;
+CALL SECTION("Paginating and nested row templates");
+SET FONT Name="Arial" Size=9 regular;
+SET PEN steelblue 0.7;
+SET BRUSH black;
+
+ROWTEMPLATE Count=3 Y=90 Name="outer" BorderSize=5 NewPageTopMargin=70
+    SET VAR OUTERINDEX=$ROWINDEX;
+    LINETEXT 45,0 Text=("Group "+$OUTERINDEX);
+    ROWTEMPLATE Count=2 Y=16 Name=("inner-"+$OUTERINDEX) BorderSize=3
+        LINETEXT 130,0 Text=("Nested item "+$OUTERINDEX+"."+$ROWINDEX);
+        LINE 125,14,500,14;
+    ENDROWTEMPLATE
+    # LASTTEMPLATEHEIGHT excludes the nested template's Y and initial border.
+    RECT 35,0,490,16+3+$LASTTEMPLATEHEIGHT;
+ENDROWTEMPLATE
+
+SET BRUSH darkblue;
+LINETEXT 45,300 Text=("Measured outer template height: "+$LASTTEMPLATEHEIGHT);
+
+# This template is tall enough to create another page automatically.
+ROWTEMPLATE Count=16 Y=340 Name="paginated-list" BorderSize=4 NewPageTopMargin=70
+    SET PEN lightgray 0.5;
+    RECT 45,0,500,36;
+    SET BRUSH black;
+    LINETEXT 58,18 VAlign=vcenter Text=("Paginated item "+($ROWINDEX+1));
+ENDROWTEMPLATE

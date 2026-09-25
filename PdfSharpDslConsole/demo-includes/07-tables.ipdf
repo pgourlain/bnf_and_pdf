@@ -1,0 +1,51 @@
+INCLUDE "../demo-common.ipdf";
+
+# -----------------------------------------------------------------------------
+# Ordinary tables: auto/fixed widths, header styles, rows and row heights
+# -----------------------------------------------------------------------------
+NEWPAGE A4 portrait;
+CALL SECTION("Tables with explicit rows");
+SET FONT Name="Arial" Size=9 regular;
+SET PEN slategray 0.6;
+TABLE 40,90
+HEAD 0xffe8eef7
+COL Width=auto MaxWidth=130 FONT="Arial",9,bold white steelblue "Feature";
+COL Width=140 MaxWidth=180 FONT="Arial",9,bold white steelblue "Syntax";
+COL Width=auto MaxWidth=240 FONT="Arial",9,bold white steelblue "Notes";
+ENDHEAD
+ROW
+COL "Automatic sizing";
+COL "Width=auto";
+COL "Desired width follows content up to MaxWidth";
+ENDROW
+ROW 48
+COL "Fixed row height";
+COL "ROW 48";
+COL "A formula may define the row height";
+ENDROW
+ROW
+COL "Multiline cell";
+COL "COL expression";
+COL "Line one\r\nLine two\r\nLine three";
+ENDROW
+ROW
+COL "Short row";
+COL "Missing cells";
+ENDROW
+ENDTABLE
+
+# Table row templates evaluate every COL expression for each ROWINDEX.
+SET BRUSH darkblue;
+LINETEXT 40,360 Text="Table ROWTEMPLATE with host functions";
+TABLE 40,385
+HEAD lightgray
+COL Width=100 MaxWidth=120 FONT="Consolas",8,bold black lightgray "Date";
+COL Width=130 MaxWidth=160 "Comment count";
+COL Width=auto MaxWidth=250 "Evaluated label";
+ENDHEAD
+ROWTEMPLATE getGlobalCommentsCount()
+COL getGlobalCommentDate($ROWINDEX);
+COL getCommentsCount($ROWINDEX);
+COL "Global item "+($ROWINDEX+1);
+ENDROW
+ENDTABLE
