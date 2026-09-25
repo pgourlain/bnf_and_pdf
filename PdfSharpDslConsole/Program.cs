@@ -99,12 +99,11 @@ var parsingResult = parser.Parse(File.ReadAllText(fileName));
 if (parsingResult.HasErrors())
 {
     //show Error
-    foreach (var error in parsingResult.ParserMessages)
+    foreach (var error in PdfDslDiagnostics.FormatParseErrors(parsingResult))
     {
-        Console.Write(error.Location.ToString());
-        Console.Write("=>");
-        Console.WriteLine(error);
+        Console.Error.WriteLine($"{Path.GetFileName(fileName)}: {error}");
     }
+    Environment.ExitCode = 1;
 }
 else
 {
@@ -116,8 +115,12 @@ else
 
     //draw parsing result
     using var drawer = new PdfDocumentDrawer(logger);
-    var visitor = new PdfDrawerVisitor(logger);
+    //INCLUDE and relative image paths are resolved from the folder of the drawn file
+    var visitor = new PdfDrawerVisitor(Path.GetDirectoryName(Path.GetFullPath(fileName))!, logger);
 
+    //host data: read in the script as $comments, $comments[0].date, $REPORTTITLE... (see demo-includes/21-udf-return-and-data.ipdf)
+    visitor.SetData("comments", globalComments);
+    visitor.SetData("REPORTTITLE", "Comments report");
     visitor.RegisterFormulaFunction("GetFontCount", (_) => LocalFontNames().Count());
     visitor.RegisterFormulaFunction("GetFont", GetFontNameByIndex);
     visitor.RegisterFormulaFunction("getGlobalCommentDate", getGlobalCommentDate);

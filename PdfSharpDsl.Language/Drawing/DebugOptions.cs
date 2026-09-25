@@ -15,6 +15,10 @@ namespace PdfSharpDslCore.Drawing
         /// show rule on each newpage
         /// </summary>
         DebugRule = 16,
+        /// <summary>
+        /// show a light grid (every 50 points, labelled with its coordinates) on each page
+        /// </summary>
+        DebugGrid = 32,
         DebugAll = 8192,
     }
 }

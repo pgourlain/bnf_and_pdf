@@ -1,0 +1,33 @@
+INCLUDE "../demo-common.ipdf";
+
+# -----------------------------------------------------------------------------
+# Debug overlays and custom view coordinates
+# -----------------------------------------------------------------------------
+NEWPAGE A4 portrait;
+# DEBUGOPTIONS [GLOBAL] is document-wide because the visitor reads it before drawing page 1.
+# Uncomment this line to enable every overlay on every page:
+# DEBUGOPTIONS DEBUG_TEXT, DEBUG_RECT, DEBUG_ROWTEMPLATE, DEBUG_IMAGE, DEBUG_RULE, DEBUG_GRID, DEBUG_ALL;
+# DEBUGOPTIONS PAGE applies only until the next page:
+DEBUGOPTIONS PAGE DEBUG_ALL;
+CALL SECTION("Debug options (global or current page)");
+SET FONT Name="Arial" Size=11 regular;
+SET BRUSH black;
+LINETEXT 60,110,470,50 HAlign=hcenter VAlign=vcenter Text="DEBUGOPTIONS can expose text, rectangles, templates, images, rules and a 50pt coordinate grid (DEBUG_GRID).";
+SET BRUSH lightsalmon;
+FILLRECT 100,200,150,80;
+IMAGE 330,200,150,80 point fit Data="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+ROWTEMPLATE Count=2 Y=330 Name="debug-template" BorderSize=3
+    LINETEXT 100,0 Text=("Debug row "+$ROWINDEX);
+    LINE 100,24,480,24;
+ENDROWTEMPLATE
+
+# VIEWSIZE maps a compact coordinate system onto the page.
+NEWPAGE A4 portrait;
+VIEWSIZE 100,140;
+SET PEN red 0.2 dash;
+SET BRUSH black;
+SET FONT Name="Consolas" Size=3 regular;
+LINE 50,0,50,140;
+LINE 0,70,100,70;
+RECT 2,2,96,136;
+LINETEXT 50,70 HAlign=hcenter VAlign=vcenter Text="VIEWSIZE 100 x 140";

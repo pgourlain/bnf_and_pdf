@@ -121,9 +121,14 @@ namespace PdfSharpDslCore.Evaluation
                 case BinaryOperation.Add:
                     return leftValue.ToString() + rightValue.ToString();
                 default:
+                    if (IsPageCountSentinel(leftValue) || IsPageCountSentinel(rightValue))
+                        throw new NotSupportedException("$PAGECOUNT is only known at publish time; it only supports string concatenation ('+'), not other operators.");
                     throw new NotSupportedException("Operation not supported on string");
             }
         }
+
+        private static bool IsPageCountSentinel(object value) =>
+            value.ToString()?.Contains(SystemVariableTokens.PageCountSentinel) ?? false;
 
         private object BooleanOperation(object leftValue, object rightValue, BinaryOperation oper)
         {
@@ -156,6 +161,8 @@ namespace PdfSharpDslCore.Evaluation
             }
             catch(FormatException)
             {
+                if (IsPageCountSentinel(leftValue) || IsPageCountSentinel(rightValue))
+                    throw new NotSupportedException("$PAGECOUNT is only known at publish time; it only supports string concatenation ('+'), not other operators.");
                 throw new NotSupportedException($"'{oper}' is only supported on number expression.");
             }
         }

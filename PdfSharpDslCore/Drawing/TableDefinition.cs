@@ -9,6 +9,8 @@ namespace PdfSharpDslCore.Drawing
         public List<ColumnDefinition> Columns { get; private set; } = new();
         public bool ShowHeader { get; set; } = true;
         public double TopMarginOnPageBreak { get; set; }
+        /// <summary>Space kept free at the bottom of each page; a row that would cross it moves to a new page.</summary>
+        public double BottomMargin { get; set; }
         //header height, should be measure if not specified
         public double? HeaderHeight { get; set; }
         public PdfMargins CellMargin { get; set; } = new PdfMargins() { All = 1 };

@@ -12,8 +12,17 @@ namespace PdfSharpDslCore.Drawing
         public int Level => _level;
 
         public DebugOptions DebugOptions { get; set; }
-        public bool DebugText => (DebugOptions & (DebugOptions.DebugText | DebugOptions.DebugAll)) > 0;
-        public bool DebugRowTemplate => (DebugOptions & (DebugOptions.DebugRowTemplate | DebugOptions.DebugAll)) > 0;
+        /// <summary>
+        /// debug options of current page only, reset on each new page
+        /// </summary>
+        public DebugOptions PageDebugOptions { get; set; }
+        public DebugOptions EffectiveDebugOptions => DebugOptions | PageDebugOptions;
+        public bool DebugText => (EffectiveDebugOptions & (DebugOptions.DebugText | DebugOptions.DebugAll)) > 0;
+        public bool DebugRect => (EffectiveDebugOptions & (DebugOptions.DebugRect | DebugOptions.DebugAll)) > 0;
+        public bool DebugImage => (EffectiveDebugOptions & (DebugOptions.DebugImage | DebugOptions.DebugAll)) > 0;
+        public bool DebugRowTemplate => (EffectiveDebugOptions & (DebugOptions.DebugRowTemplate | DebugOptions.DebugAll)) > 0;
+        public bool DebugGrid => (EffectiveDebugOptions & (DebugOptions.DebugGrid | DebugOptions.DebugAll)) > 0;
+        public bool DebugRule => (EffectiveDebugOptions & (DebugOptions.DebugRule | DebugOptions.DebugAll)) > 0;
 
         public DrawingContext(ILogger? logger)
         {
@@ -27,6 +36,7 @@ namespace PdfSharpDslCore.Drawing
         }
 
         public PdfRect BlockRect => _recorder.CurrentBlock.Rect;
+        public double BlockOffsetY => _recorder.CurrentBlock.OffsetY;
         internal IInstructionBlock EndMeasure()
         {
             var block = _recorder.CurrentBlock;

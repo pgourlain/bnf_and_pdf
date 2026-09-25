@@ -1,0 +1,35 @@
+INCLUDE "../demo-common.ipdf";
+
+# -----------------------------------------------------------------------------
+# advanced typography and annotations
+# -----------------------------------------------------------------------------
+NEWPAGE A4 portrait;
+CALL SECTION("Advanced typography and annotations");
+SET FONT Name="Arial" Size=12 regular;
+SET BRUSH black;
+LINETEXT 45,90 Text="Text can be aligned, rotated, highlighted and wrapped.";
+SET PEN lightgray 0.7 solid;
+RECT 45,125,505,105;
+SET HBRUSH 0x60fff176;
+SET FONT Name="Arial" Size=11 bold;
+LINETEXT 60,140,215,70 HAlign=left VAlign=vcenter Text="Left aligned\r\nwith highlight";
+SET HBRUSH 0x00000000;
+SET FONT Name="Arial" Size=11 italic;
+LINETEXT 275,140,215,70 HAlign=hcenter VAlign=vcenter Text="Centered\r\nitalic text";
+SET FONT Name="Arial" Size=10 regular;
+LINETEXT 60,270,490,70 Text="A bounded text area wraps automatically. This is useful for paragraphs, notes, explanations and generated report content without manually calculating every line.";
+SET FONT Name="Arial" Size=10 underline;
+LINETEXT 60,390 Text="Underline annotation";
+SET FONT Name="Arial" Size=10 strikeout;
+LINETEXT 230,390 Text="Strikeout annotation";
+SET FONT Name="Arial" Size=10 regular;
+LINETEXT 100,500 Orientation=30 Text="30 degrees";
+LINETEXT 300,500 Orientation=vertical Text="Vertical label";
+SET BRUSH 0xffe8eef7;
+FILLRECT 45,570,505,95;
+SET BRUSH darkblue;
+SET FONT Name="Arial" Size=11 bold;
+LINETEXT 65,590 Text="Annotation block";
+SET FONT Name="Arial" Size=10 regular;
+SET BRUSH black;
+TEXT 65,615,465,35 Text="Use TEXT for a bounded paragraph and LINETEXT for precise alignment.";

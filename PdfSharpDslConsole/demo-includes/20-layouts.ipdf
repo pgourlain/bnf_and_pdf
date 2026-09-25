@@ -1,0 +1,46 @@
+INCLUDE "../demo-common.ipdf";
+
+# -----------------------------------------------------------------------------
+# reusable layout patterns
+# -----------------------------------------------------------------------------
+NEWPAGE A4 portrait;
+CALL SECTION("Reusable layout patterns");
+SET FONT Name="Arial" Size=10 regular;
+SET BRUSH black;
+SET PEN lightgray 0.8 solid;
+RECT 45,85,505,600;
+SET BRUSH 0xffe8eef7;
+FILLRECT 45,85,505,70;
+SET BRUSH darkblue;
+SET FONT Name="Arial" Size=16 bold;
+LINETEXT 65,105 Text="Document header";
+SET FONT Name="Arial" Size=9 regular;
+LINETEXT 65,133 Text="A reusable page frame built from rectangles, text and lines.";
+SET BRUSH 0xfff5f8fb;
+FILLRECT 65,185,225,150;
+FILLRECT 305,185,225,150;
+SET BRUSH black;
+SET FONT Name="Arial" Size=11 bold;
+LINETEXT 85,205 Text="Left column";
+LINETEXT 325,205 Text="Right column";
+SET FONT Name="Arial" Size=10 regular;
+LINETEXT 85,240 Text="Use columns for summaries";
+LINETEXT 85,265 Text="and explanatory notes.";
+LINETEXT 325,240 Text="Keep repeated content";
+LINETEXT 325,265 Text="inside a UDF component.";
+SET PEN steelblue 1 solid;
+LINE 65,365,530,365;
+SET BRUSH black;
+SET FONT Name="Arial" Size=12 bold;
+LINETEXT 65,390 Text="Content section";
+SET FONT Name="Arial" Size=10 regular;
+TEXT 65,425,465,90 MaxWidth=465 Text="A page can combine a fixed frame, reusable UDFs, measured row templates and automatic pagination. This pattern is suitable for invoices, reports and generated documentation.";
+SET PEN steelblue 0.8 solid;
+LINE 45,715,550,715;
+SET BRUSH 0xffe8f7ee;
+FILLRECT 65,730,465,55;
+SET BRUSH darkgreen;
+SET FONT Name="Arial" Size=11 bold;
+LINETEXT 85,740 Text="Footer status";
+SET FONT Name="Arial" Size=10 regular;
+LINETEXT 85,765 Text="Generated successfully | ready for review";

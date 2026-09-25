@@ -1,10 +1,12 @@
 using Microsoft.Extensions.Logging;
 using PdfSharpDslCore.Extensions;
 using System;
+using PdfSharpDslCore.Drawing.Barcodes;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using TerraPDF.Core;
+using static PdfSharpDslCore.Evaluation.SystemVariableTokens;
 
 namespace PdfSharpDslCore.Drawing
 {
@@ -23,6 +25,12 @@ namespace PdfSharpDslCore.Drawing
             public double ScaleY { get; set; } = 1;
             public List<Action<VectorCanvas>> Commands { get; } = new();
         }
+
+        private static readonly PdfPen DebugPen = new(PdfColor.RedColor, 0.5) { DashStyle = PdfDashStyle.DashDot };
+        private static readonly PdfPen DebugRulePen = new(PdfColor.RedColor, 1);
+        private static readonly PdfPen DebugGridPen = new(PdfColor.FromRgb(255, 204, 204), 0.3);
+        private const double DebugGridStep = 50;
+        private static readonly PdfFont DebugFont = new("Courier", 6);
 
         private readonly ILogger? _logger;
         private readonly DrawingContext _drawingCtx;
@@ -49,6 +57,19 @@ namespace PdfSharpDslCore.Drawing
             set => _drawingCtx.DebugOptions = value;
         }
 
+        public DebugOptions PageDebugOptions
+        {
+            get => _drawingCtx.PageDebugOptions;
+            set
+            {
+                var hadRule = _drawingCtx.DebugRule;
+                var hadGrid = _drawingCtx.DebugGrid;
+                _drawingCtx.PageDebugOptions = value;
+                if (!hadRule && _drawingCtx.DebugRule) DrawDebugRule();
+                if (!hadGrid && _drawingCtx.DebugGrid) DrawDebugGrid();
+            }
+        }
+
         public PdfPen CurrentPen
         {
             get => _currentPen ??= new PdfPen(PdfColor.Black, 1);
@@ -72,6 +93,27 @@ namespace PdfSharpDslCore.Drawing
         public double PageWidth => CurrentPage.Width;
         public double PageHeight => CurrentPage.Height;
 
+        public PdfSize MeasureText(string text, double? maxWidth)
+        {
+            var font = ScaleFont(CurrentFont, CurrentPage);
+            var lines = WrapText(text, maxWidth, font);
+            var width = lines.Count == 0 ? 0 : lines.Max(line => MeasureText(line, font));
+            var height = lines.Count * font.Size * 1.2;
+            return new PdfSize(width, height);
+        }
+
+        public IReadOnlyList<string> WrapText(string text, double maxWidth) =>
+            WrapText(text, maxWidth, ScaleFont(CurrentFont, CurrentPage));
+
+        public PdfSize MeasureImage(PdfImage image, double? w, double? h, bool sizeInPixel)
+        {
+            ArgumentNullException.ThrowIfNull(image);
+            var naturalSize = VectorCanvas.GetImageSizeInPoints(image.Data.ToArray());
+            var width = w.HasValue ? (sizeInPixel ? w.Value * 72d / 96d : w.Value) : naturalSize.Width;
+            var height = h.HasValue ? (sizeInPixel ? h.Value * 72d / 96d : h.Value) : naturalSize.Height;
+            return new PdfSize(width, height);
+        }
+
         private RecordedPage CurrentPage
         {
             get
@@ -79,6 +121,9 @@ namespace PdfSharpDslCore.Drawing
                 if (_pages.Count == 0)
                 {
                     _pages.Add(new RecordedPage(_defaultPageSize, _defaultPageOrientation));
+                    //implicit first page
+                    if (_drawingCtx.DebugRule) DrawDebugRule();
+                    if (_drawingCtx.DebugGrid) DrawDebugGrid();
                 }
 
                 return _pages[_pages.Count - 1];
@@ -169,6 +214,7 @@ namespace PdfSharpDslCore.Drawing
                 if (isFilled) canvas.FillRect(x, y, w, h, brush.Color.Hex, brush.Color.Opacity);
                 canvas.StrokeRect(x, y, w, h, pen.Color.Hex, pen.Width, pen.Color.Opacity, dashPattern);
             });
+            if (_drawingCtx.DebugRect) DebugRect(new PdfRect(x, y, w, h));
             _drawingCtx.PushInstruction(offset => InternalDrawRect(pen, brush, x, y + offset, w, h, isFilled),
                 new PdfRect(x, y, w, h));
         }
@@ -189,6 +235,7 @@ namespace PdfSharpDslCore.Drawing
                 if (isFilled) canvas.FillEllipse(cx, cy, w / 2, h / 2, brush.Color.Hex, brush.Color.Opacity);
                 canvas.StrokeEllipse(cx, cy, w / 2, h / 2, pen.Color.Hex, pen.Width, pen.Color.Opacity);
             });
+            if (_drawingCtx.DebugRect) DebugRect(new PdfRect(x, y, w, h));
             _drawingCtx.PushInstruction(offset => InternalDrawEllipse(pen, brush, x, y + offset, w, h, isFilled), new PdfRect(x, y, w, h));
         }
 
@@ -202,7 +249,7 @@ namespace PdfSharpDslCore.Drawing
         }
 
         public void DrawLineText(string text, double x, double y, double? w, double? h, PdfHorizontalAlignment hAlign,
-            PdfVerticalAlignment vAlign, TextOrientation textOrientation)
+            PdfVerticalAlignment vAlign, TextOrientation textOrientation, TextFitOptions? fitOptions = null)
         {
             var page = CurrentPage;
             (x, y, w, h) = DrawingHelper.CoordRectToPage(page.Width, page.Height, x, y, w, h);
@@ -214,15 +261,30 @@ namespace PdfSharpDslCore.Drawing
                     TextOrientationEnum.HorizontalInvert => 180,
                     TextOrientationEnum.VerticalInvert => 270,
                     _ => 0,
-                });
+                }, fitOptions);
         }
 
+        private const double MinShrinkFontSize = 4;
+
         private void InternalDrawText(string text, double x, double y, double? w, double? h, PdfHorizontalAlignment hAlign,
-            PdfVerticalAlignment vAlign, PdfFont font, PdfBrush brush, PdfBrush? highlight, double angle = 0)
+            PdfVerticalAlignment vAlign, PdfFont font, PdfBrush brush, PdfBrush? highlight, double angle = 0,
+            TextFitOptions? fitOptions = null)
         {
-            var lines = WrapText(text, w, font);
+            // $PAGECOUNT is only known once every page is recorded (at publish time). It arrives here
+            // as a sentinel; measure it as a stable 3-digit guess, and substitute the real page count
+            // inside the AddCommand closure below, which only runs when the document is published.
+            var hasPageCount = text.Contains(PageCountSentinel);
+            double Measure(string s, PdfFont f) =>
+                MeasureText(hasPageCount ? s.Replace(PageCountSentinel, "999") : s, f);
+
+            if (fitOptions?.ShrinkToFit == true && w.HasValue && h.HasValue)
+                font = ShrinkFontToFit(text, w.Value, h.Value, font, Measure);
+
+            var lines = WrapText(text, w, font, Measure);
             var lineHeight = font.Size * 1.2;
-            var measuredWidth = lines.Count == 0 ? 0 : lines.Max(line => MeasureText(line, font));
+            if (fitOptions?.EllipsisOverflow == true && h.HasValue)
+                lines = ApplyEllipsisOverflow(lines, w, h.Value, lineHeight, font, Measure);
+            var measuredWidth = lines.Count == 0 ? 0 : lines.Max(line => Measure(line, font));
             var measuredHeight = lines.Count * lineHeight;
             var rect = new PdfRect(x, y, w ?? measuredWidth, h ?? measuredHeight);
             var textSize = new PdfSize(Math.Min(measuredWidth, rect.Width), Math.Min(measuredHeight, rect.Height));
@@ -239,7 +301,8 @@ namespace PdfSharpDslCore.Drawing
                 {
                     var line = lines[index];
                     if (string.IsNullOrWhiteSpace(line)) continue;
-                    var lineWidth = MeasureText(line, font);
+                    var renderLine = hasPageCount ? line.Replace(PageCountSentinel, _pages.Count.ToString()) : line;
+                    var lineWidth = MeasureText(renderLine, font);
                     var lineX = w.HasValue
                         ? hAlign switch
                         {
@@ -253,11 +316,13 @@ namespace PdfSharpDslCore.Drawing
                             PdfHorizontalAlignment.Far => x - lineWidth,
                             _ => x,
                         };
-                    canvas.Text(line, lineX, textRect.Y + font.Size + index * lineHeight, brush.Color.Hex, font.Size,
+                    canvas.Text(renderLine, lineX, textRect.Y + font.Size + index * lineHeight, brush.Color.Hex, font.Size,
                             font.FamilyName, font.Style.HasFlag(PdfFontStyle.Bold), font.Style.HasFlag(PdfFontStyle.Italic), brush.Color.Opacity,
                             angle);
                 }
             });
+
+            if (_drawingCtx.DebugText) DebugRect(textRect);
 
             _drawingCtx.PushInstruction(offset => InternalDrawText(text, x, y + offset, w, h, hAlign, vAlign, font, brush, highlight, angle),
                 textRect, instrName: $"DrawText({text})");
@@ -270,7 +335,7 @@ namespace PdfSharpDslCore.Drawing
             InternalDrawText(text, 0, margin, PageWidth, height, hAlign, vAlign, CurrentFont, CurrentBrush, HighlightBrush);
         }
 
-        public void DrawTable(double x, double y, TableDefinition table)
+        public PdfRect DrawTable(double x, double y, TableDefinition table)
         {
             ArgumentNullException.ThrowIfNull(table);
             var availableWidth = PageWidth - x;
@@ -319,7 +384,8 @@ namespace PdfSharpDslCore.Drawing
                     rows[^1].DesiredHeight = (rows[^1].DesiredHeight ?? 0) + missingHeight;
             }
 
-            if (y + (table.HeaderHeight ?? 0) > PageHeight) { NewPage(); y = 1; }
+            var pageBottom = () => PageHeight - table.BottomMargin;
+            if (y + (table.HeaderHeight ?? 0) > pageBottom()) { NewPage(); y = Math.Max(1, table.TopMarginOnPageBreak); }
             var offsetY = 0d;
             if (table.ShowHeader)
             {
@@ -334,11 +400,13 @@ namespace PdfSharpDslCore.Drawing
                 var rowCells = cells.Where(cell => cell.Row == rowIndex).ToArray();
                 var requiredHeight = rowCells.Select(cell => table.Rows.Skip(rowIndex).Take(cell.Cell.RowSpan)
                     .Sum(spannedRow => spannedRow.DesiredHeight ?? 0)).DefaultIfEmpty(height).Max();
-                if (y + offsetY + requiredHeight > PageHeight) { NewPage(); y = table.TopMarginOnPageBreak; offsetY = 0; }
+                if (y + offsetY + requiredHeight > pageBottom()) { NewPage(); y = table.TopMarginOnPageBreak; offsetY = 0; }
                 foreach (var cell in rowCells)
                     DrawTableCell(x, y + offsetY, cell, table, fonts);
                 offsetY += height;
             }
+
+            return new PdfRect(x, y, table.Columns.Sum(column => column.DrawWidth), offsetY);
         }
 
         private static List<TableCellPlacement> LayoutTableCells(TableDefinition table)
@@ -432,11 +500,52 @@ namespace PdfSharpDslCore.Drawing
             _defaultPageOrientation = pageOrientation ?? _defaultPageOrientation;
             _pages.Add(new RecordedPage(_defaultPageSize, _defaultPageOrientation));
             _logger?.WriteDebug(this, "AddPage");
+            _drawingCtx.PageDebugOptions = DebugOptions.None;
             _onNewPageHooks.ForEach(callback => callback(_pages.Count));
-            if ((DebugOptions & DebugOptions.DebugRule) == DebugOptions.DebugRule)
-                for (var position = 25d; position < PageHeight; position += 25)
-                    DrawLine(0, position, position % 50 == 0 ? 50 : 25, position);
+            if (_drawingCtx.DebugRule) DrawDebugRule();
+            if (_drawingCtx.DebugGrid) DrawDebugGrid();
         }
+
+        private void DrawDebugGrid()
+        {
+            var width = PageWidth;
+            var height = PageHeight;
+            for (var x = DebugGridStep; x < width; x += DebugGridStep)
+            {
+                DebugLine(DebugGridPen, x, 0, x, height);
+                DebugText($"{x}", x + 1, 0);
+            }
+
+            for (var y = DebugGridStep; y < height; y += DebugGridStep)
+            {
+                DebugLine(DebugGridPen, 0, y, width, y);
+                DebugText($"{y}", 1, y);
+            }
+        }
+
+        private void DrawDebugRule()
+        {
+            for (var position = 25d; position < PageHeight; position += 25)
+            {
+                var ten = position % 50 == 0;
+                DebugLine(DebugRulePen, 0, position, ten ? 50 : 25, position);
+                if (ten) DebugText($"{position}", 50, position);
+            }
+        }
+
+        private void DebugRect(PdfRect rect)
+        {
+            var dashPattern = GetDashPattern(DebugPen);
+            AddCommand(canvas => canvas.StrokeRect(rect.X, rect.Y, rect.Width, rect.Height,
+                DebugPen.Color.Hex, DebugPen.Width, DebugPen.Color.Opacity, dashPattern));
+        }
+
+        private void DebugLine(PdfPen pen, double x, double y, double x1, double y1) =>
+            AddCommand(canvas => DrawStyledLine(canvas, pen, x, y, x1, y1));
+
+        private void DebugText(string text, double x, double y) =>
+            AddCommand(canvas => canvas.Text(text, x, y + DebugFont.Size, DebugPen.Color.Hex, DebugFont.Size,
+                DebugFont.FamilyName, false, false, DebugPen.Color.Opacity, 0));
 
         public void MoveTo(double x, double y) => _currentPoint = new PdfPoint(x, y);
 
@@ -464,8 +573,63 @@ namespace PdfSharpDslCore.Drawing
             var fit = cropImage ? ImageFit.CropTopLeft : ImageFit.Stretch;
             AddCommand(canvas => canvas.Image(data, ScaleX(x, page), ScaleY(y, page),
                 ScaleX(width, page), ScaleY(height, page), fit));
+            if (_drawingCtx.DebugImage)
+                DebugRect(new PdfRect(ScaleX(x, page), ScaleY(y, page), ScaleX(width, page), ScaleY(height, page)));
             _drawingCtx.PushInstruction(offset => DrawImage(image, x, y + offset, w, h, sizeInPixel, cropImage),
                 new PdfRect(x, y, width, height), instrName: "DrawImage");
+        }
+
+        public void DrawBarcode(double x, double y, double w, double h, PdfBarcodeType type, string text)
+        {
+            var bars = type switch
+            {
+                PdfBarcodeType.Code128 => Code128Encoder.Encode(text),
+                _ => throw new NotSupportedException($"Barcode type '{type}' is not supported."),
+            };
+            var modules = new bool[1, bars.Length];
+            for (var i = 0; i < bars.Length; i++) modules[0, i] = bars[i];
+            DrawModules(x, y, w, h, modules);
+        }
+
+        /// <summary>Fills the "true" cells of a module matrix scaled to the rectangle, as one vector path.</summary>
+        private void DrawModules(double x, double y, double w, double h, bool[,] modules)
+        {
+            var page = CurrentPage;
+            (x, y, w, h) = DrawingHelper.CoordRectToPage(page.Width, page.Height, x, y, w, h);
+            if (w <= 0 || h <= 0) throw new ArgumentOutOfRangeException(nameof(w), "Barcode dimensions must be positive.");
+            InternalDrawModules(CurrentBrush, ScaleX(x, page), ScaleY(y, page), ScaleX(w, page), ScaleY(h, page), modules);
+        }
+
+        private void InternalDrawModules(PdfBrush brush, double x, double y, double w, double h, bool[,] modules)
+        {
+            var rows = modules.GetLength(0);
+            var columns = modules.GetLength(1);
+            var cellWidth = w / columns;
+            var cellHeight = h / rows;
+            var runs = new List<PdfRect>();
+            for (var row = 0; row < rows; row++)
+            {
+                for (var column = 0; column < columns; column++)
+                {
+                    if (!modules[row, column]) continue;
+                    var start = column;
+                    while (column + 1 < columns && modules[row, column + 1]) column++;
+                    runs.Add(new PdfRect(x + start * cellWidth, y + row * cellHeight, (column - start + 1) * cellWidth, cellHeight));
+                }
+            }
+
+            if (runs.Count > 0)
+            {
+                AddCommand(canvas => canvas.Path(path =>
+                {
+                    foreach (var run in runs) path.Rect(run.X, run.Y, run.Width, run.Height);
+                    path.Fill(brush.Color.Hex).Opacity(brush.Color.Opacity);
+                }));
+            }
+
+            var rect = new PdfRect(x, y, w, h);
+            if (_drawingCtx.DebugRect) DebugRect(rect);
+            _drawingCtx.PushInstruction(offset => InternalDrawModules(brush, x, y + offset, w, h, modules), rect, instrName: "DrawModules");
         }
 
         public void DrawPie(double x, double y, double? w, double? h, double startAngle, double sweepAngle, bool isFilled)
@@ -491,6 +655,7 @@ namespace PdfSharpDslCore.Drawing
                     canvas.StrokePie(x, y, width, height, startAngle, sweepAngle,
                         pen.Color.Hex, pen.Width, pen.Color.Opacity);
             });
+            if (_drawingCtx.DebugRect) DebugRect(new PdfRect(x, y, width, height));
             _drawingCtx.PushInstruction(offset => InternalDrawPie(pen, brush, x, y + offset, width, height, startAngle, sweepAngle, isFilled),
                 new PdfRect(x, y, width, height), instrName: "DrawPie");
         }
@@ -511,6 +676,12 @@ namespace PdfSharpDslCore.Drawing
                 path.Polygon(tuples).Stroke(pen.Color.Hex, pen.Width).Opacity(pen.Color.Opacity);
                 if (isFilled) path.Fill(brush.Color.Hex).Opacity(brush.Color.Opacity);
             }));
+            if (_drawingCtx.DebugRect)
+            {
+                var bounds = PdfRect.Empty;
+                foreach (var point in points) bounds.Union(point);
+                DebugRect(bounds);
+            }
             _drawingCtx.PushInstruction(offset => InternalDrawPolygon(pen, brush, points.Select(point => point.OffsetY(offset)).ToArray(), isFilled), points);
         }
 
@@ -524,6 +695,8 @@ namespace PdfSharpDslCore.Drawing
         public DrawingResult EndDrawRowTemplate(int index)
         {
             var result = _drawingCtx.BlockRect;
+            //block rect includes block offset, instructions are relative to the block
+            if (!result.IsEmpty) InternalEndRowTemplate(index, _drawingCtx.Level - 1, result.OffsetY(-_drawingCtx.BlockOffsetY));
             var block = _drawingCtx.EndMeasure();
             _isMeasuring = _measurementStates.Pop();
             var pageOffsetY = 0d;
@@ -531,6 +704,20 @@ namespace PdfSharpDslCore.Drawing
             else if (_drawingCtx.Level == 0) pageOffsetY = block.Draw(this, 0, 0);
             _drawingCtx.CloseBlock();
             return new DrawingResult { DrawingRect = result, PageOffsetY = pageOffsetY };
+        }
+
+        private void InternalEndRowTemplate(int index, int level, PdfRect rect)
+        {
+            if (_drawingCtx.DebugRowTemplate)
+            {
+                DebugRect(rect);
+                DebugLine(DebugPen, rect.X, rect.Y, rect.X + 5, rect.Y + 2);
+                DebugLine(DebugPen, rect.X, rect.Y, rect.X + 2, rect.Y + 5);
+                DebugLine(DebugPen, rect.X, rect.Y, rect.X + 10, rect.Y + 10);
+                DebugText($"{level}.{index}", rect.X + 10, rect.Y + 10);
+            }
+            //replayed with the block, without growing it
+            _drawingCtx.PushInstruction(offset => InternalEndRowTemplate(index, level, rect.OffsetY(offset)), rect, false, "EndRowTemplate");
         }
 
         public void BeginIterationTemplate(int rowCount) { }
@@ -560,22 +747,57 @@ namespace PdfSharpDslCore.Drawing
         private static int MeasureCellLineCount(string text, double width, PdfFont font) =>
             WrapText(text, width, font).Count;
 
-        private static List<string> WrapText(string text, double? maxWidth, PdfFont font)
+        private static List<string> WrapText(string text, double? maxWidth, PdfFont font, Func<string, PdfFont, double>? measure = null)
         {
+            measure ??= MeasureText;
             var lines = new List<string>();
             foreach (var sourceLine in text.Replace("\r\n", "\n").Split('\n'))
             {
-                if (maxWidth is null || maxWidth <= 0 || MeasureText(sourceLine, font) <= maxWidth) { lines.Add(sourceLine); continue; }
+                if (maxWidth is null || maxWidth <= 0 || measure(sourceLine, font) <= maxWidth) { lines.Add(sourceLine); continue; }
                 var current = string.Empty;
                 foreach (var word in sourceLine.Split(' ', StringSplitOptions.RemoveEmptyEntries))
                 {
                     var candidate = current.Length == 0 ? word : $"{current} {word}";
-                    if (current.Length > 0 && MeasureText(candidate, font) > maxWidth) { lines.Add(current); current = word; }
+                    if (current.Length > 0 && measure(candidate, font) > maxWidth) { lines.Add(current); current = word; }
                     else current = candidate;
                 }
                 lines.Add(current);
             }
             return lines;
+        }
+
+        private static PdfFont ShrinkFontToFit(string text, double w, double h, PdfFont font, Func<string, PdfFont, double> measure)
+        {
+            for (var size = font.Size; size > MinShrinkFontSize; size -= 0.5)
+            {
+                var candidate = new PdfFont(font.FamilyName, size, font.Style);
+                var lines = WrapText(text, w, candidate, measure);
+                var fits = lines.Count * (size * 1.2) <= h && lines.All(line => measure(line, candidate) <= w);
+                if (fits) return candidate;
+            }
+            return new PdfFont(font.FamilyName, MinShrinkFontSize, font.Style);
+        }
+
+        private static List<string> ApplyEllipsisOverflow(List<string> lines, double? w, double h, double lineHeight,
+            PdfFont font, Func<string, PdfFont, double> measure)
+        {
+            var maxLines = Math.Max(1, (int)(h / lineHeight));
+            if (lines.Count <= maxLines) return lines;
+
+            var visible = lines.Take(maxLines).ToList();
+            visible[^1] = TruncateWithEllipsis(visible[^1], w, font, measure);
+            return visible;
+        }
+
+        private static string TruncateWithEllipsis(string line, double? maxWidth, PdfFont font, Func<string, PdfFont, double> measure)
+        {
+            const string ellipsis = "…";
+            if (!maxWidth.HasValue || measure(line + ellipsis, font) <= maxWidth) return line + ellipsis;
+
+            var truncated = line;
+            while (truncated.Length > 0 && measure(truncated + ellipsis, font) > maxWidth)
+                truncated = truncated[..^1];
+            return truncated.TrimEnd() + ellipsis;
         }
 
         private static double ResolveX(double x, RecordedPage page) => x < 0 ? page.Width + x : x;

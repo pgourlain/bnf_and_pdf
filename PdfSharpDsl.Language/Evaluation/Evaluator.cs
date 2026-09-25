@@ -1,5 +1,6 @@
 ﻿using Irony.Parsing;
 using PdfSharpDslCore.Extensions;
+using PdfSharpDslCore.Parser;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -13,10 +14,13 @@ namespace PdfSharpDslCore.Evaluation
     {
         ParseTreeNode _rootNode;
         IDictionary<string, Func<object[], object>> _funcs;
-        public Evaluator(ParseTreeNode rootNode, IDictionary<string, Func<object[], object>> funcs)
+        IUserFunctionResolver? _userFunctions;
+        public Evaluator(ParseTreeNode rootNode, IDictionary<string, Func<object[], object>> funcs,
+            IUserFunctionResolver? userFunctions = null)
         {
             _rootNode = rootNode;
             _funcs = funcs;
+            _userFunctions = userFunctions;
         }
 
         public double? EvaluateForDouble(IDictionary<string, object?> variables)
@@ -118,18 +122,40 @@ namespace PdfSharpDslCore.Evaluation
                         throw new NotImplementedException();
                     }
                 case "VarRef":
-                    return new VariableEvaluation((string)node.ChildNodes[1].Token.Value, variables);
+                    return new VariableEvaluation((string)node.ChildNodes[1].Token.Value, variables, node.Span.Location);
                 case "string":
                 case "textstring":
                     return new ConstantEvaluation<object>(node.Token.Value);
 
+                case "ListExpression":
+                    var listItems = node.ChildNode("CallInvokeArgumentslist")?.ChildNodes
+                        .Select(n => PerformEvaluate(n, variables)).ToArray() ?? Array.Empty<IEvaluation<object>>();
+                    return new ListEvaluation(listItems);
+                case "AccessExpression":
+                    var accessed = PerformEvaluate(node.ChildNodes[0], variables);
+                    var steps = node.ChildNodes[1].ChildNodes.Select(suffix => suffix.Term.Name == "MemberSuffix"
+                        ? new AccessStep(null, suffix.ChildNodes[0].Token.ValueString, suffix.Span.Location)
+                        : new AccessStep(PerformEvaluate(suffix.ChildNodes[0], variables), null, suffix.Span.Location)).ToArray();
+                    return new AccessEvaluation(accessed, steps);
+                case "NamedColor":
+                    return new ConstantEvaluation<object>(node.ChildNodes[0].Token.Text);
                 case "auto":
                     return new ConstantEvaluation<object>(null!);
                 case "CustomFunctionExpression":
                     var fnName = (string)node.ChildNodes[0].Token.Value;
                     var args = node.ChildNode("CallInvokeArgumentslist");
                     var arguments = args?.ChildNodes.Select(n => PerformEvaluate(n, variables)).ToArray();
-                    return new CustomFunctionEvaluation(_funcs[fnName.ToUpperInvariant()], arguments!);
+                    if (!_funcs.TryGetValue(fnName.ToUpperInvariant(), out var func))
+                    {
+                        //not a registered function: a UDF of the script may be called as a function (it RETURNs a value)
+                        func = _userFunctions?.Resolve(fnName.ToUpperInvariant());
+                        if (func == null)
+                        {
+                            var known = _funcs.Keys.Concat(_userFunctions?.Names ?? Enumerable.Empty<string>());
+                            throw new PdfParserException(PdfDslDiagnostics.UnknownFunction(fnName, node.Span.Location, known));
+                        }
+                    }
+                    return new CustomFunctionEvaluation(func, arguments!);
             }
 
             throw new InvalidOperationException($"Unrecognizable term {node.Term.Name}.");

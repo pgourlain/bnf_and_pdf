@@ -1,0 +1,16 @@
+INCLUDE "../demo-common.ipdf";
+
+# -----------------------------------------------------------------------------
+# Host formula functions and custom bundled fonts
+# -----------------------------------------------------------------------------
+NEWPAGE A4 portrait;
+CALL SECTION("Host functions and bundled fonts");
+SET VAR FONTCOUNT=GetFontCount();
+SET FONT Name="Consolas" Size=9 regular;
+SET BRUSH black;
+LINETEXT 45,82 Text=("GetFontCount() returned "+$FONTCOUNT);
+FOR I=0 TO $FONTCOUNT-1 DO
+    SET VAR FONTNAME=GetFont($I);
+    SET FONT Name=$FONTNAME Size=18 regular;
+    LINETEXT 55,125+70*$I Text=("PdfSharpDsl - "+$FONTNAME);
+ENDFOR

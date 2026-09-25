@@ -1,0 +1,52 @@
+INCLUDE "../demo-common.ipdf";
+
+# -----------------------------------------------------------------------------
+# Text, alignment, orientation, highlighting and every font style
+# -----------------------------------------------------------------------------
+NEWPAGE A4 portrait;
+CALL SECTION("Text layout, orientation and fonts");
+SET PEN lightgray 0.5;
+RECT 45,85,500,110;
+USE body;
+LINETEXT 45,85,500,110 HAlign=left VAlign=top Text="left / top";
+LINETEXT 45,85,500,110 HAlign=hcenter VAlign=vcenter Text="center / center";
+LINETEXT 45,85,500,110 HAlign=right VAlign=bottom Text="right / bottom";
+
+USE caption;
+LINETEXT 45,205 Text="This caption comes from STYLE caption; the text above and below uses STYLE body.";
+USE body;
+SET HBRUSH 0x60fff176;
+LINETEXT 60,235 HAlign=left VAlign=vcenter Orientation=horizontal Text="highlight brush";
+SET HBRUSH 0x00000000;
+LINETEXT 220,235 HAlign=left VAlign=vcenter Orientation=vertical Text="vertical";
+LINETEXT 300,235 HAlign=left VAlign=vcenter Orientation=30 Text="30 degree rotation";
+
+SET FONT Name="Arial" Size=11 regular;
+LINETEXT 45,330 Text="regular";
+SET FONT Name="Arial" Size=11 bold;
+LINETEXT 140,330 Text="bold";
+SET FONT Name="Arial" Size=11 italic;
+LINETEXT 220,330 Text="italic";
+SET FONT Name="Arial" Size=11 bolditalic;
+LINETEXT 300,330 Text="bold italic";
+SET FONT Name="Arial" Size=11 underline;
+LINETEXT 405,330 Text="underline";
+SET FONT Name="Arial" Size=11 strikeout;
+LINETEXT 500,330 Text="strikeout";
+
+SET FONT Name="Arial" Size=11 regular;
+TEXT 45,385 MaxWidth=220 Text="TEXT with a point and MaxWidth wraps a longer paragraph over several lines.";
+TEXT 300,385,245,95 Text="TEXT with a rectangle supports multiline content.\r\nSecond explicit line.\r\nThird explicit line.";
+
+SET PEN slategray 0.5;
+SET FONT Name="Arial" Size=20 regular;
+RECT 45,440,140,30;
+LINETEXT 45,440,140,30 HAlign=hcenter VAlign=vcenter Fit=shrink Text="Shrinks to fit this box";
+RECT 200,440,140,16;
+SET FONT Name="Arial" Size=10 regular;
+LINETEXT 200,440,140,16 Overflow=ellipsis Text="This line is longer than the box and gets truncated with an ellipsis";
+
+TITLE Margin=515 HAlign=left Text="Left title";
+TITLE Margin=515 HAlign=hcenter Text="Centered title";
+TITLE Margin=515 HAlign=right Text="Right title";
+TITLE Margin=-40 HAlign=right Text="Negative title margin is measured from the bottom";

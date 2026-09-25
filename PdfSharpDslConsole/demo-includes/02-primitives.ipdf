@@ -1,0 +1,62 @@
+INCLUDE "../demo-common.ipdf";
+
+# -----------------------------------------------------------------------------
+# Drawing primitives, pen styles, brushes and color formats
+# -----------------------------------------------------------------------------
+NEWPAGE A4 landscape;
+CALL SECTION("Drawing primitives and styles");
+
+SET FONT Name="Consolas" Size=9 regular;
+SET BRUSH black;
+SET PEN black 1 solid;
+LINETEXT 45,90 Text="solid";
+LINE 45,108,165,108;
+SET PEN red 1.5 dash;
+LINETEXT 45,130 Text="dash";
+LINE 45,148,165,148;
+SET PEN green 2 dot;
+LINETEXT 45,170 Text="dot";
+LINE 45,188,165,188;
+SET PEN blue 2 dashdot;
+LINETEXT 45,210 Text="dashdot";
+LINE 45,228,165,228;
+SET PEN 0xff8844 2 dashdotdot;
+LINETEXT 45,250 Text="dashdotdot / RGB hex";
+LINE 45,268,165,268;
+
+SET PEN black 1 solid;
+SET BRUSH lightgreen;
+RECT 220,90,100,65;
+FILLRECT 350,90,100,65;
+SET BRUSH 0x8090caf9;
+ELLIPSE 220,190,100,65;
+FILLELLIPSE 350,190,100,65;
+
+SET BRUSH gold;
+PIE 500,90,110,110 Start=15 Angle=120;
+SET BRUSH tomato;
+FILLPIE 640,90,110,110 Start=210 Angle=120;
+
+SET PEN darkslategray 2 solid;
+POLYGON 500,250,550,210,610,250,585,315,525,315;
+SET BRUSH lightseagreen;
+FILLPOLYGON 640,250,690,210,750,250,725,315,665,315;
+
+SET PEN purple 3 solid;
+MOVETO 220,350;
+LINETO 280,320;
+LINETO 340,370;
+LINETO 400,330;
+LINETO 450,370;
+
+SET PEN g0.45 1;
+SET BRUSH g0.80;
+FILLRECT 500,350,250,60;
+SET BRUSH black;
+LINETEXT 625,380 HAlign=hcenter VAlign=vcenter Text="grayscale colors: g0.45 / g0.80";
+
+# Negative dimensions extend to the far page edge.
+SET PEN crimson 1 dash;
+RECT 20,440,-20,-55;
+SET BRUSH crimson;
+LINETEXT 30,450 Text="Negative width and height use the remaining page area";

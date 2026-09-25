@@ -1,0 +1,169 @@
+INCLUDE "../demo-common.ipdf";
+
+# -----------------------------------------------------------------------------
+# concrete charts built from the drawing primitives
+# -----------------------------------------------------------------------------
+NEWPAGE A4 landscape;
+CALL SECTION("Concrete charts from drawing primitives");
+SET FONT Name="Arial" Size=9 regular;
+SET BRUSH black;
+
+# Bar chart: monthly sales in thousands.
+LINETEXT 45,82 Text="Monthly sales (kEUR)";
+SET PEN lightgray 0.5 dash;
+LINE 70,145,390,145;
+LINE 70,195,390,195;
+LINE 70,245,390,245;
+LINE 70,295,390,295;
+SET PEN darkslategray 1 solid;
+LINE 70,320,390,320;
+LINE 70,120,70,320;
+SET BRUSH steelblue;
+FILLRECT 92,235,32,85;
+FILLRECT 142,200,32,120;
+FILLRECT 192,220,32,100;
+FILLRECT 242,160,32,160;
+FILLRECT 292,180,32,140;
+FILLRECT 342,135,32,185;
+SET BRUSH black;
+LINETEXT 96,330 Text="Jan";
+LINETEXT 146,330 Text="Feb";
+LINETEXT 196,330 Text="Mar";
+LINETEXT 246,330 Text="Apr";
+LINETEXT 296,330 Text="May";
+LINETEXT 346,330 Text="Jun";
+LINETEXT 52,320 HAlign=right Text="0";
+LINETEXT 52,270 HAlign=right Text="20";
+LINETEXT 52,220 HAlign=right Text="40";
+LINETEXT 52,170 HAlign=right Text="60";
+LINETEXT 52,120 HAlign=right Text="80";
+SET FONT Name="Arial" Size=8 regular;
+SET BRUSH darkslategray;
+LINETEXT 92,225 Text="34";
+LINETEXT 142,190 Text="48";
+LINETEXT 192,210 Text="40";
+LINETEXT 242,150 Text="64";
+LINETEXT 292,170 Text="56";
+LINETEXT 342,125 Text="74";
+
+# Line chart: support response time, lower is better.
+SET FONT Name="Arial" Size=9 regular;
+SET BRUSH black;
+LINETEXT 440,82 Text="Average response time (ms)";
+SET PEN lightgray 0.5 dash;
+LINE 470,145,755,145;
+LINE 470,195,755,195;
+LINE 470,245,755,245;
+LINE 470,295,755,295;
+SET PEN darkslategray 1 solid;
+LINE 470,320,755,320;
+LINE 470,120,470,320;
+SET PEN tomato 2 solid;
+LINE 490,170,540,210;
+LINE 540,210,590,185;
+LINE 590,185,640,250;
+LINE 640,250,690,230;
+LINE 690,230,740,285;
+SET BRUSH tomato;
+FILLELLIPSE 485,165,10,10;
+FILLELLIPSE 535,205,10,10;
+FILLELLIPSE 585,180,10,10;
+FILLELLIPSE 635,245,10,10;
+FILLELLIPSE 685,225,10,10;
+FILLELLIPSE 735,280,10,10;
+SET BRUSH black;
+LINETEXT 485,330 Text="Jan";
+LINETEXT 535,330 Text="Feb";
+LINETEXT 585,330 Text="Mar";
+LINETEXT 635,330 Text="Apr";
+LINETEXT 685,330 Text="May";
+LINETEXT 735,330 Text="Jun";
+LINETEXT 452,320 HAlign=right Text="0";
+LINETEXT 452,270 HAlign=right Text="100";
+LINETEXT 452,220 HAlign=right Text="200";
+LINETEXT 452,170 HAlign=right Text="300";
+LINETEXT 452,120 HAlign=right Text="400";
+SET FONT Name="Arial" Size=8 regular;
+SET BRUSH tomato;
+LINETEXT 480,155 Text="300";
+LINETEXT 530,195 Text="220";
+LINETEXT 580,170 Text="270";
+LINETEXT 630,235 Text="140";
+LINETEXT 680,215 Text="180";
+LINETEXT 730,270 Text="70";
+
+# Additional series demonstrate the available dash styles.
+SET PEN steelblue 1.5 dash;
+LINE 490,190,540,160;
+LINE 540,160,590,220;
+LINE 590,220,640,205;
+LINE 640,205,690,260;
+LINE 690,260,740,240;
+SET PEN darkgreen 1.5 dot;
+LINE 490,230,540,250;
+LINE 540,250,590,235;
+LINE 590,235,640,270;
+LINE 640,270,690,255;
+LINE 690,255,740,295;
+SET PEN purple 1.5 dashdot;
+LINE 490,150,540,180;
+LINE 540,180,590,165;
+LINE 590,165,640,195;
+LINE 640,195,690,175;
+LINE 690,175,740,215;
+SET BRUSH black;
+LINETEXT 470,355 Text="API p95";
+LINETEXT 555,355 Text="API p50";
+LINETEXT 640,355 Text="Cache";
+SET PEN tomato 3 solid;
+LINE 515,352,535,352;
+SET PEN steelblue 3 dash;
+LINE 600,352,620,352;
+SET PEN darkgreen 3 dot;
+LINE 680,352,700,352;
+SET PEN purple 3 dashdot;
+LINE 750,352,770,352;
+LINETEXT 775,355 Text="DB";
+
+# Pie chart: traffic sources, using filled sectors.
+SET PEN black 1;
+SET FONT Name="Arial" Size=9 regular;
+SET BRUSH black;
+LINETEXT 45,390 Text="Traffic sources";
+SET BRUSH steelblue;
+FILLPIE 130,410,130,130 Start=0 Angle=180;
+SET BRUSH lightgreen;
+FILLPIE 130,410,130,130 Start=180 Angle=108;
+SET BRUSH gold;
+FILLPIE 130,410,130,130 Start=288 Angle=72;
+SET BRUSH black;
+LINETEXT 285,435 Text="Direct 50%";
+LINETEXT 285,465 Text="Search 30%";
+LINETEXT 285,495 Text="Referral 20%";
+SET PEN steelblue 8 solid;
+LINE 270,430,280,430;
+SET PEN lightgreen 8 solid;
+LINE 270,460,280,460;
+SET PEN gold 8 solid;
+LINE 270,490,280,490;
+
+# -----------------------------------------------------------------------------
+# CHART: the same kinds of charts in one line each. It is drawn with the
+# primitives above (FILLRECT, LINE, FILLPIE, LINETEXT), in the current font.
+# -----------------------------------------------------------------------------
+NEWPAGE A4 landscape;
+CALL SECTION("CHART: one line per chart");
+SET FONT Name="Arial" Size=9 regular;
+SET BRUSH black;
+LINETEXT 45,82 Text="CHART bar 45,105,340,200 Data=[12,30,18,26,9,22] Labels=[\"Jan\",\"Feb\",\"Mar\",\"Apr\",\"May\",\"Jun\"];";
+CHART bar 45,105,340,200 Data=[12,30,18,26,9,22] Labels=["Jan","Feb","Mar","Apr","May","Jun"];
+
+LINETEXT 430,82 Text="CHART line 430,105,340,200 Data=[5,-4,8,3,12] Colors=[tomato];";
+CHART line 430,105,340,200 Data=[5,-4,8,3,12] Labels=["A","B","C","D","E"] Colors=[tomato];
+
+LINETEXT 45,335 Text="CHART pie 45,355,300,200 Data=[50,30,20] Labels=[...] Colors=[steelblue,lightgreen,gold];";
+CHART pie 45,355,300,200 Data=[50,30,20] Labels=["Direct","Search","Referral"] Colors=[steelblue,lightgreen,gold];
+
+LINETEXT 430,335 Text="Data can be a variable, a list or a text: Data=\"4,8,15,16,23,42\"";
+SET VAR SERIES=[4,8,15,16,23,42];
+CHART bar 430,355,340,200 Data=$SERIES Colors=["#4472C4","#ED7D31"];

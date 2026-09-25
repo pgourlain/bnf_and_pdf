@@ -21,6 +21,225 @@ namespace pdfsharpdslTests
         }
 
         [Fact]
+        public void PageCountIsResolvedOnEveryPageAtPublishTime()
+        {
+            var parser = new Irony.Parsing.Parser(new PdfSharpDslCore.Parser.PdfGrammar());
+            var tree = parser.Parse(
+                "LINETEXT 10,10 Text=(\"page \"+$PAGEINDEX+\" / \"+$PAGECOUNT);" +
+                "NEWPAGE;LINETEXT 10,10 Text=(\"page \"+$PAGEINDEX+\" / \"+$PAGECOUNT);" +
+                "NEWPAGE;LINETEXT 10,10 Text=(\"page \"+$PAGEINDEX+\" / \"+$PAGECOUNT);");
+            Assert.False(tree.HasErrors());
+            using var drawer = new PdfDocumentDrawer();
+            new PdfSharpDslCore.Parser.PdfDrawerVisitor().Draw(drawer, tree);
+            var streams = ReadStreams(drawer.PublishPdf()).ToList();
+
+            Assert.Equal(3, streams.Count);
+            Assert.Contains(streams, s => s.Contains("(page 1 / 3) Tj"));
+            Assert.Contains(streams, s => s.Contains("(page 2 / 3) Tj"));
+            Assert.Contains(streams, s => s.Contains("(page 3 / 3) Tj"));
+        }
+
+        [Fact]
+        public void MasterBodyRunsOnItsOwnPageButNotAPlainNewPageAfterIt()
+        {
+            var parser = new Irony.Parsing.Parser(new PdfSharpDslCore.Parser.PdfGrammar());
+            var tree = parser.Parse(
+                "MASTER report MarginTop=60 TITLE Margin=20 Text=\"ACME report\"; ENDMASTER " +
+                "NEWPAGE A4 portrait Master=report; " +
+                "LINETEXT 10,10 Text=\"body1\"; " +
+                "NEWPAGE; " +
+                "LINETEXT 10,10 Text=\"body2\";");
+            Assert.False(tree.HasErrors());
+            using var drawer = new PdfDocumentDrawer();
+            new PdfSharpDslCore.Parser.PdfDrawerVisitor().Draw(drawer, tree);
+            var streams = ReadStreams(drawer.PublishPdf()).ToList();
+
+            Assert.Equal(2, streams.Count);
+            Assert.Contains("(ACME report) Tj", streams[0]);
+            Assert.DoesNotContain("(ACME report) Tj", streams[1]);
+        }
+
+        [Fact]
+        public void MasterIsInheritedByRowTemplatePageBreaks()
+        {
+            var parser = new Irony.Parsing.Parser(new PdfSharpDslCore.Parser.PdfGrammar());
+            var tree = parser.Parse(
+                "MASTER report MarginTop=90 TITLE Margin=20 Text=\"ACME report\"; ENDMASTER " +
+                "NEWPAGE A4 portrait Master=report; " +
+                "ROWTEMPLATE Count=16 Y=340 BorderSize=4 RECT 45,0,500,36; ENDROWTEMPLATE");
+            Assert.False(tree.HasErrors());
+            using var drawer = new PdfDocumentDrawer();
+            new PdfSharpDslCore.Parser.PdfDrawerVisitor().Draw(drawer, tree);
+            var streams = ReadStreams(drawer.PublishPdf()).ToList();
+
+            Assert.True(streams.Count > 1, "expected the row template to overflow onto a second page");
+            Assert.All(streams, s => Assert.Contains("(ACME report) Tj", s));
+        }
+
+        [Fact]
+        public void RowTemplatePageBreakDoesNotLeaveTheHeaderStyleBehind()
+        {
+            var parser = new Irony.Parsing.Parser(new PdfSharpDslCore.Parser.PdfGrammar());
+            var tree = parser.Parse(
+                "UDF __ONNEWPAGE() SET FONT Name=\"Courier\" Size=8 regular; SET BRUSH red; SET PEN green 3; ENDUDF " +
+                "SET FONT Name=\"Arial\" Size=10 regular; SET BRUSH black; SET PEN slategray 0.5; " +
+                "ROWTEMPLATE Count=40 Y=100 BorderSize=4 RECT 45,0,500,36; ENDROWTEMPLATE");
+            Assert.False(tree.HasErrors());
+            using var drawer = new PdfDocumentDrawer();
+            new PdfSharpDslCore.Parser.PdfDrawerVisitor().Draw(drawer, tree);
+
+            Assert.True(ReadStreams(drawer.PublishPdf()).Count() > 1, "expected the row template to break the page");
+            Assert.Equal(10, drawer.CurrentFont.Size);
+            Assert.Equal(PdfColors.FromName("black"), drawer.CurrentBrush.Color);
+            Assert.Equal(PdfColors.FromName("slategray"), drawer.CurrentPen.Color);
+        }
+
+        [Fact]
+        public void NewPageAlsoRestoresWhatTheHeaderSet()
+        {
+            var parser = new Irony.Parsing.Parser(new PdfSharpDslCore.Parser.PdfGrammar());
+            var tree = parser.Parse(
+                "UDF __ONNEWPAGE() SET FONT Name=\"Courier\" Size=8 regular; SET BRUSH red; ENDUDF " +
+                "SET FONT Name=\"Arial\" Size=10 regular; NEWPAGE;");
+            using var drawer = new PdfDocumentDrawer();
+            new PdfSharpDslCore.Parser.PdfDrawerVisitor().Draw(drawer, tree);
+
+            Assert.Equal(10, drawer.CurrentFont.Size);
+            Assert.NotEqual(PdfColors.FromName("red"), drawer.CurrentBrush.Color);
+        }
+
+        [Fact]
+        public void UnknownMasterThrows()
+        {
+            var parser = new Irony.Parsing.Parser(new PdfSharpDslCore.Parser.PdfGrammar());
+            var tree = parser.Parse("NEWPAGE A4 portrait Master=missing;");
+            Assert.False(tree.HasErrors());
+            using var drawer = new PdfDocumentDrawer();
+            Assert.Throws<PdfSharpDslCore.Parser.PdfParserException>(
+                () => new PdfSharpDslCore.Parser.PdfDrawerVisitor().Draw(drawer, tree));
+        }
+
+        [Fact]
+        public void FitShrinkReducesFontSizeToFitRect()
+        {
+            var parser = new Irony.Parsing.Parser(new PdfSharpDslCore.Parser.PdfGrammar());
+            var tree = parser.Parse(
+                "SET FONT Name=\"Arial\" Size=24 regular;" +
+                "LINETEXT 10,10,60,20 Fit=shrink Text=\"Long text that overflows\";");
+            Assert.False(tree.HasErrors());
+            using var drawer = new PdfDocumentDrawer();
+            new PdfSharpDslCore.Parser.PdfDrawerVisitor().Draw(drawer, tree);
+            var content = ReadContent(drawer.PublishPdf());
+
+            var match = System.Text.RegularExpressions.Regex.Match(content, @"/F1 ([\d.]+) Tf");
+            Assert.True(match.Success);
+            Assert.True(double.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture) < 24);
+        }
+
+        [Fact]
+        public void OverflowEllipsisTruncatesLastVisibleLine()
+        {
+            var parser = new Irony.Parsing.Parser(new PdfSharpDslCore.Parser.PdfGrammar());
+            var tree = parser.Parse(
+                "SET FONT Name=\"Arial\" Size=10 regular;" +
+                "LINETEXT 10,10,60,12 Overflow=ellipsis Text=\"this is a fairly long line of text that will wrap across many lines\";");
+            Assert.False(tree.HasErrors());
+            using var drawer = new PdfDocumentDrawer();
+            new PdfSharpDslCore.Parser.PdfDrawerVisitor().Draw(drawer, tree);
+            var content = ReadContent(drawer.PublishPdf());
+
+            Assert.Contains(@"\205", content);
+        }
+
+        [Theory]
+        [InlineData("DEBUGOPTIONS DEBUG_TEXT;LINETEXT 10,10 Text=\"hello\";", 1)]
+        [InlineData("DEBUGOPTIONS DEBUG_ROWTEMPLATE;ROWTEMPLATE Count=1 Y=10 LINETEXT 10,0 Text=\"row\"; ENDROWTEMPLATE", 1)]
+        [InlineData("DEBUGOPTIONS DEBUG_RULE;LINETEXT 10,10 Text=\"hello\";NEWPAGE;LINETEXT 10,10 Text=\"hello\";", 2)]
+        [InlineData("LINETEXT 10,10 Text=\"hello\";DEBUGOPTIONS PAGE DEBUG_RULE;NEWPAGE;LINETEXT 10,10 Text=\"hello\";", 1)]
+        [InlineData("LINETEXT 10,10 Text=\"hello\";DEBUGOPTIONS PAGE DEBUG_ALL;NEWPAGE;LINETEXT 10,10 Text=\"hello\";", 1)]
+        [InlineData("DEBUGOPTIONS DEBUG_RECT;SET PEN black 1;ELLIPSE 10,10,50,30;", 1)]
+        [InlineData("DEBUGOPTIONS DEBUG_RECT;SET PEN black 1;POLYGON 10,10,50,10,30,40;", 1)]
+        [InlineData("DEBUGOPTIONS DEBUG_IMAGE;IMAGE 10,10,50,30 point fit Data=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=\";", 1)]
+        [InlineData("DEBUGOPTIONS DEBUG_RECT;IMAGE 10,10,50,30 point fit Data=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=\";", 0)]
+        [InlineData("LINETEXT 10,10 Text=\"hello\";", 0)]
+        public void DebugOptionsAreDrawnInRed(string input, int expectedRedPages)
+        {
+            var parser = new Irony.Parsing.Parser(new PdfSharpDslCore.Parser.PdfGrammar());
+            var tree = parser.Parse(input);
+            Assert.False(tree.HasErrors());
+            using var drawer = new PdfDocumentDrawer();
+            new PdfSharpDslCore.Parser.PdfDrawerVisitor().Draw(drawer, tree);
+
+            var redPages = ReadStreams(drawer.PublishPdf()).Count(content => content.Contains("1.0000 0.0000 0.0000 RG\n"));
+
+            Assert.Equal(expectedRedPages, redPages);
+        }
+
+        private const string GridPen = "1.0000 0.8000 0.8000 RG";
+
+        private static List<string> RenderPages(string input)
+        {
+            var parser = new Irony.Parsing.Parser(new PdfSharpDslCore.Parser.PdfGrammar());
+            var tree = parser.Parse(input);
+            Assert.False(tree.HasErrors());
+            using var drawer = new PdfDocumentDrawer();
+            new PdfSharpDslCore.Parser.PdfDrawerVisitor().Draw(drawer, tree);
+            return ReadStreams(drawer.PublishPdf()).ToList();
+        }
+
+        [Fact]
+        public void DebugGridDrawsLabelledLinesEvery50Points()
+        {
+            var pages = RenderPages("DEBUGOPTIONS DEBUG_GRID;LINETEXT 10,10 Text=\"hello\";");
+
+            var page = Assert.Single(pages);
+            Assert.Contains(GridPen, page);
+            Assert.Contains("(50) Tj", page);
+            Assert.Contains("(800) Tj", page);
+            Assert.Contains("(550) Tj", page);
+        }
+
+        [Fact]
+        public void DebugGridOnPageScopeStopsAtNextPage()
+        {
+            var pages = RenderPages("DEBUGOPTIONS PAGE DEBUG_GRID;LINETEXT 10,10 Text=\"one\";NEWPAGE;LINETEXT 10,10 Text=\"two\";");
+
+            Assert.Equal(2, pages.Count);
+            Assert.Contains(GridPen, pages[0]);
+            Assert.DoesNotContain(GridPen, pages[1]);
+        }
+
+        [Fact]
+        public void DebugGridIsDrawnOnEveryPageWhenGlobal()
+        {
+            var pages = RenderPages("DEBUGOPTIONS DEBUG_GRID;LINETEXT 10,10 Text=\"one\";NEWPAGE;LINETEXT 10,10 Text=\"two\";");
+
+            Assert.All(pages, page => Assert.Contains(GridPen, page));
+        }
+
+        [Fact]
+        public void DebugAllIncludesTheGridAndNoOptionDrawsNone()
+        {
+            Assert.Contains(GridPen, Assert.Single(RenderPages("DEBUGOPTIONS DEBUG_ALL;LINETEXT 10,10 Text=\"one\";")));
+            Assert.DoesNotContain(GridPen, Assert.Single(RenderPages("DEBUGOPTIONS DEBUG_RULE;LINETEXT 10,10 Text=\"one\";")));
+        }
+
+        [Fact]
+        public void RowTemplateDebugRectIsDrawnAtRowPosition()
+        {
+            var parser = new Irony.Parsing.Parser(new PdfSharpDslCore.Parser.PdfGrammar());
+            var tree = parser.Parse("DEBUGOPTIONS DEBUG_ROWTEMPLATE;ROWTEMPLATE Count=1 Y=300 LINE 10,0,100,20; ENDROWTEMPLATE");
+            Assert.False(tree.HasErrors());
+            using var drawer = new PdfDocumentDrawer();
+            new PdfSharpDslCore.Parser.PdfDrawerVisitor().Draw(drawer, tree);
+
+            var content = ReadContent(drawer.PublishPdf());
+
+            //red rect from y=300 to y=320 on A4, pdf y axis is bottom up
+            Assert.Matches(@"1\.0000 0\.0000 0\.0000 RG\n10\.00 521\.89 90\.00 20\.00 re\n", content);
+        }
+
+        [Fact]
         public void PolygonsKeepStylesFromTheirDrawingInstructions()
         {
             var parser = new Irony.Parsing.Parser(new PdfSharpDslCore.Parser.PdfGrammar());
@@ -112,20 +331,19 @@ namespace pdfsharpdslTests
             Assert.True(table.Rows[1].DesiredHeight > table.Rows[0].DesiredHeight);
         }
 
-        private static string ReadContent(byte[] pdf)
+        private static string ReadContent(byte[] pdf) => string.Concat(ReadStreams(pdf));
+
+        private static IEnumerable<string> ReadStreams(byte[] pdf)
         {
             var raw = System.Text.Encoding.Latin1.GetString(pdf);
-            var content = new System.Text.StringBuilder();
             foreach (System.Text.RegularExpressions.Match match in System.Text.RegularExpressions.Regex.Matches(
                 raw, @"stream\r?\n(?<data>.*?)\r?\nendstream", System.Text.RegularExpressions.RegexOptions.Singleline))
             {
                 using var compressed = new MemoryStream(System.Text.Encoding.Latin1.GetBytes(match.Groups["data"].Value));
                 using var inflated = new System.IO.Compression.ZLibStream(compressed, System.IO.Compression.CompressionMode.Decompress);
                 using var reader = new StreamReader(inflated, System.Text.Encoding.Latin1);
-                content.Append(reader.ReadToEnd());
+                yield return reader.ReadToEnd();
             }
-
-            return content.ToString();
         }
 
         [Fact]

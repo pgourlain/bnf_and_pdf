@@ -30,6 +30,25 @@ namespace PdfSharpDslCore.Drawing
         public double Height { get; }
     }
 
+    /// <summary>
+    /// LINETEXT overflow handling: <see cref="ShrinkToFit"/> reduces the font size
+    /// (down to a 4pt floor) until the text fits its rect; <see cref="EllipsisOverflow"/> truncates
+    /// the last visible line with '…' once the text no longer fits the rect's height.
+    /// </summary>
+    public sealed class TextFitOptions
+    {
+        public TextFitOptions(bool shrinkToFit, bool ellipsisOverflow)
+        {
+            ShrinkToFit = shrinkToFit;
+            EllipsisOverflow = ellipsisOverflow;
+        }
+
+        public bool ShrinkToFit { get; }
+        public bool EllipsisOverflow { get; }
+
+        public static readonly TextFitOptions None = new(false, false);
+    }
+
     public struct PdfRect
     {
         public PdfRect(double x, double y, double width, double height)

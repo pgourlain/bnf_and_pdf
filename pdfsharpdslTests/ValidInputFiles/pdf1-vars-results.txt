@@ -4,3 +4,4 @@ C=2500
 S=coucou
 S1=coucoucoucou
 S2=coucou1
+PAGEINDEX=1

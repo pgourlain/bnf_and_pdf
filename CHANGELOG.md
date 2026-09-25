@@ -1,6 +1,31 @@
 
 # Change log
 
+## Version 2.0.2 (September 25, 2026)
+
+* `CHART bar|line|pie x,y,w,h Data=[...] [Labels=[...]] [Colors=[...]];`: one-line charts built from the drawing primitives (axes with round ticks, negative values, pie legend with percentages, default palette). A bare color name (`steelblue`) is now a valid formula, the text of that name. New `ChartRenderer` in `PdfSharpDslCore.Drawing.Charts`.
+* UDF return values: `RETURN formula;` and `SET VAR Y=DOUBLE(21);`. A formula can call a UDF of the script (registered functions come first); recursion is limited to 256 levels. `PdfVisitor` gains a `StopVisiting` hook and `ExecuteReturn`.
+* Host data: `PdfDrawerVisitor.SetData(name, value)` and `$record.field` access (dictionaries by key, objects by public property/field, case-insensitive), chainable with indexes (`$orders[0].customer`). New public `PdfMembers`. A dictionary is a record, not a list.
+* **Behavior change:** `__ONNEWPAGE` and `MASTER` bodies no longer leave their font, brush, pen and highlight brush behind: whatever created the page (`NEWPAGE`, `FLOW`, `ROWTEMPLATE`, `TABLE` rows), the ones current before the page break are restored afterwards. Variables set there stay set. A script that relied on the footer's `SET FONT`/`SET BRUSH` still applying after `NEWPAGE` must set its own.
+* `BARCODE x,y,w,h Type=code128 Text=...;`: Code 128 (sets B and C) drawn as one vector path in the current brush. `IPdfDocumentDrawer` gains `DrawBarcode`.
+* Lists and `FOREACH`: `[a, b, c]` literals, `$LIST[index]` (chainable), `Count(list)` and `FOREACH var IN list DO ... ENDFOREACH`. A host formula function can return an array or list.
+* `INCLUDE "file.ipdf";` splices another file (path relative to the including file, each file included once per document, cycle and depth checks). Parse and run-time errors in an included file name the file and its own line; `IMAGE Source=` is relative to the file that draws it. The console resolves paths from the folder of the drawn file.
+* The demo is split into `demo-common.ipdf` and one file per feature in `demo-includes/`, assembled by `demo.ipdf` with `INCLUDE`; each file can also be drawn alone.
+* `DEBUG_GRID` debug option: a light 50pt grid labelled with its coordinates (also part of `DEBUG_ALL`).
+* `ELSE IF` chains (one `ENDIF`), `WHILE ... DO ... ENDWHILE` (capped at 10 000 iterations) and `FOR ... STEP n`. **Breaking:** `ELSE` directly followed by `IF` (only whitespace between) is now an `ELSE IF`; a nested `IF` in an `ELSE` needs a statement or comment between the two.
+* Named styles: `STYLE name ... ENDSTYLE` (SET PEN/BRUSH/HBRUSH/FONT) and `USE name;`.
+* Removed the stale, uncompiled `PdfSharpDslCore/Parser/PdfGrammar.cs` and `Extensions/ParseTreeNodeExtensions.cs`; the demo's section comments no longer carry page numbers.
+* `FLOW`/`ENDFLOW` layout with `PARAGRAPH` (wrapping, splits across pages) and `SPACE`; `IMAGE` and `TABLE` inside a flow are placed relative to the cursor and page-break automatically. New `$CURSORY` system variable. `IPdfDocumentDrawer` gains `WrapText` and `MeasureImage`, and `DrawTable` now returns the `PdfRect` it occupied; `TableDefinition.BottomMargin` keeps rows off the page bottom.
+* Better errors: `PdfDslDiagnostics` reports unknown instructions ("Did you mean ...?"), missing `;`, and unclosed or mismatched blocks with their line/column; the console uses it. Undefined variables and unknown functions now throw `PdfParserException` with the source position and a suggestion (was `ArgumentOutOfRangeException` / `KeyNotFoundException`).
+* `MASTER`/`ENDMASTER` pages: `NEWPAGE ... Master=name;` runs the master's statements (header/footer) after `__ONNEWPAGE` on every page, including pages a `ROWTEMPLATE` break creates; `MarginTop` becomes the default `NewPageTopMargin` for a `ROWTEMPLATE` that doesn't specify its own.
+* `LINETEXT`'s `Fit=shrink` (reduce font size, down to 4pt, until the text fits its rect) and `Overflow=ellipsis` (truncate the last visible line with `…`) options.
+* `TextWidth(text)` / `TextHeight(text[, maxWidth])` formula functions, measuring text in points with the current font.
+* Built-in formula functions (Math, String, `Format`, `Now`/`Today`, `Iif`), usable without host registration; a host `RegisterFormulaFunction` of the same name still overrides.
+* `$PAGECOUNT` system variable: resolved once every page has been recorded (publish time), usable in `TITLE`/`LINETEXT`, including from `__ONNEWPAGE` footers.
+* Add `PAGE` scope to `DEBUGOPTIONS` (`DEBUGOPTIONS PAGE DEBUG_RULE;`), options are reset on each new page. `GLOBAL` (default) keeps document-wide behavior.
+* Restore red debug overlays lost with the TerraPDF migration (DEBUG_TEXT, DEBUG_ROWTEMPLATE, DEBUG_RULE), and implement DEBUG_RECT and DEBUG_IMAGE. DEBUG_ALL now includes the rule.
+* `$PAGEINDEX` is available on the implicit first page.
+
 ## Version 2.0.1 (September 21, 2026)
 
 * Fix missing DslLanguage dependency

@@ -116,6 +116,69 @@ namespace pdfsharpdslTests
                 drawer.Object.DebugOptions);
         }
 
+        [Theory]
+        [InlineData("DEBUGOPTIONS GLOBAL DEBUG_TEXT;", DebugOptions.DebugText, DebugOptions.None)]
+        [InlineData("DEBUGOPTIONS PAGE DEBUG_RULE, DEBUG_TEXT;", DebugOptions.None, DebugOptions.DebugRule | DebugOptions.DebugText)]
+        [InlineData("DEBUGOPTIONS DEBUG_TEXT;DEBUGOPTIONS PAGE DEBUG_RULE;", DebugOptions.DebugText, DebugOptions.DebugRule)]
+        public void DebugOptionsScope(string input, DebugOptions expectedGlobal, DebugOptions expectedPage)
+        {
+            var tree = ParseText(input);
+            Assert.False(tree.HasErrors());
+            var drawer = new Mock<IPdfDocumentDrawer>();
+            drawer.SetupProperty(x => x.DebugOptions);
+            drawer.SetupProperty(x => x.PageDebugOptions);
+
+            new PdfDrawerVisitor().Draw(drawer.Object, tree);
+
+            Assert.Equal(expectedGlobal, drawer.Object.DebugOptions);
+            Assert.Equal(expectedPage, drawer.Object.PageDebugOptions);
+        }
+
+        [Theory]
+        [InlineData("TEXT 10,20 Text=(\"p\"+$PAGEINDEX);", "p1")]
+        [InlineData("NEWPAGE;TEXT 10,20 Text=(\"p\"+$PAGEINDEX);", "p1")]
+        public void PageIndexIsAvailableOnFirstPage(string input, string expected)
+        {
+            var tree = ParseText(input);
+            Assert.False(tree.HasErrors());
+            using var drawer = new PdfDocumentDrawer();
+            var mock = new Mock<IPdfDocumentDrawer>();
+            mock.SetupGet(x => x.PageWidth).Returns(500);
+            mock.SetupGet(x => x.PageHeight).Returns(800);
+            mock.Setup(x => x.RegisterOnNewPage(It.IsAny<Action<int>>())).Callback<Action<int>>(cb => mock.Setup(x => x.NewPage(null, null)).Callback(() => cb(1)));
+
+            new PdfDrawerVisitor().Draw(mock.Object, tree);
+
+            mock.Verify(x => x.DrawText(expected, 10, 20, null, null), Times.Once);
+        }
+
+        [Fact]
+        public void PageDebugOptionsAreNotHoisted()
+        {
+            var tree = ParseText("LINE 0,0,10,10;DEBUGOPTIONS PAGE DEBUG_RULE;");
+            var drawer = new Mock<IPdfDocumentDrawer>();
+            drawer.SetupProperty(x => x.PageDebugOptions);
+            var pageOptionsAtLine = DebugOptions.DebugAll;
+            drawer.Setup(x => x.DrawLine(0, 0, 10, 10)).Callback(() => pageOptionsAtLine = drawer.Object.PageDebugOptions);
+
+            new PdfDrawerVisitor().Draw(drawer.Object, tree);
+
+            Assert.Equal(DebugOptions.None, pageOptionsAtLine);
+            Assert.Equal(DebugOptions.DebugRule, drawer.Object.PageDebugOptions);
+        }
+
+        [Fact]
+        public void PageDebugOptionsAreResetOnNewPage()
+        {
+            var tree = ParseText("DEBUGOPTIONS DEBUG_TEXT;NEWPAGE;DEBUGOPTIONS PAGE DEBUG_RULE;NEWPAGE;");
+            using var drawer = new PdfDocumentDrawer();
+
+            new PdfDrawerVisitor().Draw(drawer, tree);
+
+            Assert.Equal(DebugOptions.DebugText, drawer.DebugOptions);
+            Assert.Equal(DebugOptions.None, drawer.PageDebugOptions);
+        }
+
             [Theory]
             [InlineData("", TextOrientationEnum.Horizontal, null)]
             [InlineData("Orientation=horizontal", TextOrientationEnum.Horizontal, null)]
@@ -317,7 +380,7 @@ namespace pdfsharpdslTests
                 "CALL FAIL(9);");
             var visitor = new InspectablePdfDrawerVisitor();
 
-            Assert.Throws<ArgumentOutOfRangeException>(() => visitor.Draw(Mock.Of<IPdfDocumentDrawer>(), tree));
+            Assert.Throws<PdfParserException>(() => visitor.Draw(Mock.Of<IPdfDocumentDrawer>(), tree));
 
             Assert.Equal(1.0, visitor.Vars["VALUE"]);
             Assert.False(visitor.Vars.ContainsKey("TEMP"));

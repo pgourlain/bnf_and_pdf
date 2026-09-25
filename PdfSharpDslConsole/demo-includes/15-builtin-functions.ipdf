@@ -1,0 +1,55 @@
+INCLUDE "../demo-common.ipdf";
+
+# -----------------------------------------------------------------------------
+# Built-in functions: no RegisterFormulaFunction needed; a host function of the
+# same name still overrides one of these.
+# -----------------------------------------------------------------------------
+NEWPAGE A4 portrait;
+CALL SECTION("Built-in functions");
+SET FONT Name="Arial" Size=9 regular;
+SET PEN slategray 0.6;
+TABLE 40,75
+HEAD 0xffe8eef7
+COL Width=105 MaxWidth=105 FONT="Consolas",9,bold white steelblue "Group";
+COL Width=210 MaxWidth=210 FONT="Consolas",9,bold white steelblue "Example";
+COL Width=200 MaxWidth=200 FONT="Consolas",9,bold white steelblue "Result";
+ENDHEAD
+ROW
+COL "Math";
+COL "Round(Sum(1,2,Max(3,7)),1)";
+COL Round(Sum(1,2,Max(3,7)),1);
+ENDROW
+ROW
+COL "String";
+COL "Upper(Trim(\"  pdf  \"))";
+COL Upper(Trim("  pdf  "));
+ENDROW
+ROW
+COL "Format";
+COL "Format(1284.5,\"N2\")";
+COL Format(1284.5,"N2");
+ENDROW
+ROW
+COL "Date";
+COL "Format(Today(),\"yyyy-MM-dd\")";
+COL Format(Today(),"yyyy-MM-dd");
+ENDROW
+ROW
+COL "Logic";
+COL "Iif(2>1,\"yes\",\"no\")";
+COL Iif(2>1,"yes","no");
+ENDROW
+ENDTABLE
+
+# TextWidth/TextHeight: measure with the current font to size a box to its content.
+SET FONT Name="Arial" Size=14 bold;
+SET VAR LABEL="Sized to fit";
+SET VAR LABELWIDTH=TextWidth($LABEL);
+SET PEN darkblue 1 solid;
+SET BRUSH lightblue;
+FILLRECT 40,335,$LABELWIDTH+20,26;
+SET BRUSH darkblue;
+LINETEXT 50,335,$LABELWIDTH,26 VAlign=vcenter Text=$LABEL;
+SET FONT Name="Arial" Size=9 regular;
+SET BRUSH black;
+LINETEXT 40,370 Text=("TextWidth(\""+$LABEL+"\") = "+$LABELWIDTH);

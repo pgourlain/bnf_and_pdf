@@ -29,7 +29,24 @@ namespace pdfsharpdslTests
 
         public double PageHeight => 29.7 * 28.34;
 
+        public PdfSize MeasureText(string text, double? maxWidth)
+        {
+            throw new NotImplementedException();
+        }
+
+        public IReadOnlyList<string> WrapText(string text, double maxWidth)
+        {
+            throw new NotImplementedException();
+        }
+
+        public PdfSize MeasureImage(PdfImage image, double? w, double? h, bool sizeInPixel)
+        {
+            throw new NotImplementedException();
+        }
+
         public DebugOptions DebugOptions { get; set ; }
+
+        public DebugOptions PageDebugOptions { get; set; }
 
         public void DrawEllipse(double x, double y, double w, double h, bool isFilled)
         {
@@ -61,7 +78,12 @@ namespace pdfsharpdslTests
             throw new NotImplementedException();
         }
 
-        public void DrawTable(double x, double y, TableDefinition tblDef)
+        public PdfRect DrawTable(double x, double y, TableDefinition tblDef)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void DrawBarcode(double x, double y, double w, double h, PdfBarcodeType type, string text)
         {
             throw new NotImplementedException();
         }
@@ -70,7 +92,7 @@ namespace pdfsharpdslTests
         {
             throw new NotImplementedException();
         }
-        public void DrawLineText(string text, double x, double y, double? w, double? h, PdfHorizontalAlignment hAlign, PdfVerticalAlignment vAlign, TextOrientation textOrientation)
+        public void DrawLineText(string text, double x, double y, double? w, double? h, PdfHorizontalAlignment hAlign, PdfVerticalAlignment vAlign, TextOrientation textOrientation, TextFitOptions? fitOptions = null)
         {
             var halign = $"HAlign={ToHAlign(hAlign)}";
             OutputRendering.Append($"LINETEXT ");

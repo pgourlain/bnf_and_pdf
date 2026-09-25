@@ -135,6 +135,31 @@ namespace PdfSharpDslCore.Parser
             var FillPolygonSmt = new NonTerminal("FillPolygonSmt");
             var ForSmt = new NonTerminal("ForSmt");
             var UdfSmt = new NonTerminal("UdfSmt");
+            var MasterSmt = new NonTerminal("MasterSmt");
+            var MasterBlock = new NonTerminal("MasterBlock");
+            var StyleSmt = new NonTerminal("StyleSmt");
+            var StyleBody = new NonTerminal("StyleBody");
+            var StyleInstruction = new NonTerminal("StyleInstruction");
+            var StyleSet = new NonTerminal("SetSmt");
+            var StyleSetContent = new NonTerminal("StyleSetContent");
+            var UseSmt = new NonTerminal("UseSmt");
+            var ReturnSmt = new NonTerminal("ReturnSmt");
+            var ChartSmt = new NonTerminal("ChartSmt");
+            var ChartType = new NonTerminal("ChartType");
+            var BarcodeSmt = new NonTerminal("BarcodeSmt");
+            var BarcodeType = new NonTerminal("BarcodeType");
+            var ForEachSmt = new NonTerminal("ForEachSmt");
+            var ForEachBlock = new NonTerminal("ForEachBlock");
+            var IncludeSmt = new NonTerminal("IncludeSmt");
+            var WhileSmt = new NonTerminal("WhileSmt");
+            var WhileBlock = new NonTerminal("WhileBlock");
+            var ForStep = new NonTerminal("ForStep");
+            var ElseIfList = new NonTerminal("ElseIfList");
+            var ElseIfClause = new NonTerminal("ElseIfClause");
+            var FlowSmt = new NonTerminal("FlowSmt");
+            var FlowBlock = new NonTerminal("FlowBlock");
+            var ParagraphSmt = new NonTerminal("ParagraphSmt");
+            var SpaceSmt = new NonTerminal("SpaceSmt");
             var UdfInvokeSmt = new NonTerminal("UdfInvokeSmt");
             var IfSmt = new NonTerminal("IfSmt");
             var Else_clause_opt = new NonTerminal("Else_clause_opt");
@@ -161,9 +186,18 @@ namespace PdfSharpDslCore.Parser
             FormulaRoot = FormulaExpression;
             var CustomFunctionExpression = new NonTerminal("CustomFunctionExpression");
             FormulaExpression.Rule = BinaryExpression | FormulaPrimary;
-            FormulaPrimary.Rule = LiteralExpression | UnaryExpression | Parenthesized_Expression | CustomFunctionExpression;
+            var ListExpression = new NonTerminal("ListExpression");
+            var ListItemsOpt = new NonTerminal("ListItemsOpt");
+            var AccessExpression = new NonTerminal("AccessExpression");
+            var AccessList = new NonTerminal("AccessList");
+            var AccessSuffix = new NonTerminal("AccessSuffix");
+            var IndexSuffix = new NonTerminal("IndexSuffix");
+            var MemberSuffix = new NonTerminal("MemberSuffix");
+            FormulaPrimary.Rule = LiteralExpression | UnaryExpression | Parenthesized_Expression | CustomFunctionExpression
+                | ListExpression | AccessExpression;
 
-            LiteralExpression.Rule = number_literal | VarRef | sstring;
+            // a bare color name is the text of that name, so it can be an item of Colors=[steelblue, tomato]
+            LiteralExpression.Rule = number_literal | VarRef | sstring | NamedColor;
             UnaryExpression.Rule = UnOp + FormulaExpression;
             Parenthesized_Expression.Rule = lpar + FormulaExpression + rpar;
             BinaryExpression.Rule = FormulaExpression + BinOp + FormulaExpression;
@@ -176,6 +210,15 @@ namespace PdfSharpDslCore.Parser
             var CustomFunctionArgsOpt = new NonTerminal("CustomFunctionArgsOpt");
             CustomFunctionArgs.Rule = lpar + CustomFunctionArgsOpt + rpar;
             CustomFunctionArgsOpt.Rule = Empty | CallInvokeArgumentslist;
+
+            // lists: [1, 2, 3], [] and $LIST[index]; host records: $ORDER.customer; chainable: $M[0][1], $ORDERS[0].customer
+            ListExpression.Rule = ToTerm("[") + ListItemsOpt + "]";
+            ListItemsOpt.Rule = Empty | CallInvokeArgumentslist;
+            AccessExpression.Rule = VarRef + AccessList;
+            AccessList.Rule = MakePlusRule(AccessList, null, AccessSuffix);
+            AccessSuffix.Rule = IndexSuffix | MemberSuffix;
+            IndexSuffix.Rule = ToTerm("[") + FormulaExpression + "]";
+            MemberSuffix.Rule = ToTerm(".") + variableLiteral;
 
             UnOp.Rule = ToTerm("+") | "-";
             VarRef.Rule = "$" + variableLiteral;
@@ -197,7 +240,7 @@ namespace PdfSharpDslCore.Parser
             comma.ErrorAlias = "',' expected";
             semiOpt.Rule = Empty | semi;
 
-            PdfLine.Rule = UdfSmt | DebugOptionsSmt | PdfInstruction;
+            PdfLine.Rule = UdfSmt | MasterSmt | StyleSmt | IncludeSmt | DebugOptionsSmt | PdfInstruction;
 
             PdfInstruction.Rule = PdfPrimaryInstruction + semiOpt;
 
@@ -224,6 +267,15 @@ namespace PdfSharpDslCore.Parser
                 | UdfInvokeSmt
                 | IfSmt
                 | RowTemplateSmt
+                | FlowSmt
+                | ParagraphSmt
+                | SpaceSmt
+                | UseSmt
+                | WhileSmt
+                | ForEachSmt
+                | BarcodeSmt
+                | ReturnSmt
+                | ChartSmt
             ;
 
             #region basics rules
@@ -299,6 +351,7 @@ namespace PdfSharpDslCore.Parser
 
             //simple line
             LineTextSmt.Rule = ToInstructionTerm("LINETEXT") + RectOrPointLocation + TextAlignment + TextOrientation
+                               + OptArg("Fit", "shrink") + OptArg("Overflow", "ellipsis")
                                + Arg("Text") + FormulaExpression;
             BrushType.Rule = Empty /* | GradientBrush*/;
 
@@ -313,7 +366,7 @@ namespace PdfSharpDslCore.Parser
             }
 
             PageOrientation.Rule = Empty | "portrait" | "landscape";
-            NewPageSmt.Rule = ToInstructionTerm("NEWPAGE") + PageSize + PageOrientation;
+            NewPageSmt.Rule = ToInstructionTerm("NEWPAGE") + PageSize + PageOrientation + OptArg("Master", variableLiteral);
 
             TitleSmt.Rule = ToInstructionTerm("TITLE") + MarginArg + HAlign + Arg("Text") + FormulaExpression;
             MarginArg.Rule = Empty | Arg("Margin") + FormulaExpression;
@@ -363,11 +416,23 @@ namespace PdfSharpDslCore.Parser
 
             var EmbbededSmtList = new NonTerminal("EmbbededSmtList");
             var ForBlock = new NonTerminal("ForBlock");
-            ForSmt.Rule = ToInstructionTerm("FOR") + variableLiteral + "=" + FormulaExpression + "TO" + FormulaExpression + ForBlock;
+            ForSmt.Rule = ToInstructionTerm("FOR") + variableLiteral + "=" + FormulaExpression + "TO" + FormulaExpression + ForStep + ForBlock;
+            ForStep.Rule = Empty | ToTerm("STEP") + FormulaExpression;
             var embbededSmtListOpt = new NonTerminal("EmbbededSmtListOpt");
             this.EmbbededSmtListOpt = embbededSmtListOpt;
             ForBlock.Rule = ToTerm("DO") + embbededSmtListOpt + "ENDFOR";
             embbededSmtListOpt.Rule = Empty + EmbbededSmtList;
+            BarcodeSmt.Rule = ToInstructionTerm("BARCODE") + RectLocation + Arg("Type") + BarcodeType + Arg("Text") + FormulaExpression;
+            BarcodeType.Rule = ToTerm("code128");
+            ChartSmt.Rule = ToInstructionTerm("CHART") + ChartType + RectLocation + Arg("Data") + FormulaExpression
+                            + OptArg("Labels", FormulaExpression) + OptArg("Colors", FormulaExpression);
+            ChartType.Rule = ToTerm("bar") | "line" | "pie";
+            // only meaningful inside a UDF body, the visitor refuses it anywhere else
+            ReturnSmt.Rule = ToInstructionTerm("RETURN") + FormulaExpression;
+            ForEachSmt.Rule = ToInstructionTerm("FOREACH") + variableLiteral + "IN" + FormulaExpression + ForEachBlock;
+            ForEachBlock.Rule = ToTerm("DO") + embbededSmtListOpt + "ENDFOREACH";
+            WhileSmt.Rule = ToInstructionTerm("WHILE") + FormulaExpression + WhileBlock;
+            WhileBlock.Rule = ToTerm("DO") + embbededSmtListOpt + "ENDWHILE";
             EmbbededSmtList.Rule = MakePlusRule(EmbbededSmtList, null, PdfInstruction);
 
             var UdfArgumentslistOpt = new NonTerminal("UdfArgumentslistOpt");
@@ -380,6 +445,25 @@ namespace PdfSharpDslCore.Parser
             UdfArgumentslist.Rule = MakePlusRule(UdfArgumentslist, comma, variableLiteral);
             UdfBlock.Rule = embbededSmtListOpt + "ENDUDF";
 
+            MasterSmt.Rule = ToTerm("MASTER") + variableLiteral + PreferShiftHere() + OptArg("MarginTop", FormulaExpression) + MasterBlock;
+            MasterBlock.Rule = embbededSmtListOpt + "ENDMASTER";
+
+
+            // A style is a named list of SET PEN/BRUSH/HBRUSH/FONT. Its statements are named "SetSmt" like
+            // the regular ones so the visitor replays them unchanged; SET VAR is not allowed in a style.
+            StyleSmt.Rule = ToTerm("STYLE") + variableLiteral + PreferShiftHere() + StyleBody + "ENDSTYLE";
+            StyleBody.Rule = MakePlusRule(StyleBody, null, StyleInstruction);
+            StyleInstruction.Rule = StyleSet + semiOpt;
+            StyleSet.Rule = ToInstructionTerm("SET") + StyleSetContent;
+            StyleSetContent.Rule = PenSmt | BrushSmt | FontSmt | HBrushSmt;
+            // text of another .ipdf file, spliced in place (top level only); see PdfVisitor.ExpandIncludes
+            IncludeSmt.Rule = ToTerm("INCLUDE") + sstring + semiOpt;
+            UseSmt.Rule = ToInstructionTerm("USE") + variableLiteral;
+
+            FlowSmt.Rule = ToInstructionTerm("FLOW") + OptArg("Margin", FormulaExpression) + OptArg("Top", FormulaExpression) + FlowBlock;
+            FlowBlock.Rule = embbededSmtListOpt + "ENDFLOW";
+            ParagraphSmt.Rule = ToInstructionTerm("PARAGRAPH") + HAlign + Arg("Text") + FormulaExpression;
+            SpaceSmt.Rule = ToInstructionTerm("SPACE") + FormulaExpression;
 
             var UdfInvokeArguments = new NonTerminal("UdfInvokeArguments");
             var UdfInvokeArgumentslistOpt = new NonTerminal("UdfInvokeArgumentslistOpt");
@@ -387,7 +471,12 @@ namespace PdfSharpDslCore.Parser
             UdfInvokeArguments.Rule = lpar + UdfInvokeArgumentslistOpt + rpar;
             UdfInvokeArgumentslistOpt.Rule = Empty | CallInvokeArgumentslist;
 
-            IfSmt.Rule = ToInstructionTerm("IF") + FormulaExpression + then_clause + Else_clause_opt + "ENDIF";
+            // "ELSE IF" is one token (any whitespace between the words), so it is never read as an ELSE whose body
+            // starts with a nested IF; that nested form (with its own ENDIF) needs something between ELSE and IF.
+            var elseIf = new RegexBasedTerminal("ELSEIF", @"ELSE\s+IF\b") { Priority = TerminalPriority.High };
+            IfSmt.Rule = ToInstructionTerm("IF") + FormulaExpression + then_clause + ElseIfList + Else_clause_opt + "ENDIF";
+            ElseIfList.Rule = MakeStarRule(ElseIfList, ElseIfClause);
+            ElseIfClause.Rule = elseIf + FormulaExpression + "THEN" + embbededSmtListOpt;
             then_clause.Rule = "THEN" + embbededSmtListOpt;
             Else_clause_opt.Rule = Empty | PreferShiftHere() + "ELSE" + embbededSmtListOpt;
 
@@ -396,20 +485,23 @@ namespace PdfSharpDslCore.Parser
             var debugOption = new IdentifierTerminal("debugOption");
             var debugOptionList = new NonTerminal("debugOptionList");
             debugOptionList.Rule = MakePlusRule(debugOptionList, comma, debugOption);
-            DebugOptionsSmt.Rule = "DEBUGOPTIONS" +  debugOptionList + semi;
+            var DebugScope = new NonTerminal("DebugScope");
+            DebugScope.Rule = Empty | ToTerm("GLOBAL") | "PAGE";
+            DebugOptionsSmt.Rule = "DEBUGOPTIONS" + DebugScope + debugOptionList + semi;
 
 
             RegisterBracePair("(", ")");
 
-            MarkPunctuation(";", ",", "(", ")", "TABLE", "ENDTABLE", "HEAD", "ENDHEAD", "ROW", "ROWTEMPLATE ", "ENDROW", "ENDFOR", "UDF", "ENDUDF", 
-                "IF", "THEN", "ELSE", "ENDIF", "ROWTEMPLATE", "ENDROWTEMPLATE");
+            MarkPunctuation(";", ",", "(", ")", "TABLE", "ENDTABLE", "HEAD", "ENDHEAD", "ROW", "ROWTEMPLATE ", "ENDROW", "ENDFOR", "UDF", "ENDUDF",
+                "IF", "THEN", "ELSE", "ENDIF", "ROWTEMPLATE", "ENDROWTEMPLATE", "MASTER", "ENDMASTER", "FLOW", "ENDFLOW", "STYLE", "ENDSTYLE", "ENDWHILE", "ENDFOREACH", "[", "]", ".");
+            MarkPunctuation(elseIf);
             RegisterBracePair("(", ")");
-            MarkTransient(PdfLine, PdfPrimaryInstruction, SetContent, NumberOrAuto,
+            MarkTransient(PdfLine, PdfPrimaryInstruction, SetContent, StyleSetContent, NumberOrAuto,
                  styleExpr, semiOpt, PixelOrPoint, HAlignValue, TextOrientationValue, VAlignValue,
                  embbededSmtListOpt,
                  UdfArguments, UdfArgumentslistOpt,
                  UdfInvokeArguments, UdfInvokeArgumentslistOpt, stylePenOpt,
-                 CustomFunctionArgs, CustomFunctionArgsOpt, TableRowTemplateCount);
+                 CustomFunctionArgs, CustomFunctionArgsOpt, TableRowTemplateCount, ListItemsOpt, AccessSuffix);
 
             this.AddTermsReportGroup("punctuation", comma);
             this.AddToNoReportGroup("(", "++", "--");

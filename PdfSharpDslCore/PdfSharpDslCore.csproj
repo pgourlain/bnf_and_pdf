@@ -22,10 +22,6 @@
 		<ProjectReference Include="..\PdfSharpDsl.Language\PdfSharpDsl.Language.csproj" />
 	</ItemGroup>
 	<ItemGroup>
-		<Compile Remove="Extensions\ParseTreeNodeExtensions.cs" />
-		<Compile Remove="Parser\PdfGrammar.cs" />
-	</ItemGroup>
-	<ItemGroup>
 		<InternalsVisibleTo Include="pdfsharpdslTests" />
 	</ItemGroup>
 	<!--

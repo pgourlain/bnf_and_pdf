@@ -1,0 +1,50 @@
+# Shared by demo.ipdf and every file of demo-includes/ (INCLUDE loads a file only once).
+# Reusable UDFs, named styles and the report master.
+
+
+# Reusable components. UDFs may be called before or after their definitions.
+UDF SECTION(TITLETEXT)
+    SET FONT Name="Arial" Size=20 bold;
+    SET BRUSH darkblue;
+    TITLE Margin=24 HAlign=hcenter Text=$TITLETEXT;
+    SET PEN steelblue 1;
+    LINE 36,54,$PAGEWIDTH-36,54;
+ENDUDF
+
+UDF BADGE(X,Y,LABEL)
+    SET PEN darkblue 1 solid;
+    SET BRUSH lightblue;
+    FILLRECT $X,$Y,110,30;
+    SET FONT Name="Arial" Size=10 bold;
+    SET BRUSH darkblue;
+    LINETEXT $X,$Y,110,30 HAlign=hcenter VAlign=vcenter Text=$LABEL;
+ENDUDF
+
+
+# Special callback: runs after every NEWPAGE and can publish global variables.
+UDF __ONNEWPAGE()
+    SET VAR CONTENTWIDTH=$PAGEWIDTH-72;
+    SET VAR CONTENTHEIGHT=$PAGEHEIGHT-72;
+    SET FONT Name="Arial" Size=8 regular;
+    SET BRUSH gray;
+    TITLE Margin=-18 HAlign=hcenter Text=("PdfSharpDsl demo | page "+$PAGEINDEX+" / "+$PAGECOUNT);
+ENDUDF
+
+STYLE body
+    SET FONT Name="Arial" Size=11 regular;
+    SET BRUSH black;
+ENDSTYLE
+
+STYLE caption
+    SET FONT Name="Arial" Size=9 italic;
+    SET BRUSH slategray;
+ENDSTYLE
+
+# A master is only applied by NEWPAGE ... Master=report; (see demo-includes/10-master.ipdf).
+MASTER report MarginTop=90
+    SET FONT Name="Arial" Size=14 bold;
+    SET BRUSH darkblue;
+    TITLE Margin=24 HAlign=hcenter Text="ACME report";
+    SET PEN steelblue 1;
+    LINE 36,50,$PAGEWIDTH-36,50;
+ENDMASTER
